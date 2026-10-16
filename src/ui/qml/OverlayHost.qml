@@ -17,8 +17,30 @@ Item {
     Item { id: popupLayer; anchors.fill: parent; z: 100 }
     Item { id: dropdownLayer; anchors.fill: parent; z: 200 }
     Item { id: tooltipLayer; anchors.fill: parent; z: 300 }
+
+    Item {
+        id: toastLayer
+        anchors.fill: parent
+        z: 400
+
+        ToastStack {
+            anchors.fill: parent
+            coordinator: root.coordinator
+        }
+    }
+
     Item { id: modalLayer; anchors.fill: parent; z: 500 }
-    Item { id: dialogLayer; anchors.fill: parent; z: 600 }
+
+    Item {
+        id: dialogLayer
+        anchors.fill: parent
+        z: 600
+
+        DialogOverlay {
+            anchors.fill: parent
+            coordinator: root.coordinator
+        }
+    }
 
     Item {
         id: busyLayer
@@ -36,5 +58,4 @@ Item {
     }
 
     Item { id: criticalLayer; anchors.fill: parent; z: 800 }
-    Item { id: toastLayer; anchors.fill: parent; z: 400 }
 }
