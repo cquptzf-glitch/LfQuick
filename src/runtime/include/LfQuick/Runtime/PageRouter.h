@@ -26,8 +26,8 @@ class LFQUICKRUNTIME_EXPORT PageRouter : public QObject
     Q_PROPERTY(int depth READ depth NOTIFY historyChanged FINAL)
     Q_PROPERTY(int maxRetainedLruPages READ maxRetainedLruPages WRITE setMaxRetainedLruPages NOTIFY cachePolicyChanged FINAL)
     Q_PROPERTY(qint64 maxRetainedLruWeight READ maxRetainedLruWeight WRITE setMaxRetainedLruWeight NOTIFY cachePolicyChanged FINAL)
-    Q_PROPERTY(qint64 retainedLruWeight READ retainedLruWeight NOTIFY cachePolicyChanged FINAL)
-    Q_PROPERTY(int singletonCount READ singletonCount NOTIFY cachePolicyChanged FINAL)
+    Q_PROPERTY(qint64 retainedLruWeight READ retainedLruWeight NOTIFY cacheStateChanged FINAL)
+    Q_PROPERTY(int singletonCount READ singletonCount NOTIFY cacheStateChanged FINAL)
 
 public:
     explicit PageRouter(PageRegistry *pages,
@@ -59,6 +59,7 @@ signals:
     void currentRouteChanged(const QString &route);
     void historyChanged();
     void cachePolicyChanged();
+    void cacheStateChanged();
     void navigationFailed(const QString &route, const QString &message);
     void navigationBlocked(const QString &fromRoute,
                            const QString &toRoute,
