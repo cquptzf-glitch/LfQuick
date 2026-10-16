@@ -12,12 +12,13 @@ ApplicationWindow {
     color: Tokens.surface
 
     property int currentPage: 0
+    property string guardReason: ""
     readonly property var routes: [
-        "/dashboard", "/samples", "/results",
+        "/dashboard", "/samples", "/results", "/results-review",
         "/instrument", "/alarms", "/developer"
     ]
     readonly property var pageFiles: [
-        "DashboardPage.qml", "SamplesPage.qml", "ResultsPage.qml",
+        "DashboardPage.qml", "SamplesPage.qml", "ResultsPage.qml", "ResultsReviewPage.qml",
         "InstrumentPage.qml", "AlarmsPage.qml", "DeveloperPage.qml"
     ]
 
@@ -84,6 +85,39 @@ ApplicationWindow {
         coordinator: overlayCoordinator
     }
 
+    Dialog {
+        id: guardDialog
+        anchors.centerIn: parent
+        modal: true
+        title: qsTr("Leave current page?")
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: quickRuntime.navigationGuard.confirmPending()
+        onRejected: quickRuntime.navigationGuard.cancelPending()
+
+        contentItem: Label {
+            width: 380
+            text: window.guardReason
+            wrapMode: Text.WordWrap
+            color: Tokens.textPrimary
+        }
+    }
+
+    Dialog {
+        id: hardBlockDialog
+        anchors.centerIn: parent
+        modal: true
+        title: qsTr("Navigation blocked")
+        standardButtons: Dialog.Ok
+        onAccepted: quickRuntime.navigationGuard.cancelPending()
+
+        contentItem: Label {
+            width: 380
+            text: window.guardReason
+            wrapMode: Text.WordWrap
+            color: Tokens.textPrimary
+        }
+    }
+
     function indexForRoute(route) {
         const index = window.routes.indexOf(route)
         return index < 0 ? 0 : index
@@ -104,6 +138,18 @@ ApplicationWindow {
         target: quickRuntime
         function onCurrentRouteChanged() {
             window.currentPage = window.indexForRoute(quickRuntime.currentRoute)
+        }
+    }
+
+    Connections {
+        target: quickRuntime.navigationGuard
+        function onConfirmationRequested(fromRoute, toRoute, reason) {
+            window.guardReason = reason
+            guardDialog.open()
+        }
+        function onHardBlocked(fromRoute, toRoute, reason) {
+            window.guardReason = reason
+            hardBlockDialog.open()
         }
     }
 }

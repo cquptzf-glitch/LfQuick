@@ -1,18 +1,45 @@
+#include <LfQuick/Core/Permission.h>
 #include <LfQuick/DataView/DataTableModel.h>
 #include <LfQuick/Platform/InputRouter.h>
 #include <LfQuick/Platform/KeyboardWedgeScanner.h>
 #include <LfQuick/Ui/OverlayCoordinator.h>
+#include <LfQuick/Ui/PermissionEvaluator.h>
 #include <LfQuick/Ui/QuickRuntime.h>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include <QQuickStyle>
 #include <QTimer>
 #include <QVariantList>
 
+#include <memory>
+
 using namespace LfQuick;
 
 namespace {
+
+class DemoPermissionProvider final : public IPermissionProvider
+{
+public:
+    PermissionState evaluate(QStringView permissionId,
+                             const QVariantMap &context) const override
+    {
+        if (permissionId != QStringView(u"demo.results.review"))
+            return PermissionState::Denied;
+
+        const QString role = context.value(QStringLiteral("role"),
+                                           QStringLiteral("operator"))
+                                 .toString().trimmed().toLower();
+        if (role == QStringLiteral("reviewer"))
+            return PermissionState::Allow;
+        if (role == QStringLiteral("operator"))
+            return PermissionState::ReadOnly;
+        if (role == QStringLiteral("guest"))
+            return PermissionState::Denied;
+        return PermissionState::Disabled;
+    }
+};
 
 void seedSampleModel(DataTableModel &model, int count)
 {
@@ -113,6 +140,8 @@ int main(int argc, char *argv[])
     inputRouter.installOn(&app);
 
     OverlayCoordinator overlayCoordinator;
+    PermissionEvaluator permissionEvaluator;
+    permissionEvaluator.setProvider(std::make_shared<DemoPermissionProvider>());
 
     QQmlApplicationEngine engine;
     QuickRuntime quickRuntime(&engine);
@@ -122,6 +151,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("scanner"), &scanner);
     engine.rootContext()->setContextProperty(QStringLiteral("inputRouter"), &inputRouter);
     engine.rootContext()->setContextProperty(QStringLiteral("overlayCoordinator"), &overlayCoordinator);
+    engine.rootContext()->setContextProperty(QStringLiteral("permissionEvaluator"), &permissionEvaluator);
     engine.rootContext()->setContextProperty(QStringLiteral("quickRuntime"), &quickRuntime);
 
     QTimer liveDataTimer(&app);

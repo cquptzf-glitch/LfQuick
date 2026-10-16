@@ -1,4 +1,3 @@
-
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -15,7 +14,11 @@ Pane {
         spacing: 6
 
         Repeater {
-            model: [qsTr("Dashboard"), qsTr("Samples"), qsTr("Results"), qsTr("Instrument"), qsTr("Alarms"), qsTr("Developer")]
+            model: [
+                qsTr("Dashboard"), qsTr("Samples"), qsTr("Results"),
+                qsTr("Results Review"), qsTr("Instrument"), qsTr("Alarms"),
+                qsTr("Developer")
+            ]
 
             Button {
                 required property string modelData
