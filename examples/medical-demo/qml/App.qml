@@ -16,6 +16,10 @@ ApplicationWindow {
         "/dashboard", "/samples", "/results",
         "/instrument", "/alarms", "/developer"
     ]
+    readonly property var pageFiles: [
+        "DashboardPage.qml", "SamplesPage.qml", "ResultsPage.qml",
+        "InstrumentPage.qml", "AlarmsPage.qml", "DeveloperPage.qml"
+    ]
 
     header: ToolBar {
         RowLayout {
@@ -90,8 +94,7 @@ ApplicationWindow {
 
         for (let i = 0; i < window.routes.length; ++i) {
             const route = window.routes[i]
-            const file = route.substring(1)
-            quickRuntime.registerPage(route, Qt.resolvedUrl(file + "Page.qml"), 2)
+            quickRuntime.registerPage(route, Qt.resolvedUrl(window.pageFiles[i]), 2)
         }
 
         quickRuntime.push("/dashboard")
