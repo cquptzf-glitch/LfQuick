@@ -29,7 +29,7 @@ void invokeOptional(QObject *object, const char *method)
 
 } // namespace
 
-struct WidgetWindowProvider::SharedState
+struct WidgetWindowProviderState
 {
     QHash<WindowInstanceId, QPointer<QWidget>> widgets;
 };
@@ -41,7 +41,7 @@ class WidgetWindowInstance final : public IWindowInstance
 public:
     WidgetWindowInstance(WindowInstanceId id,
                          QWidget *widget,
-                         std::shared_ptr<WidgetWindowProvider::SharedState> state)
+                         std::shared_ptr<WidgetWindowProviderState> state)
         : m_id(std::move(id)), m_widget(widget), m_state(std::move(state))
     {
     }
@@ -87,7 +87,12 @@ public:
             return allowed;
         }
 
-        return !m_widget->property("lfquickWindowCloseBlocked").toBool();
+        if (m_widget->property("lfquickWindowCloseBlocked").toBool()) {
+            if (reason)
+                *reason = m_widget->property("lfquickWindowCloseReason").toString();
+            return false;
+        }
+        return true;
     }
 
     bool updateParameters(const QVariantMap &parameters) override
@@ -152,13 +157,13 @@ public:
 private:
     WindowInstanceId m_id;
     QPointer<QWidget> m_widget;
-    std::shared_ptr<WidgetWindowProvider::SharedState> m_state;
+    std::shared_ptr<WidgetWindowProviderState> m_state;
 };
 
 } // namespace
 
 WidgetWindowProvider::WidgetWindowProvider()
-    : m_state(std::make_shared<SharedState>())
+    : m_state(std::make_shared<WidgetWindowProviderState>())
 {
 }
 
