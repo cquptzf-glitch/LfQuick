@@ -10,8 +10,8 @@ target_compile_definitions(LfQuickUi PRIVATE LFQUICKUI_LIBRARY)
 
 target_include_directories(LfQuickUi
     PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_INSTALL_INCLUDEDIR}
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
