@@ -1,4 +1,3 @@
-
 qt_add_executable(LfQuickMedicalDemo
     cpp/main.cpp
 )
@@ -8,6 +7,8 @@ target_link_libraries(LfQuickMedicalDemo
         LfQuick::Core
         LfQuick::Runtime
         LfQuick::Ui
+        LfQuick::DataView
+        LfQuick::Platform
         Qt6::Gui
         Qt6::Qml
         Qt6::Quick
