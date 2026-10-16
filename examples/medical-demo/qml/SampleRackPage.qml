@@ -125,7 +125,7 @@ LfPage {
                 color: Tokens.textPrimary
             }
             Label {
-                text: qsTr("%1 samples in rack").arg(rackModel.rowCount())
+                text: qsTr("%1 samples in rack").arg(rackModel.count)
                 color: Tokens.textSecondary
             }
             Item { Layout.fillWidth: true }
@@ -138,7 +138,7 @@ LfPage {
                 onActiveFocusChanged: root.updateScanner()
                 onAccepted: {
                     rackGrid.clearSelection()
-                    if (rackModel.rowCount() > 0)
+                    if (rackModel.count > 0)
                         rackGrid.focusFirstCell()
                 }
             }
@@ -170,7 +170,7 @@ LfPage {
             }
             Button {
                 text: qsTr("Select all in rack")
-                enabled: rackModel.rowCount() > 0
+                enabled: rackModel.count > 0
                 onClicked: rackGrid.selectAllRows()
             }
             Button {

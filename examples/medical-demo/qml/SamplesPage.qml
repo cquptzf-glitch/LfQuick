@@ -8,6 +8,7 @@ LfPage {
     id: root
     title: qsTr("Samples")
 
+    property bool pageActive: false
     property bool scanMode: false
     property string busyToken: ""
 
@@ -22,7 +23,15 @@ LfPage {
         scope: root
     }
 
-    onDeactivated: scanner.enabled = false
+    onActivated: {
+        root.pageActive = true
+        scanner.enabled = root.scanMode && barcodeField.activeFocus
+    }
+
+    onDeactivated: {
+        root.pageActive = false
+        scanner.enabled = false
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -62,7 +71,7 @@ LfPage {
                 placeholderText: qsTr("Scan barcode")
                 activeFocusOnTab: true
                 onActiveFocusChanged: {
-                    scanner.enabled = root.scanMode && activeFocus
+                    scanner.enabled = root.pageActive && root.scanMode && activeFocus
                 }
                 onAccepted: {
                     if (text.length > 0)
@@ -75,12 +84,13 @@ LfPage {
                 checked: root.scanMode
                 onToggled: {
                     root.scanMode = checked
-                    scanner.enabled = checked && barcodeField.activeFocus
+                    scanner.enabled = root.pageActive && checked && barcodeField.activeFocus
                 }
             }
 
             Button {
                 text: qsTr("Simulate Scan")
+                enabled: root.pageActive
                 onClicked: scanner.simulateScan("DEMO-SCAN-001")
             }
 
@@ -125,25 +135,31 @@ LfPage {
     Connections {
         target: scanner.session
         function onScanAccepted(value) {
+            if (!root.pageActive)
+                return
             barcodeField.text = value
             root.scanMode = false
             scanner.enabled = false
-            sampleModel.appendRow({
-                sampleId: "SCAN-" + value,
-                barcode: value,
-                sampleType: "Serum",
-                rack: "SCAN",
-                position: 1,
-                priority: "STAT",
-                status: "Pending",
-                testCount: 1,
-                result: "",
-                createTime: "Now"
-            })
+            if (sampleModel.findFirst("barcode", value, Qt.CaseInsensitive) < 0) {
+                sampleModel.appendRow({
+                    sampleId: "SCAN-" + value,
+                    barcode: value,
+                    sampleType: "Serum",
+                    rack: "SCAN",
+                    position: 1,
+                    priority: "STAT",
+                    status: "Pending",
+                    testCount: 1,
+                    result: "",
+                    createTime: "Now"
+                })
+            }
             barcodeField.forceActiveFocus()
         }
 
         function onScanRejected(rawValue, reason) {
+            if (!root.pageActive)
+                return
             console.warn("Scanner rejected:", rawValue, reason)
         }
     }

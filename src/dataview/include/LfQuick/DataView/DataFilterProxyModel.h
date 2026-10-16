@@ -15,6 +15,7 @@ class LFQUICKDATAVIEW_EXPORT DataFilterProxyModel : public QSortFilterProxyModel
     Q_PROPERTY(QString filterKey READ filterKey WRITE setFilterKey NOTIFY filterKeyChanged FINAL)
     Q_PROPERTY(bool caseSensitive READ caseSensitive WRITE setCaseSensitive NOTIFY caseSensitiveChanged FINAL)
     Q_PROPERTY(bool exactMatch READ exactMatch WRITE setExactMatch NOTIFY exactMatchChanged FINAL)
+    Q_PROPERTY(int count READ rowCount NOTIFY countChanged FINAL)
 
 public:
     explicit DataFilterProxyModel(QObject *parent = nullptr);
@@ -39,6 +40,7 @@ signals:
     void filterKeyChanged();
     void caseSensitiveChanged();
     void exactMatchChanged();
+    void countChanged();
 
 protected:
     bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override;
