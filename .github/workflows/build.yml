@@ -104,7 +104,10 @@ jobs:
           exit 0
 
       - name: Install deployable demos
-        run: cmake --install $env:BUILD_DIR --config Release --prefix $env:STAGE_DIR
+        shell: pwsh
+        run: |
+          $stage = Join-Path $env:GITHUB_WORKSPACE $env:STAGE_DIR
+          cmake --install $env:BUILD_DIR --config Release --prefix $stage
 
       - name: Add package metadata
         shell: pwsh
