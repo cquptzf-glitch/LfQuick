@@ -2,8 +2,9 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import LfQuick
 
-Page {
+LfPage {
     title: qsTr("Dashboard")
 
     ColumnLayout {
