@@ -13,10 +13,10 @@ namespace LfQuick {
 QuickRuntime::QuickRuntime(QQmlEngine *engine, QObject *parent)
     : QObject(parent)
     , m_engine(engine)
-    , m_pages(new PageRegistry)
-    , m_providers(new PageProviderRegistry)
+    , m_pages(std::make_unique<PageRegistry>())
+    , m_providers(std::make_unique<PageProviderRegistry>())
     , m_provider(std::make_shared<QuickPageProvider>(engine))
-    , m_router(std::make_unique<PageRouter>(m_pages, m_providers, this))
+    , m_router(std::make_unique<PageRouter>(m_pages.get(), m_providers.get(), this))
 {
     m_providers->registerProvider(m_provider);
 
@@ -34,8 +34,7 @@ QuickRuntime::~QuickRuntime()
 {
     m_router->reset();
     m_providers->unregisterProvider(QStringLiteral("quick"));
-    delete m_providers;
-    delete m_pages;
+    // Registries and router are owned by unique_ptr and are destroyed automatically.
 }
 
 QString QuickRuntime::currentRoute() const
