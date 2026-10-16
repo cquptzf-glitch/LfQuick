@@ -17,6 +17,7 @@ class LFQUICKDATAVIEW_EXPORT DataTableModel : public QAbstractTableModel
     Q_OBJECT
     QML_ELEMENT
     Q_PROPERTY(QStringList columnKeys READ columnKeys WRITE setColumnKeys NOTIFY columnKeysChanged FINAL)
+    Q_PROPERTY(QStringList columnTitles READ columnTitles WRITE setColumnTitles NOTIFY columnTitlesChanged FINAL)
     Q_PROPERTY(int count READ rowCount NOTIFY countChanged FINAL)
 
 public:
@@ -24,6 +25,9 @@ public:
 
     QStringList columnKeys() const;
     void setColumnKeys(const QStringList &keys);
+
+    QStringList columnTitles() const;
+    void setColumnTitles(const QStringList &titles);
 
     int rowCount(const QModelIndex &parent = {}) const override;
     int columnCount(const QModelIndex &parent = {}) const override;
@@ -45,6 +49,7 @@ public:
 
 signals:
     void columnKeysChanged();
+    void columnTitlesChanged();
     void countChanged();
 
 private:
@@ -53,6 +58,7 @@ private:
     void rebuildRoles();
 
     QStringList m_columnKeys;
+    QStringList m_columnTitles;
     QVector<QVariantMap> m_rows;
     QHash<int, QByteArray> m_roles;
     QHash<QString, int> m_keyToRole;
