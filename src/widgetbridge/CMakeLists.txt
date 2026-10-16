@@ -1,6 +1,7 @@
 add_library(LfQuickWidgetBridge
     src/QuickSurface.cpp
     src/WidgetPageProvider.cpp
+    src/WidgetWindowProvider.cpp
     src/WidgetFocusBridge.cpp
     src/WidgetOverlayBackend.cpp
 )
@@ -29,6 +30,7 @@ target_sources(LfQuickWidgetBridge PUBLIC
         include/LfQuick/WidgetBridge/LfQuickWidgetBridgeGlobal.h
         include/LfQuick/WidgetBridge/QuickSurface.h
         include/LfQuick/WidgetBridge/WidgetPageProvider.h
+        include/LfQuick/WidgetBridge/WidgetWindowProvider.h
         include/LfQuick/WidgetBridge/WidgetFocusBridge.h
         include/LfQuick/WidgetBridge/WidgetOverlayBackend.h
 )
