@@ -1,10 +1,13 @@
 #include <LfQuick/Runtime/IPageInstance.h>
 #include <LfQuick/Runtime/PageDescriptor.h>
+#include <LfQuick/Ui/OverlayCoordinator.h>
 #include <LfQuick/WidgetBridge/WidgetFocusBridge.h>
+#include <LfQuick/WidgetBridge/WidgetOverlayBackend.h>
 #include <LfQuick/WidgetBridge/WidgetPageProvider.h>
 
 #include <QApplication>
 #include <QDeadlineTimer>
+#include <QFrame>
 #include <QLabel>
 #include <QLineEdit>
 #include <QQuickItem>
@@ -69,6 +72,33 @@ private slots:
         QVERIFY(!provider.canCreate(descriptor));
         QVERIFY(provider.create(descriptor, {}) == nullptr);
         QVERIFY(provider.lastError().contains(QStringLiteral("missing")));
+    }
+
+    void widgetOverlayBackendRendersCoordinatorToast()
+    {
+        QWidget window;
+        window.resize(640, 360);
+
+        OverlayCoordinator coordinator;
+        WidgetOverlayBackend backend(&window);
+        coordinator.setBackend(&backend);
+        QVERIFY(coordinator.externalBackendActive());
+
+        const QString toastId = coordinator.showToast(
+            QStringLiteral("Legacy page notification"),
+            {{QStringLiteral("severity"), QStringLiteral("success")},
+             {QStringLiteral("durationMs"), 0}});
+        QVERIFY(!toastId.isEmpty());
+        QCOMPARE(coordinator.toastCount(), 1);
+
+        auto *frame = window.findChild<QFrame *>(QStringLiteral("lfquickToast"));
+        QVERIFY(frame);
+        QVERIFY(frame->findChildren<QLabel *>().size() >= 2);
+
+        QVERIFY(coordinator.dismissToast(toastId));
+        QCOMPARE(coordinator.toastCount(), 0);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QVERIFY(!window.findChild<QFrame *>(QStringLiteral("lfquickToast")));
     }
 
     void focusBridgeTransfersWidgetTabIntoQuickBoundary()
