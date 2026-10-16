@@ -4,11 +4,16 @@
 
 #include <QVariantMap>
 
+#include <functional>
+#include <utility>
+
 namespace LfQuick {
 
 class LFQUICKRUNTIME_EXPORT IWindowInstance
 {
 public:
+    using CloseRequestHandler = std::function<void()>;
+
     virtual ~IWindowInstance() = default;
 
     virtual WindowInstanceId instanceId() const = 0;
@@ -19,6 +24,15 @@ public:
     {
         Q_UNUSED(reason);
         return true;
+    }
+
+    // Native window systems can request a close independently from the
+    // WindowRouter (for example, a title-bar close button). Providers should
+    // route that request through this callback so guards, owner propagation,
+    // diagnostics and router bookkeeping remain authoritative.
+    virtual void setCloseRequestHandler(CloseRequestHandler handler)
+    {
+        Q_UNUSED(handler);
     }
 
     virtual bool updateParameters(const QVariantMap &parameters)
