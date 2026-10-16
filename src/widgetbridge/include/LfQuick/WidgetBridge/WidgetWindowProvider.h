@@ -14,6 +14,8 @@ class QWidget;
 
 namespace LfQuick {
 
+struct WidgetWindowProviderState;
+
 class LFQUICKWIDGETBRIDGE_EXPORT WidgetWindowProvider final : public IWindowProvider
 {
 public:
@@ -34,8 +36,7 @@ public:
     bool hasFactory(QStringView id) const;
 
 private:
-    struct SharedState;
-    std::shared_ptr<SharedState> m_state;
+    std::shared_ptr<WidgetWindowProviderState> m_state;
     QHash<QString, Factory> m_factories;
     WindowProviderError m_lastErrorInfo;
 };
