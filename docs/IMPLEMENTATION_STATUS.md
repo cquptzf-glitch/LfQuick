@@ -93,8 +93,6 @@
 ### P0
 - Page cache policy
 - navigation guard / unsaved-change guard
-- Page cache policy
-- navigation guard / unsaved-change guard
 - QML error collector + fallback
 - QuickSurface first-frame telemetry
 - WidgetBridge hybrid sample
