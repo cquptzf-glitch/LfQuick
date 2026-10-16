@@ -74,6 +74,12 @@ if(LFQUICK_BUILD_UI)
     )
     target_link_libraries(tst_ui_state PRIVATE LfQuick::Ui Qt6::Test)
     lfquick_register_test(tst_ui_state)
+
+    qt_add_executable(tst_navigation_guard_policy
+        unit/tst_navigation_guard_policy.cpp
+    )
+    target_link_libraries(tst_navigation_guard_policy PRIVATE LfQuick::Ui Qt6::Test)
+    lfquick_register_test(tst_navigation_guard_policy)
 endif()
 
 if(LFQUICK_BUILD_WIDGET_BRIDGE)
