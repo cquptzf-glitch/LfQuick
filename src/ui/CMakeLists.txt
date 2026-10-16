@@ -6,6 +6,7 @@ qt_add_library(LfQuickUi
     src/NavigationGuardState.cpp
     src/NavigationGuardController.cpp
     src/PermissionEvaluator.cpp
+    src/ValidationEvaluator.cpp
     src/QuickRuntime.cpp
 )
 add_library(LfQuick::Ui ALIAS LfQuickUi)
@@ -48,6 +49,7 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/NavigationGuardState.h
         include/LfQuick/Ui/NavigationGuardController.h
         include/LfQuick/Ui/PermissionEvaluator.h
+        include/LfQuick/Ui/ValidationEvaluator.h
         include/LfQuick/Ui/QuickRuntime.h
 )
 

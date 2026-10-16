@@ -2,6 +2,7 @@
 #include <LfQuick/Core/Event.h>
 #include <LfQuick/Core/OperationHandle.h>
 #include <LfQuick/Core/Result.h>
+#include <LfQuick/Core/Validation.h>
 
 #include <QtTest>
 
@@ -40,6 +41,37 @@ private slots:
         QCOMPARE(dispatcher.subscriberCount(QStringLiteral("sample.updated")), 0);
         dispatcher.publish({QStringLiteral("sample.updated"), 7});
         QCOMPARE(received, 1);
+    }
+
+    void validationSupportsRequiredLengthAndRegex()
+    {
+        LfQuick::ValidationRule rule;
+        rule.required = true;
+        rule.minLength = 4;
+        rule.maxLength = 8;
+        rule.regularExpression = QStringLiteral("[A-Z0-9-]+");
+
+        QVERIFY(!LfQuick::validateValue(QString(), rule).valid);
+        QVERIFY(!LfQuick::validateValue(QStringLiteral("A1"), rule).valid);
+        QVERIFY(!LfQuick::validateValue(QStringLiteral("abcd"), rule).valid);
+        QVERIFY(LfQuick::validateValue(QStringLiteral("S-001"), rule).valid);
+        QVERIFY(!LfQuick::validateValue(QStringLiteral("S-001-XYZ"), rule).valid);
+    }
+
+    void validationSupportsRangePrecisionAndOptionalEmpty()
+    {
+        LfQuick::ValidationRule rule;
+        rule.minimum = 1;
+        rule.maximum = 100;
+        rule.precision = 2;
+
+        QVERIFY(LfQuick::validateValue(QVariant{}, rule).valid);
+        QVERIFY(LfQuick::validateValue(QString{}, rule).valid);
+        QVERIFY(!LfQuick::validateValue(QStringLiteral("abc"), rule).valid);
+        QVERIFY(!LfQuick::validateValue(QStringLiteral("0.5"), rule).valid);
+        QVERIFY(!LfQuick::validateValue(QStringLiteral("100.01"), rule).valid);
+        QVERIFY(!LfQuick::validateValue(QStringLiteral("12.345"), rule).valid);
+        QVERIFY(LfQuick::validateValue(QStringLiteral("12.34"), rule).valid);
     }
 };
 

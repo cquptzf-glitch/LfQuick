@@ -1,9 +1,9 @@
-
 #pragma once
 
 #include <LfQuick/Core/LfQuickCoreGlobal.h>
 
 #include <QString>
+#include <QStringView>
 #include <QVariant>
 
 namespace LfQuick {
@@ -25,6 +25,9 @@ struct LFQUICKCORE_EXPORT ValidationResult
     bool valid = true;
     QString message;
 };
+
+LFQUICKCORE_EXPORT ValidationResult validateValue(const QVariant &value,
+                                                   const ValidationRule &rule);
 
 class LFQUICKCORE_EXPORT IValidationRuleProvider
 {

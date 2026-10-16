@@ -3,6 +3,7 @@
 #include <LfQuick/Ui/PermissionEvaluator.h>
 #include <LfQuick/Ui/QmlErrorCollector.h>
 #include <LfQuick/Ui/QuickRuntime.h>
+#include <LfQuick/Ui/ValidationEvaluator.h>
 
 #include <LfQuick/Core/OperationHandle.h>
 #include <LfQuick/Core/Permission.h>
@@ -146,6 +147,27 @@ private slots:
         QVERIFY(!evaluator.isEnabled(QStringLiteral("test.permission"), hidden));
         QVERIFY(!evaluator.isEnabled(QStringLiteral("test.permission"), disabled));
         QVERIFY(!evaluator.allows(QStringLiteral("unknown"), reviewer));
+    }
+
+    void validationEvaluatorMapsRuleMapsForQml()
+    {
+        ValidationEvaluator evaluator;
+        const QVariantMap rule{
+            {QStringLiteral("id"), QStringLiteral("sample.barcode")},
+            {QStringLiteral("required"), true},
+            {QStringLiteral("minLength"), 4},
+            {QStringLiteral("maxLength"), 12},
+            {QStringLiteral("regularExpression"), QStringLiteral("[A-Z0-9-]+")}
+        };
+
+        const QVariantMap valid = evaluator.validate(QStringLiteral("S-001"), rule);
+        QVERIFY(valid.value(QStringLiteral("valid")).toBool());
+        QCOMPARE(valid.value(QStringLiteral("ruleId")).toString(), QStringLiteral("sample.barcode"));
+
+        const QVariantMap invalid = evaluator.validate(QStringLiteral("bad value"), rule);
+        QVERIFY(!invalid.value(QStringLiteral("valid")).toBool());
+        QVERIFY(!invalid.value(QStringLiteral("message")).toString().isEmpty());
+        QVERIFY(!evaluator.isValid(QStringLiteral("bad value"), rule));
     }
 
     void qmlErrorCollectorKeepsStructuredDiagnostics()
