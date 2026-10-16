@@ -29,7 +29,11 @@ include(LfQuickQtFeatures)
 find_package(Qt6 6.8.3 REQUIRED COMPONENTS Core)
 
 if(LFQUICK_BUILD_PLATFORM OR LFQUICK_BUILD_UI OR LFQUICK_BUILD_MEDICAL_DEMO)
-    find_package(Qt6 6.8.3 REQUIRED COMPONENTS Gui Qml Quick QuickControls2 QuickLayouts)
+    find_package(Qt6 6.8.3 REQUIRED COMPONENTS Gui)
+endif()
+
+if(LFQUICK_BUILD_UI OR LFQUICK_BUILD_MEDICAL_DEMO OR LFQUICK_BUILD_DATAVIEW)
+    find_package(Qt6 6.8.3 REQUIRED COMPONENTS Qml Quick QuickControls2 QuickLayouts)
 endif()
 
 if(LFQUICK_BUILD_WIDGET_BRIDGE)
