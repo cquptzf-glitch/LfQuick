@@ -89,6 +89,21 @@ public:
         invokeOptional(m_widget, "onPageResumed");
     }
 
+    bool updateParameters(const QVariantMap &parameters) override
+    {
+        if (!m_widget)
+            return false;
+
+        m_widget->setProperty("lfquickPageParameters", parameters);
+        const QByteArray signature("onPageParametersChanged(QVariantMap)");
+        if (m_widget->metaObject()->indexOfMethod(signature.constData()) >= 0) {
+            QMetaObject::invokeMethod(m_widget, "onPageParametersChanged",
+                                      Qt::DirectConnection,
+                                      Q_ARG(QVariantMap, parameters));
+        }
+        return true;
+    }
+
     void destroy() override
     {
         if (!m_widget)
@@ -159,6 +174,7 @@ std::unique_ptr<IPageInstance> WidgetPageProvider::create(
         return {};
     }
 
+    widget->setProperty("lfquickPageParameters", parameters);
     return std::make_unique<WidgetPageInstance>(descriptor.route, widget, m_host);
 }
 
