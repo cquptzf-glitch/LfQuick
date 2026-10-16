@@ -50,6 +50,33 @@ jobs:
       - name: Test
         run: ctest --test-dir $env:BUILD_DIR --output-on-failure -C Release
 
+      - name: Failed test diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          $testDir = Join-Path $env:BUILD_DIR 'tests/Release'
+          Write-Host '=== Test runtime directory ==='
+          if (Test-Path $testDir) {
+            Get-ChildItem $testDir | Sort-Object Name | Select-Object Name, Length
+          }
+
+          $lastTestLog = Join-Path $env:BUILD_DIR 'Testing/Temporary/LastTest.log'
+          Write-Host '=== CTest LastTest.log ==='
+          if (Test-Path $lastTestLog) {
+            Get-Content $lastTestLog
+          } else {
+            Write-Host 'LastTest.log not found'
+          }
+
+          $dataViewTest = Join-Path $testDir 'tst_dataview.exe'
+          Write-Host '=== Direct tst_dataview -v2 ==='
+          if (Test-Path $dataViewTest) {
+            & $dataViewTest -v2
+            Write-Host "tst_dataview direct exit code: $LASTEXITCODE"
+          } else {
+            Write-Host "Missing $dataViewTest"
+          }
+
       - name: Install deployable demos
         run: cmake --install $env:BUILD_DIR --config Release --prefix $env:STAGE_DIR
 
