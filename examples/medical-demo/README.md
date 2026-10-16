@@ -16,6 +16,20 @@ Reference application for validating LfQuick in biochemistry/immunoassay analyze
 - Alarms
 - Developer
 
+## Application Shell validation slice
+
+The Medical Demo now uses the framework-level model-driven shell instead of a demo-local hand-written navigation rail:
+
+- `NavigationItemModel` owns route metadata, label, section/group, badge, parameters and selected-route state;
+- `NavigationView` drives `QuickRuntime.push()` / `back()` and synchronizes selection from `QuickRuntime.currentRoute`;
+- `ApplicationShell` provides the navigation surface, page host and shared `OverlayHost`;
+- compact/expanded navigation is exercised from the demo header;
+- `Alarms` demonstrates badge metadata;
+- `Results Review` demonstrates navigation permission integration through the existing `PermissionEvaluator`;
+- navigation still flows through the existing `NavigationGuard` and overlay confirmation path rather than a shell-specific state machine.
+
+The shell API contains no medical route ids; the demo supplies all route definitions from the product/example layer.
+
 ## Sample Register validation slice
 
 `SampleRegisterPage.qml` exercises a complete form workflow rather than a visual mock:
@@ -76,7 +90,7 @@ Main/PR/manual CI uploads a snapshot artifact. A `v*` tag runs the release workf
 
 See `../../docs/CI_CD.md` for the exact workflow and local reproduction commands.
 
-> Current GitHub Actions runners are still failing before any workflow steps start (`steps = null`), so the workflow/deployment source is implemented but a real Windows artifact/release has not yet been verified.
+> Current GitHub Actions runners are still failing before any workflow steps start (`steps = null` / no jobs), so the workflow/deployment source is implemented but a real Windows artifact/release has not yet been verified.
 
 ## Development rule
 
