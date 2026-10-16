@@ -163,20 +163,26 @@ bool QuickPageProvider::canCreate(const PageDescriptor &descriptor) const
 std::unique_ptr<IPageInstance> QuickPageProvider::create(const PageDescriptor &descriptor,
                                                           const QVariantMap &parameters)
 {
-    m_lastError.clear();
+    clearLastError();
+    const QUrl primarySource = sourceUrl(descriptor);
     if (!canCreate(descriptor)) {
-        m_lastError = QStringLiteral("Invalid quick page descriptor or QQmlEngine");
+        const QString message = QStringLiteral("Invalid quick page descriptor or QQmlEngine");
+        setLastError(QStringLiteral("quick.invalid-descriptor"), message,
+                     {{QStringLiteral("route"), descriptor.route},
+                      {QStringLiteral("sourceUrl"), primarySource.toString()}});
         if (m_errorCollector)
-            m_errorCollector->record(descriptor.route, sourceUrl(descriptor), m_lastError,
+            m_errorCollector->record(descriptor.route, primarySource, message,
                                      QStringLiteral("validate"));
         return {};
     }
 
-    const QUrl primarySource = sourceUrl(descriptor);
     QString primaryError;
     QQuickItem *item = createItem(m_engine, primarySource, parameters, primaryError);
     if (!item) {
-        m_lastError = primaryError;
+        setLastError(QStringLiteral("quick.create-failed"), primaryError,
+                     {{QStringLiteral("route"), descriptor.route},
+                      {QStringLiteral("sourceUrl"), primarySource.toString()},
+                      {QStringLiteral("stage"), QStringLiteral("primary")}});
         if (m_errorCollector)
             m_errorCollector->record(descriptor.route, primarySource, primaryError,
                                      QStringLiteral("primary"));
@@ -202,10 +208,13 @@ std::unique_ptr<IPageInstance> QuickPageProvider::createErrorFallback(
 {
     const QUrl fallbackSource = fallbackUrl(descriptor);
     if (!fallbackSource.isValid() || fallbackSource.isEmpty()) {
-        m_lastError = primaryError;
-        if (!m_lastError.isEmpty())
-            m_lastError += QLatin1Char('\n');
-        m_lastError += QStringLiteral("Error fallback URL is not configured");
+        QString message = primaryError;
+        if (!message.isEmpty())
+            message += QLatin1Char('\n');
+        message += QStringLiteral("Error fallback URL is not configured");
+        setLastError(QStringLiteral("quick.fallback-not-configured"), message,
+                     {{QStringLiteral("route"), descriptor.route},
+                      {QStringLiteral("stage"), QStringLiteral("fallback")}});
         return {};
     }
 
@@ -219,20 +228,28 @@ std::unique_ptr<IPageInstance> QuickPageProvider::createErrorFallback(
         if (m_errorCollector)
             m_errorCollector->record(descriptor.route, fallbackSource, fallbackError,
                                      QStringLiteral("fallback"));
-        m_lastError = primaryError;
-        if (!m_lastError.isEmpty())
-            m_lastError += QLatin1Char('\n');
-        m_lastError += QStringLiteral("Fallback failed: ") + fallbackError;
+        QString message = primaryError;
+        if (!message.isEmpty())
+            message += QLatin1Char('\n');
+        message += QStringLiteral("Fallback failed: ") + fallbackError;
+        setLastError(QStringLiteral("quick.fallback-create-failed"), message,
+                     {{QStringLiteral("route"), descriptor.route},
+                      {QStringLiteral("sourceUrl"), fallbackSource.toString()},
+                      {QStringLiteral("primaryError"), primaryError},
+                      {QStringLiteral("fallbackError"), fallbackError},
+                      {QStringLiteral("stage"), QStringLiteral("fallback")}});
         return {};
     }
 
-    m_lastError = primaryError;
     if (m_host) {
         item->setParent(m_host);
         item->setParentItem(m_host);
     }
     item->setVisible(false);
 
+    setLastError(QStringLiteral("quick.primary-failed-fallback-active"), primaryError,
+                 {{QStringLiteral("route"), descriptor.route},
+                  {QStringLiteral("fallbackUrl"), fallbackSource.toString()}});
     return std::make_unique<QuickPageInstance>(descriptor.route,
                                                 item,
                                                 m_host,
@@ -252,6 +269,18 @@ void QuickPageProvider::setErrorCollector(QmlErrorCollector *collector)
 void QuickPageProvider::setActivationCallback(ActivationCallback callback)
 {
     m_activationCallback = std::move(callback);
+}
+
+void QuickPageProvider::clearLastError()
+{
+    m_lastErrorInfo = {};
+}
+
+void QuickPageProvider::setLastError(QString code, QString message, QVariantMap details)
+{
+    m_lastErrorInfo.code = std::move(code);
+    m_lastErrorInfo.message = std::move(message);
+    m_lastErrorInfo.details = std::move(details);
 }
 
 } // namespace LfQuick
