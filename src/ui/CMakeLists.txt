@@ -2,6 +2,7 @@ qt_add_library(LfQuickUi
     src/QuickPageProvider.cpp
     src/OverlayCoordinator.cpp
     src/FocusNavigator.cpp
+    src/QuickRuntime.cpp
 )
 add_library(LfQuick::Ui ALIAS LfQuickUi)
 
@@ -38,6 +39,7 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/QuickPageProvider.h
         include/LfQuick/Ui/OverlayCoordinator.h
         include/LfQuick/Ui/FocusNavigator.h
+        include/LfQuick/Ui/QuickRuntime.h
 )
 
 target_link_libraries(LfQuickUi
