@@ -17,6 +17,7 @@ class QQuickItem;
 
 namespace LfQuick {
 
+class INavigationGuard;
 class IPageProvider;
 class PageRouter;
 class PageRegistry;
@@ -52,6 +53,8 @@ public:
 
     bool registerProvider(std::shared_ptr<IPageProvider> provider);
     bool registerDescriptor(PageDescriptor descriptor);
+    bool addNavigationGuard(std::shared_ptr<INavigationGuard> guard);
+    void clearNavigationGuards();
     void setQuickActivationCallback(std::function<void()> callback);
 
     Q_INVOKABLE bool registerPage(const QString &route,

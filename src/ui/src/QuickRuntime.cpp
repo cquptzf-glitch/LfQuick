@@ -1,5 +1,6 @@
 #include <LfQuick/Ui/QuickRuntime.h>
 
+#include <LfQuick/Runtime/INavigationGuard.h>
 #include <LfQuick/Runtime/IPageProvider.h>
 #include <LfQuick/Runtime/PageProviderRegistry.h>
 #include <LfQuick/Runtime/PageRegistry.h>
@@ -9,6 +10,8 @@
 
 #include <QQmlEngine>
 #include <QQuickItem>
+
+#include <utility>
 
 namespace LfQuick {
 
@@ -100,6 +103,17 @@ bool QuickRuntime::registerProvider(std::shared_ptr<IPageProvider> provider)
 bool QuickRuntime::registerDescriptor(PageDescriptor descriptor)
 {
     return m_pages && m_pages->registerPage(std::move(descriptor));
+}
+
+bool QuickRuntime::addNavigationGuard(std::shared_ptr<INavigationGuard> guard)
+{
+    return m_router && m_router->addGuard(std::move(guard));
+}
+
+void QuickRuntime::clearNavigationGuards()
+{
+    if (m_router)
+        m_router->clearGuards();
 }
 
 void QuickRuntime::setQuickActivationCallback(std::function<void()> callback)
