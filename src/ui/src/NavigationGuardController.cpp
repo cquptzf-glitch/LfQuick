@@ -5,6 +5,8 @@
 
 #include <QPointer>
 
+#include <algorithm>
+
 namespace LfQuick {
 namespace {
 
@@ -34,7 +36,7 @@ NavigationGuardController::NavigationGuardController(PageRouter *router, QObject
     connect(&m_state, &NavigationGuardState::blockingStateChanged,
             this, [this] {
         if (!m_state.shouldBlock())
-            clearPending();
+            clearPendingRequests();
     });
 }
 
@@ -60,6 +62,33 @@ QVariantMap NavigationGuardController::pendingParameters() const
     return m_pending ? m_pending->parameters : QVariantMap{};
 }
 
+void NavigationGuardController::setPendingPolicy(PendingPolicy policy)
+{
+    if (m_pendingPolicy == policy)
+        return;
+
+    m_pendingPolicy = policy;
+    if (m_pendingPolicy != PendingPolicy::Queue && !m_queue.isEmpty())
+        dropQueuedRequests(QStringLiteral("Pending navigation policy changed"));
+    emit pendingPolicyChanged();
+}
+
+void NavigationGuardController::setMaxQueuedRequests(int value)
+{
+    value = std::clamp(value, 0, 64);
+    if (m_maxQueuedRequests == value)
+        return;
+
+    m_maxQueuedRequests = value;
+    while (m_queue.size() > m_maxQueuedRequests) {
+        const NavigationContext dropped = m_queue.takeLast();
+        emit navigationRequestDropped(dropped.fromRoute, dropped.toRoute,
+                                      QStringLiteral("Navigation guard queue limit reduced"));
+    }
+    emit pendingChanged();
+    emit pendingPolicyChanged();
+}
+
 NavigationDecision NavigationGuardController::evaluate(const NavigationContext &context)
 {
     if (m_bypassOnce && sameNavigation(*m_bypassOnce, context)) {
@@ -71,12 +100,35 @@ NavigationDecision NavigationGuardController::evaluate(const NavigationContext &
         return NavigationDecision::allow();
 
     const QString reason = effectiveReason();
-    setPending(context);
 
-    if (m_state.confirmRequired()) {
-        emit confirmationRequested(context.fromRoute, context.toRoute, reason);
-    } else {
-        emit hardBlocked(context.fromRoute, context.toRoute, reason);
+    if (!m_pending) {
+        setPending(context);
+        emitPendingPrompt();
+        return NavigationDecision::deny(reason);
+    }
+
+    if (sameNavigation(*m_pending, context) || isQueued(context))
+        return NavigationDecision::deny(reason);
+
+    switch (m_pendingPolicy) {
+    case PendingPolicy::KeepFirst:
+        emit navigationRequestDropped(context.fromRoute, context.toRoute,
+                                      QStringLiteral("A navigation confirmation is already pending"));
+        break;
+    case PendingPolicy::ReplaceLatest:
+        setPending(context);
+        emitPendingPrompt();
+        break;
+    case PendingPolicy::Queue:
+        if (m_maxQueuedRequests <= 0 || m_queue.size() >= m_maxQueuedRequests) {
+            emit navigationRequestDropped(context.fromRoute, context.toRoute,
+                                          QStringLiteral("Navigation guard queue is full"));
+        } else {
+            m_queue.append(context);
+            emit pendingChanged();
+            emit navigationRequestQueued(context.fromRoute, context.toRoute, m_queue.size());
+        }
+        break;
     }
 
     return NavigationDecision::deny(reason);
@@ -86,6 +138,7 @@ void NavigationGuardController::cancelPending()
 {
     m_bypassOnce.reset();
     clearPending();
+    promoteNextQueued();
 }
 
 bool NavigationGuardController::confirmPending()
@@ -112,10 +165,27 @@ bool NavigationGuardController::confirmPending()
     }
 
     m_retryInProgress = false;
-    // If the router rejected before evaluating this guard (for example no back
-    // history), make sure the bypass token cannot leak into a later request.
     m_bypassOnce.reset();
+
+    if (result.accepted) {
+        // Requests captured while the old page was blocked refer to the old
+        // navigation origin. Replaying them after a successful route change
+        // would be surprising, so they are explicitly discarded as stale.
+        dropQueuedRequests(QStringLiteral("Navigation origin changed after confirmation"));
+    } else {
+        promoteNextQueued();
+    }
     return result.accepted;
+}
+
+void NavigationGuardController::clearPendingRequests()
+{
+    m_bypassOnce.reset();
+    const bool hadPending = m_pending.has_value() || !m_queue.isEmpty();
+    m_pending.reset();
+    m_queue.clear();
+    if (hadPending)
+        emit pendingChanged();
 }
 
 QString NavigationGuardController::effectiveReason() const
@@ -138,6 +208,14 @@ bool NavigationGuardController::sameNavigation(const NavigationContext &left,
         && left.parameters == right.parameters;
 }
 
+bool NavigationGuardController::isQueued(const NavigationContext &context) const
+{
+    return std::any_of(m_queue.cbegin(), m_queue.cend(),
+                       [this, &context](const NavigationContext &queued) {
+        return sameNavigation(queued, context);
+    });
+}
+
 void NavigationGuardController::setPending(const NavigationContext &context)
 {
     m_pending = context;
@@ -149,6 +227,51 @@ void NavigationGuardController::clearPending()
     if (!m_pending)
         return;
     m_pending.reset();
+    emit pendingChanged();
+}
+
+void NavigationGuardController::emitPendingPrompt()
+{
+    if (!m_pending)
+        return;
+
+    const QString reason = effectiveReason();
+    if (m_state.confirmRequired()) {
+        emit confirmationRequested(m_pending->fromRoute, m_pending->toRoute, reason);
+    } else {
+        emit hardBlocked(m_pending->fromRoute, m_pending->toRoute, reason);
+    }
+}
+
+void NavigationGuardController::promoteNextQueued()
+{
+    if (m_pending || m_queue.isEmpty() || !m_state.shouldBlock())
+        return;
+
+    while (!m_queue.isEmpty()) {
+        const NavigationContext next = m_queue.takeFirst();
+        if (m_router && next.fromRoute != m_router->currentRoute()) {
+            emit navigationRequestDropped(next.fromRoute, next.toRoute,
+                                          QStringLiteral("Queued navigation origin is stale"));
+            continue;
+        }
+
+        setPending(next);
+        emitPendingPrompt();
+        return;
+    }
+    emit pendingChanged();
+}
+
+void NavigationGuardController::dropQueuedRequests(const QString &reason)
+{
+    if (m_queue.isEmpty())
+        return;
+
+    const QList<NavigationContext> queued = m_queue;
+    m_queue.clear();
+    for (const NavigationContext &context : queued)
+        emit navigationRequestDropped(context.fromRoute, context.toRoute, reason);
     emit pendingChanged();
 }
 
