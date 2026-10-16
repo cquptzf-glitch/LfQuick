@@ -7,6 +7,7 @@ option(LFQUICK_BUILD_HYBRID_DEMO "Build QWidget + QML shared-router migration de
 option(LFQUICK_BUILD_CHARTS "Build Charts module" OFF)
 option(LFQUICK_BUILD_DIAGNOSTICS "Build development diagnostics" ON)
 option(LFQUICK_BUILD_MEDICAL_DEMO "Build LfQuick Medical Demo" ON)
+option(LFQUICK_BUILD_BENCHMARKS "Build opt-in performance benchmark executables" OFF)
 option(LFQUICK_ENABLE_HOT_RELOAD "Enable development-only QML hot reload adapters" OFF)
 option(LFQUICK_ENABLE_QMLTC "Enable qmltc where supported" OFF)
 option(LFQUICK_EXPERIMENTAL_STYLEKIT "Enable Qt Labs StyleKit experiments" OFF)

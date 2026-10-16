@@ -18,6 +18,13 @@ if(LFQUICK_BUILD_DATAVIEW)
     )
     target_link_libraries(tst_dataview PRIVATE LfQuick::DataView Qt6::Test)
     add_test(NAME tst_dataview COMMAND tst_dataview)
+
+    if(LFQUICK_BUILD_BENCHMARKS)
+        qt_add_executable(lfquick_dataview_benchmark
+            performance/dataview_benchmark.cpp
+        )
+        target_link_libraries(lfquick_dataview_benchmark PRIVATE LfQuick::DataView Qt6::Core)
+    endif()
 endif()
 
 if(LFQUICK_BUILD_PLATFORM)
