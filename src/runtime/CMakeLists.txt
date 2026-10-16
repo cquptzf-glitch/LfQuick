@@ -1,9 +1,12 @@
 add_library(LfQuickRuntime
     src/IPageProvider.cpp
+    src/IWindowProvider.cpp
     src/PageRegistry.cpp
     src/PageProviderRegistry.cpp
     src/PageLifecycle.cpp
     src/PageRouter.cpp
+    src/WindowProviderRegistry.cpp
+    src/WindowRouter.cpp
 )
 add_library(LfQuick::Runtime ALIAS LfQuickRuntime)
 
@@ -30,4 +33,9 @@ target_sources(LfQuickRuntime PUBLIC
         include/LfQuick/Runtime/PageProviderRegistry.h
         include/LfQuick/Runtime/PageLifecycle.h
         include/LfQuick/Runtime/PageRouter.h
+        include/LfQuick/Runtime/WindowDescriptor.h
+        include/LfQuick/Runtime/IWindowInstance.h
+        include/LfQuick/Runtime/IWindowProvider.h
+        include/LfQuick/Runtime/WindowProviderRegistry.h
+        include/LfQuick/Runtime/WindowRouter.h
 )
