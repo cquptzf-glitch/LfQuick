@@ -17,6 +17,10 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
+if(NOT BUILD_SHARED_LIBS)
+    add_compile_definitions(LFQUICK_STATIC)
+endif()
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(LfQuickOptions)
 include(LfQuickVersion)
