@@ -4,6 +4,8 @@
 
 #include <QAbstractItemModel>
 
+#include <utility>
+
 namespace LfQuick {
 
 QtGraphsSeriesAdapter::QtGraphsSeriesAdapter(QObject *parent)
