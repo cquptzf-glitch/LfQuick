@@ -193,7 +193,7 @@ private slots:
         QVERIFY(controller.setCurrentCell(1, 1));
         QCOMPARE(controller.currentRow(), 1);
         QCOMPARE(controller.currentColumn(), 1);
-        QCOMPARE(controller.selectedRowsList(), QVariantList({1}));
+        QCOMPARE(controller.selectedRowsList(), QVariantList{QVariant(1)});
 
         QVERIFY(controller.moveCurrent(2, 0));
         QCOMPARE(controller.currentRow(), 3);
