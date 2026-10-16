@@ -89,16 +89,33 @@ WindowResult WindowRouter::open(const WindowOpenRequest &request)
 
     if (descriptorValue.openPolicy == WindowOpenPolicy::SingleInstance) {
         if (auto existing = findSingleInstance(request.windowId)) {
+            const QString existingId = existing->instance->instanceId();
+            if (!request.ownerInstanceId.isEmpty()) {
+                QString cursor = request.ownerInstanceId;
+                while (!cursor.isEmpty()) {
+                    if (cursor == existingId) {
+                        auto result = WindowResult::failure(request.windowId,
+                                                            existingId,
+                                                            routerError(13, QStringLiteral("Window ownership cannot form a cycle")));
+                        emit windowOpenFailed(request.windowId, result.error.message());
+                        return result;
+                    }
+                    const auto ownerRecord = findRecord(cursor);
+                    if (!ownerRecord)
+                        break;
+                    cursor = ownerRecord->request.ownerInstanceId;
+                }
+            }
             if (!existing->instance->updateParameters(request.parameters)) {
                 auto result = WindowResult::failure(request.windowId,
-                                                    existing->instance->instanceId(),
+                                                    existingId,
                                                     routerError(3, QStringLiteral("Existing window rejected updated parameters")));
                 emit windowOpenFailed(request.windowId, result.error.message());
                 return result;
             }
             if (!request.restoreState.isEmpty() && !existing->instance->restoreState(request.restoreState)) {
                 auto result = WindowResult::failure(request.windowId,
-                                                    existing->instance->instanceId(),
+                                                    existingId,
                                                     routerError(4, QStringLiteral("Existing window rejected restore state")));
                 emit windowOpenFailed(request.windowId, result.error.message());
                 return result;
@@ -108,7 +125,7 @@ WindowResult WindowRouter::open(const WindowOpenRequest &request)
             if (!request.ownerInstanceId.isEmpty())
                 existing->request.ownerInstanceId = request.ownerInstanceId;
             setActive(existing);
-            auto result = WindowResult::success(request.windowId, existing->instance->instanceId());
+            auto result = WindowResult::success(request.windowId, existingId);
             result.diagnostics.insert(QStringLiteral("reused"), true);
             return result;
         }
