@@ -24,7 +24,8 @@ public:
     bool canCreate(const PageDescriptor &descriptor) const override;
     std::unique_ptr<IPageInstance> create(const PageDescriptor &descriptor,
                                            const QVariantMap &parameters) override;
-    QString lastError() const override { return m_lastError; }
+    QString lastError() const override { return m_lastErrorInfo.message; }
+    PageProviderError lastErrorInfo() const override { return m_lastErrorInfo; }
     std::unique_ptr<IPageInstance> createErrorFallback(
         const PageDescriptor &descriptor,
         const QVariantMap &parameters,
@@ -35,11 +36,14 @@ public:
     void setActivationCallback(ActivationCallback callback);
 
 private:
+    void clearLastError();
+    void setLastError(QString code, QString message, QVariantMap details = {});
+
     QPointer<QQmlEngine> m_engine;
     QPointer<QQuickItem> m_host;
     QPointer<QmlErrorCollector> m_errorCollector;
     ActivationCallback m_activationCallback;
-    QString m_lastError;
+    PageProviderError m_lastErrorInfo;
 };
 
 } // namespace LfQuick
