@@ -29,6 +29,28 @@ QStringList DataTableModel::columnKeys() const
     return m_columnKeys;
 }
 
+QStringList DataTableModel::columnTitles() const
+{
+    return m_columnTitles;
+}
+
+void DataTableModel::setColumnTitles(const QStringList &titles)
+{
+    QStringList normalized;
+    normalized.reserve(m_columnKeys.size());
+
+    for (int i = 0; i < m_columnKeys.size(); ++i)
+        normalized.append(i < titles.size() && !titles.at(i).isEmpty()
+                              ? titles.at(i)
+                              : m_columnKeys.at(i));
+
+    if (m_columnTitles == normalized)
+        return;
+
+    m_columnTitles = std::move(normalized);
+    emit columnTitlesChanged();
+}
+
 void DataTableModel::setColumnKeys(const QStringList &keys)
 {
     QStringList normalized;
@@ -43,6 +65,8 @@ void DataTableModel::setColumnKeys(const QStringList &keys)
 
     beginResetModel();
     m_columnKeys = std::move(normalized);
+    if (m_columnTitles.size() != m_columnKeys.size())
+        m_columnTitles = m_columnKeys;
     rebuildRoles();
     endResetModel();
     emit columnKeysChanged();
@@ -113,7 +137,7 @@ QVariant DataTableModel::headerData(int section, Qt::Orientation orientation, in
         return {};
 
     if (orientation == Qt::Horizontal && section >= 0 && section < m_columnKeys.size())
-        return m_columnKeys.at(section);
+        return m_columnTitles.value(section, m_columnKeys.at(section));
 
     if (orientation == Qt::Vertical && section >= 0 && section < m_rows.size())
         return section + 1;
