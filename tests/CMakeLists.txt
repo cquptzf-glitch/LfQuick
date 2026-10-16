@@ -1,4 +1,3 @@
-
 find_package(Qt6 6.8.3 REQUIRED COMPONENTS Test)
 
 qt_add_executable(tst_core
@@ -12,3 +11,27 @@ qt_add_executable(tst_runtime
 )
 target_link_libraries(tst_runtime PRIVATE LfQuick::Runtime Qt6::Test)
 add_test(NAME tst_runtime COMMAND tst_runtime)
+
+if(LFQUICK_BUILD_DATAVIEW)
+    qt_add_executable(tst_dataview
+        unit/tst_dataview.cpp
+    )
+    target_link_libraries(tst_dataview PRIVATE LfQuick::DataView Qt6::Test)
+    add_test(NAME tst_dataview COMMAND tst_dataview)
+endif()
+
+if(LFQUICK_BUILD_PLATFORM)
+    qt_add_executable(tst_platform
+        unit/tst_platform.cpp
+    )
+    target_link_libraries(tst_platform PRIVATE LfQuick::Platform Qt6::Test)
+    add_test(NAME tst_platform COMMAND tst_platform)
+endif()
+
+if(LFQUICK_BUILD_UI)
+    qt_add_executable(tst_ui
+        unit/tst_ui.cpp
+    )
+    target_link_libraries(tst_ui PRIVATE LfQuick::Ui Qt6::Test)
+    add_test(NAME tst_ui COMMAND tst_ui)
+endif()
