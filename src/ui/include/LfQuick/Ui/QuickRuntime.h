@@ -7,6 +7,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QUrl>
+#include <QVariantMap>
 
 #include <memory>
 
