@@ -12,7 +12,7 @@ ApplicationWindow {
     color: Tokens.surface
 
     property int currentPage: 0
-    property string guardReason: ""
+    property string guardDialogId: ""
     readonly property var routes: [
         "/dashboard", "/samples", "/sample-register", "/sample-rack",
         "/results", "/results-review", "/instrument", "/alarms", "/developer"
@@ -85,42 +85,19 @@ ApplicationWindow {
         coordinator: overlayCoordinator
     }
 
-    Dialog {
-        id: guardDialog
-        anchors.centerIn: parent
-        modal: true
-        title: qsTr("Leave current page?")
-        standardButtons: Dialog.Ok | Dialog.Cancel
-        onAccepted: quickRuntime.navigationGuard.confirmPending()
-        onRejected: quickRuntime.navigationGuard.cancelPending()
-
-        contentItem: Label {
-            width: 380
-            text: window.guardReason
-            wrapMode: Text.WordWrap
-            color: Tokens.textPrimary
-        }
-    }
-
-    Dialog {
-        id: hardBlockDialog
-        anchors.centerIn: parent
-        modal: true
-        title: qsTr("Navigation blocked")
-        standardButtons: Dialog.Ok
-        onAccepted: quickRuntime.navigationGuard.cancelPending()
-
-        contentItem: Label {
-            width: 380
-            text: window.guardReason
-            wrapMode: Text.WordWrap
-            color: Tokens.textPrimary
-        }
-    }
-
     function indexForRoute(route) {
         const index = window.routes.indexOf(route)
         return index < 0 ? 0 : index
+    }
+
+    function requestGuardDialog(kind, title, reason, buttons, defaultButton) {
+        if (window.guardDialogId.length > 0)
+            return
+        window.guardDialogId = overlayCoordinator.requestDialog(title, reason, {
+            "buttons": buttons,
+            "defaultButton": defaultButton,
+            "context": { "kind": kind }
+        })
     }
 
     Component.onCompleted: {
@@ -144,12 +121,38 @@ ApplicationWindow {
     Connections {
         target: quickRuntime.navigationGuard
         function onConfirmationRequested(fromRoute, toRoute, reason) {
-            window.guardReason = reason
-            guardDialog.open()
+            window.requestGuardDialog(
+                "guard-confirm",
+                qsTr("Leave current page?"),
+                reason,
+                ["ok", "cancel"],
+                "cancel")
         }
         function onHardBlocked(fromRoute, toRoute, reason) {
-            window.guardReason = reason
-            hardBlockDialog.open()
+            window.requestGuardDialog(
+                "guard-block",
+                qsTr("Navigation blocked"),
+                reason,
+                ["ok"],
+                "ok")
+        }
+    }
+
+    Connections {
+        target: overlayCoordinator
+        function onDialogResolved(requestId, buttonId, context) {
+            if (requestId !== window.guardDialogId)
+                return
+            window.guardDialogId = ""
+
+            if (context.kind === "guard-confirm") {
+                if (buttonId === "ok")
+                    quickRuntime.navigationGuard.confirmPending()
+                else
+                    quickRuntime.navigationGuard.cancelPending()
+            } else if (context.kind === "guard-block") {
+                quickRuntime.navigationGuard.cancelPending()
+            }
         }
     }
 }
