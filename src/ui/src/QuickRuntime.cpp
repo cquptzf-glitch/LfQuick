@@ -37,6 +37,8 @@ QuickRuntime::QuickRuntime(QQmlEngine *engine, QObject *parent)
             this, &QuickRuntime::navigationChanged);
     connect(m_router.get(), &PageRouter::cachePolicyChanged,
             this, &QuickRuntime::cachePolicyChanged);
+    connect(m_router.get(), &PageRouter::cacheStateChanged,
+            this, &QuickRuntime::cacheStateChanged);
     connect(m_router.get(), &PageRouter::navigationFailed,
             this, &QuickRuntime::navigationFailed);
     connect(m_router.get(), &PageRouter::navigationBlocked,
@@ -108,6 +110,27 @@ void QuickRuntime::setMaxRetainedLruPages(int value)
         m_router->setMaxRetainedLruPages(value);
 }
 
+qint64 QuickRuntime::maxRetainedLruWeight() const
+{
+    return m_router ? m_router->maxRetainedLruWeight() : 0;
+}
+
+void QuickRuntime::setMaxRetainedLruWeight(qint64 value)
+{
+    if (m_router)
+        m_router->setMaxRetainedLruWeight(value);
+}
+
+qint64 QuickRuntime::retainedLruWeight() const
+{
+    return m_router ? m_router->retainedLruWeight() : 0;
+}
+
+int QuickRuntime::singletonCount() const
+{
+    return m_router ? m_router->singletonCount() : 0;
+}
+
 bool QuickRuntime::registerProvider(std::shared_ptr<IPageProvider> provider)
 {
     return m_providers && m_providers->registerProvider(std::move(provider));
@@ -140,13 +163,14 @@ void QuickRuntime::setQuickActivationCallback(std::function<void()> callback)
 bool QuickRuntime::registerPage(const QString &route,
                                 const QUrl &source,
                                 int cachePolicy,
-                                bool useErrorFallback)
+                                bool useErrorFallback,
+                                qint64 cacheWeight)
 {
     if (route.isEmpty() || !source.isValid() || source.isEmpty())
         return false;
 
     return registerDescriptor(
-        descriptorFor(route, source, cachePolicy, useErrorFallback));
+        descriptorFor(route, source, cachePolicy, useErrorFallback, cacheWeight));
 }
 
 bool QuickRuntime::unregisterPage(const QString &route)
@@ -159,8 +183,14 @@ bool QuickRuntime::push(const QString &route, const QVariantMap &parameters)
     if (!m_router || route.isEmpty())
         return false;
 
-    if (m_router->currentRoute() == route)
-        return true;
+    if (m_router->currentRoute() == route) {
+        if (parameters.isEmpty())
+            return true;
+        RouteRequest refresh;
+        refresh.route = route;
+        refresh.parameters = parameters;
+        return m_router->replace(refresh).accepted;
+    }
 
     RouteRequest request;
     request.route = route;
@@ -193,7 +223,8 @@ void QuickRuntime::reset()
 PageDescriptor QuickRuntime::descriptorFor(const QString &route,
                                            const QUrl &source,
                                            int cachePolicy,
-                                           bool useErrorFallback) const
+                                           bool useErrorFallback,
+                                           qint64 cacheWeight) const
 {
     PageDescriptor descriptor;
     descriptor.route = route;
@@ -203,6 +234,7 @@ PageDescriptor QuickRuntime::descriptorFor(const QString &route,
         qBound(static_cast<int>(PageCachePolicy::None),
                cachePolicy,
                static_cast<int>(PageCachePolicy::Lru)));
+    descriptor.cacheWeight = qMax<qint64>(1, cacheWeight);
 
     if (useErrorFallback) {
         descriptor.fallbackPolicy = FallbackPolicy::ErrorPage;
