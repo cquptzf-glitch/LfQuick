@@ -1,6 +1,7 @@
 #pragma once
 
 #include <LfQuick/Ui/LfQuickUiGlobal.h>
+#include <LfQuick/Ui/PermissionEvaluator.h>
 
 #include <QAbstractListModel>
 #include <QPointer>
@@ -11,8 +12,6 @@
 #include <optional>
 
 namespace LfQuick {
-
-class PermissionEvaluator;
 
 enum class NavigationSection {
     Primary = 0,
