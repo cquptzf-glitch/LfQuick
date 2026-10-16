@@ -63,6 +63,7 @@ See [External Reference & Clean-room Policy](docs/REFERENCE_POLICY.md).
 - [Architecture Review & V2.1 Optimization](docs/LfQuick_V2.1_架构审查与优化方案.md)
 - [Development Plan](docs/LfQuick_详细开发计划.md)
 - [Medical Demo Design](docs/LfQuick_Medical_Demo_详细设计方案.md)
+- [Implementation Status](docs/IMPLEMENTATION_STATUS.md)
 - [External Reference & Clean-room Policy](docs/REFERENCE_POLICY.md)
 - [Third-party Notices](THIRD_PARTY_NOTICES.md)
 
