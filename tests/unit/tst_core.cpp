@@ -1,6 +1,7 @@
 #include <LfQuick/Core/Error.h>
 #include <LfQuick/Core/Event.h>
 #include <LfQuick/Core/OperationHandle.h>
+#include <LfQuick/Core/Permission.h>
 #include <LfQuick/Core/Result.h>
 #include <LfQuick/Core/Route.h>
 #include <LfQuick/Core/Validation.h>
@@ -8,6 +9,22 @@
 #include <QtTest>
 
 #include <utility>
+
+namespace {
+
+class TestPermissionProvider final : public LfQuick::IPermissionProvider
+{
+public:
+    LfQuick::PermissionState evaluate(QStringView permissionId,
+                                      const QVariantMap &) const override
+    {
+        return permissionId == QStringView(u"core.permission")
+            ? LfQuick::PermissionState::Allow
+            : LfQuick::PermissionState::Denied;
+    }
+};
+
+} // namespace
 
 class CoreTests : public QObject
 {
@@ -75,6 +92,15 @@ private slots:
         QVERIFY(!LfQuick::validateValue(QStringLiteral("100.01"), rule).valid);
         QVERIFY(!LfQuick::validateValue(QStringLiteral("12.345"), rule).valid);
         QVERIFY(LfQuick::validateValue(QStringLiteral("12.34"), rule).valid);
+    }
+
+    void permissionProviderSpecialMembersWorkAcrossCoreBoundary()
+    {
+        TestPermissionProvider provider;
+        QCOMPARE(provider.evaluate(QStringView(u"core.permission"), {}),
+                 LfQuick::PermissionState::Allow);
+        QCOMPARE(provider.evaluate(QStringView(u"unknown"), {}),
+                 LfQuick::PermissionState::Denied);
     }
 
     void routeResultFactoriesAndSpecialMembersWorkAcrossCoreBoundary()

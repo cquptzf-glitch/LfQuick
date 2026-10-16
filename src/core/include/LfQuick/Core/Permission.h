@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include <LfQuick/Core/LfQuickCoreGlobal.h>
@@ -20,7 +19,9 @@ enum class PermissionState
 class LFQUICKCORE_EXPORT IPermissionProvider
 {
 public:
-    virtual ~IPermissionProvider() = default;
+    IPermissionProvider();
+    virtual ~IPermissionProvider();
+
     virtual PermissionState evaluate(QStringView permissionId,
                                      const QVariantMap &context) const = 0;
 };
