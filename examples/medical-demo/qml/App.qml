@@ -12,6 +12,10 @@ ApplicationWindow {
     color: Tokens.surface
 
     property int currentPage: 0
+    readonly property var routes: [
+        "/dashboard", "/samples", "/results",
+        "/instrument", "/alarms", "/developer"
+    ]
 
     header: ToolBar {
         RowLayout {
@@ -24,24 +28,23 @@ ApplicationWindow {
                 font.bold: true
                 color: Tokens.textPrimary
             }
-
             Item { Layout.fillWidth: true }
 
             Label {
-                text: scanner && scanner.enabled
-                    ? qsTr("Scanner: Armed")
-                    : qsTr("Scanner: Off")
+                text: quickRuntime.currentRoute.length > 0
+                    ? qsTr("Route: %1").arg(quickRuntime.currentRoute)
+                    : qsTr("Route: -")
+                color: Tokens.textSecondary
+            }
+
+            Label {
+                text: scanner && scanner.enabled ? qsTr("Scanner: Armed") : qsTr("Scanner: Off")
                 color: scanner && scanner.enabled ? Tokens.success : Tokens.textSecondary
             }
 
             Label {
                 text: qsTr("Instrument: Ready")
                 color: Tokens.success
-            }
-
-            Label {
-                text: qsTr("Scenario: Normal")
-                color: Tokens.textSecondary
             }
 
             Switch {
@@ -60,26 +63,44 @@ ApplicationWindow {
             Layout.preferredWidth: 190
             Layout.fillHeight: true
             currentIndex: window.currentPage
-            onActivated: index => window.currentPage = index
+            onActivated: quickRuntime.push(window.routes[index])
         }
 
-        StackLayout {
+        Item {
+            id: pageHost
+            objectName: "pageHost"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            currentIndex: window.currentPage
-
-            DashboardPage {}
-            SamplesPage {}
-            ResultsPage {}
-            InstrumentPage {}
-            AlarmsPage {}
-            DeveloperPage {}
+            clip: true
         }
     }
 
     OverlayHost {
-        id: overlayHost
         anchors.fill: parent
         coordinator: overlayCoordinator
+    }
+
+    function indexForRoute(route) {
+        const index = window.routes.indexOf(route)
+        return index < 0 ? 0 : index
+    }
+
+    Component.onCompleted: {
+        quickRuntime.setHost(pageHost)
+
+        for (let i = 0; i < window.routes.length; ++i) {
+            const route = window.routes[i]
+            const file = route.substring(1)
+            quickRuntime.registerPage(route, Qt.resolvedUrl(file + "Page.qml"), 2)
+        }
+
+        quickRuntime.push("/dashboard")
+    }
+
+    Connections {
+        target: quickRuntime
+        function onCurrentRouteChanged() {
+            window.currentPage = window.indexForRoute(quickRuntime.currentRoute)
+        }
     }
 }
