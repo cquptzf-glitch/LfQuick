@@ -42,6 +42,7 @@
 - QML module `LfQuick`
 - LfPage
 - QuickPageProvider
+- QuickRuntime
 - QuickHostRoot
 - Theme / Tokens
 - OverlayHost / BusyOverlay
@@ -90,7 +91,8 @@
 ## 下一阶段
 
 ### P0
-- Router 与 QuickPageProvider 真正接通 Medical Demo
+- Page cache policy
+- navigation guard / unsaved-change guard
 - Page cache policy
 - navigation guard / unsaved-change guard
 - QML error collector + fallback
