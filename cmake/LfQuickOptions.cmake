@@ -1,0 +1,11 @@
+
+option(BUILD_SHARED_LIBS "Build LfQuick libraries as shared libraries" ON)
+option(LFQUICK_BUILD_UI "Build Qt Quick UI module" ON)
+option(LFQUICK_BUILD_DATAVIEW "Build DataView module" ON)
+option(LFQUICK_BUILD_WIDGET_BRIDGE "Build QWidget/Quick migration bridge" OFF)
+option(LFQUICK_BUILD_CHARTS "Build Charts module" OFF)
+option(LFQUICK_BUILD_DIAGNOSTICS "Build development diagnostics" ON)
+option(LFQUICK_BUILD_MEDICAL_DEMO "Build LfQuick Medical Demo" ON)
+option(LFQUICK_ENABLE_HOT_RELOAD "Enable development-only QML hot reload adapters" OFF)
+option(LFQUICK_ENABLE_QMLTC "Enable qmltc where supported" OFF)
+option(LFQUICK_EXPERIMENTAL_STYLEKIT "Enable Qt Labs StyleKit experiments" OFF)

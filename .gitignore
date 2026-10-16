@@ -1,0 +1,11 @@
+
+/build*/
+/.qt/
+CMakeUserPresets.json
+*.user
+*.user.*
+*.VC.db
+*.suo
+.vs/
+.idea/
+.DS_Store
