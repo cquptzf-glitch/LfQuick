@@ -9,6 +9,7 @@
 #include <QVariantMap>
 
 #include <memory>
+#include <optional>
 
 namespace LfQuick {
 
