@@ -8,6 +8,8 @@
 #include <QQuickItem>
 #include <QUrl>
 
+#include <utility>
+
 namespace LfQuick {
 namespace {
 
@@ -183,7 +185,10 @@ std::unique_ptr<IPageInstance> QuickPageProvider::create(const PageDescriptor &d
         const QUrl fallbackSource = fallbackUrl(descriptor);
         if (descriptor.fallbackPolicy == FallbackPolicy::ErrorPage
             && fallbackSource.isValid() && !fallbackSource.isEmpty()) {
-            QVariantMap fallbackProperties = parameters;
+            // Do not forward the failed business page's initial properties to the
+            // generic fallback page. Unknown properties would make the fallback
+            // fail for exactly the pages where diagnostics are most important.
+            QVariantMap fallbackProperties;
             fallbackProperties.insert(QStringLiteral("route"), descriptor.route);
             fallbackProperties.insert(QStringLiteral("errorMessage"), primaryError);
 

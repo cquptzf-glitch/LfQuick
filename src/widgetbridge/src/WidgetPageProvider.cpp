@@ -2,12 +2,27 @@
 
 #include <LfQuick/Runtime/IPageInstance.h>
 
+#include <QByteArray>
 #include <QLayout>
 #include <QStackedWidget>
 #include <QWidget>
 
+#include <utility>
+
 namespace LfQuick {
 namespace {
+
+void invokeOptional(QObject *object, const char *method)
+{
+    if (!object || !method)
+        return;
+
+    const QByteArray signature = QByteArray(method) + QByteArrayLiteral("()");
+    if (object->metaObject()->indexOfMethod(signature.constData()) < 0)
+        return;
+
+    QMetaObject::invokeMethod(object, method, Qt::DirectConnection);
+}
 
 class WidgetPageInstance final : public IPageInstance
 {
@@ -52,7 +67,7 @@ public:
 
         m_widget->show();
         m_widget->setFocus(Qt::OtherFocusReason);
-        QMetaObject::invokeMethod(m_widget, "onPageActivated", Qt::DirectConnection);
+        invokeOptional(m_widget, "onPageActivated");
     }
 
     void deactivate() override
@@ -60,20 +75,18 @@ public:
         if (!m_widget)
             return;
 
-        QMetaObject::invokeMethod(m_widget, "onPageDeactivated", Qt::DirectConnection);
+        invokeOptional(m_widget, "onPageDeactivated");
         m_widget->hide();
     }
 
     void suspend() override
     {
-        if (m_widget)
-            QMetaObject::invokeMethod(m_widget, "onPageSuspended", Qt::DirectConnection);
+        invokeOptional(m_widget, "onPageSuspended");
     }
 
     void resume() override
     {
-        if (m_widget)
-            QMetaObject::invokeMethod(m_widget, "onPageResumed", Qt::DirectConnection);
+        invokeOptional(m_widget, "onPageResumed");
     }
 
     void destroy() override
