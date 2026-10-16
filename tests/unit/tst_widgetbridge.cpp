@@ -3,10 +3,13 @@
 #include <LfQuick/WidgetBridge/WidgetFocusBridge.h>
 #include <LfQuick/WidgetBridge/WidgetPageProvider.h>
 
+#include <QApplication>
 #include <QLabel>
 #include <QLineEdit>
 #include <QQuickItem>
 #include <QQuickWidget>
+#include <QQuickWindow>
+#include <QSignalSpy>
 #include <QStackedWidget>
 #include <QTest>
 
@@ -70,49 +73,66 @@ private slots:
     void focusBridgeTransfersWidgetTabIntoQuickBoundary()
     {
         QWidget window;
+        window.resize(480, 180);
         QLineEdit before(&window);
+        before.setGeometry(10, 20, 120, 32);
         QQuickWidget surface(&window);
+        surface.setGeometry(150, 20, 160, 100);
+        surface.setFocusPolicy(Qt::StrongFocus);
         QQuickItem entry;
-        entry.setParentItem(surface.rootObject() ? qobject_cast<QQuickItem *>(surface.rootObject()) : nullptr);
         QLineEdit after(&window);
+        after.setGeometry(330, 20, 120, 32);
 
-        before.show();
-        surface.show();
-        after.show();
         window.show();
-        QTest::qWaitForWindowExposed(&window);
+        window.activateWindow();
+        if (!QTest::qWaitForWindowFocused(&window, 500))
+            QSKIP("Interactive window focus is unavailable on this test runner");
 
+        entry.setParentItem(surface.quickWindow()->contentItem());
         WidgetFocusBridge bridge(&surface);
         bridge.setBoundaryWidgets(&before, &after);
         bridge.setQuickBoundaryItems(&entry, &entry);
+        QSignalSpy transferred(&bridge, &WidgetFocusBridge::focusTransferred);
 
         before.setFocus();
+        QVERIFY(QTest::qWaitFor([&before] { return before.hasFocus(); }, 500));
         QTest::keyClick(&before, Qt::Key_Tab);
+
+        QCOMPARE(transferred.count(), 1);
+        QCOMPARE(transferred.at(0).at(0).toString(), QStringLiteral("widget-to-quick"));
         QCOMPARE(QApplication::focusWidget(), static_cast<QWidget *>(&surface));
     }
 
     void focusBridgeScannerIsolationSuppressesTransfer()
     {
         QWidget window;
+        window.resize(480, 180);
         QLineEdit before(&window);
+        before.setGeometry(10, 20, 120, 32);
         QQuickWidget surface(&window);
+        surface.setGeometry(150, 20, 160, 100);
+        surface.setFocusPolicy(Qt::StrongFocus);
         QQuickItem entry;
         QLineEdit after(&window);
+        after.setGeometry(330, 20, 120, 32);
 
-        before.show();
-        surface.show();
-        after.show();
         window.show();
-        QTest::qWaitForWindowExposed(&window);
+        window.activateWindow();
+        if (!QTest::qWaitForWindowFocused(&window, 500))
+            QSKIP("Interactive window focus is unavailable on this test runner");
 
+        entry.setParentItem(surface.quickWindow()->contentItem());
         WidgetFocusBridge bridge(&surface);
         bridge.setBoundaryWidgets(&before, &after);
         bridge.setQuickBoundaryItems(&entry, &entry);
         bridge.setScannerIsolation(true);
+        QSignalSpy transferred(&bridge, &WidgetFocusBridge::focusTransferred);
 
         before.setFocus();
+        QVERIFY(QTest::qWaitFor([&before] { return before.hasFocus(); }, 500));
         QTest::keyClick(&before, Qt::Key_Tab);
-        QVERIFY(QApplication::focusWidget() != &surface);
+
+        QCOMPARE(transferred.count(), 0);
     }
 };
 

@@ -206,5 +206,5 @@ private slots:
     }
 };
 
-QTEST_MAIN(DataViewTest)
+QTEST_APPLESS_MAIN(DataViewTest)
 #include "tst_dataview.moc"
