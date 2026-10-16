@@ -1,4 +1,3 @@
-
 add_library(LfQuickRuntime
     src/PageRegistry.cpp
     src/PageProviderRegistry.cpp
@@ -25,6 +24,7 @@ target_sources(LfQuickRuntime PUBLIC
         include/LfQuick/Runtime/PageDescriptor.h
         include/LfQuick/Runtime/IPageInstance.h
         include/LfQuick/Runtime/IPageProvider.h
+        include/LfQuick/Runtime/INavigationGuard.h
         include/LfQuick/Runtime/PageRegistry.h
         include/LfQuick/Runtime/PageProviderRegistry.h
         include/LfQuick/Runtime/PageLifecycle.h
