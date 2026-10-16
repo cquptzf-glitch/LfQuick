@@ -348,9 +348,13 @@ LfPage {
                 overlayCoordinator.endBusy(root.busyToken)
             root.busyToken = ""
             root.submitting = false
-            root.statusMessage = qsTr("Sample %1 registered successfully.").arg(sampleId)
             root.resetForm()
             root.statusMessage = qsTr("Sample %1 registered successfully.").arg(sampleId)
+            overlayCoordinator.showToast(root.statusMessage, {
+                "severity": "success",
+                "durationMs": 3200,
+                "dedupKey": "sample-register-success"
+            })
         }
     }
 
@@ -375,6 +379,11 @@ LfPage {
             if (!root.pageActive)
                 return
             root.statusMessage = qsTr("Scanner rejected %1: %2").arg(rawValue).arg(reason)
+            overlayCoordinator.showToast(root.statusMessage, {
+                "severity": "warning",
+                "durationMs": 4500,
+                "dedupKey": "sample-register-scan-rejected"
+            })
         }
     }
 
