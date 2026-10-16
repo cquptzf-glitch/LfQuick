@@ -36,6 +36,14 @@ if(LFQUICK_BUILD_QT_GRAPHS_ADAPTER)
                 include/LfQuick/Charts/QtGraphsSeriesAdapter.h
                 include/LfQuick/Charts/QtGraphsAxisAdapter.h
     )
-    target_link_libraries(LfQuickCharts PUBLIC Qt6::Graphs)
+    target_link_libraries(LfQuickCharts PUBLIC Qt6::Graphs Qt6::Qml Qt6::Quick)
     target_compile_definitions(LfQuickCharts PUBLIC LFQUICK_HAS_QT_GRAPHS_ADAPTER=1)
+
+    qt_add_qml_module(LfQuickCharts
+        URI LfQuick.Charts
+        VERSION 1.0
+        RESOURCE_PREFIX /qt/qml
+        QML_FILES
+            qml/ChartView.qml
+    )
 endif()
