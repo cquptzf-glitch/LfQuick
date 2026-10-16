@@ -23,3 +23,19 @@ target_sources(LfQuickCharts PUBLIC
         include/LfQuick/Charts/ChartDataModel.h
         include/LfQuick/Charts/SeriesModel.h
 )
+
+if(LFQUICK_BUILD_QT_GRAPHS_ADAPTER)
+    target_sources(LfQuickCharts
+        PRIVATE
+            src/QtGraphsSeriesAdapter.cpp
+            src/QtGraphsAxisAdapter.cpp
+        PUBLIC
+            FILE_SET HEADERS
+            BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
+            FILES
+                include/LfQuick/Charts/QtGraphsSeriesAdapter.h
+                include/LfQuick/Charts/QtGraphsAxisAdapter.h
+    )
+    target_link_libraries(LfQuickCharts PUBLIC Qt6::Graphs)
+    target_compile_definitions(LfQuickCharts PUBLIC LFQUICK_HAS_QT_GRAPHS_ADAPTER=1)
+endif()
