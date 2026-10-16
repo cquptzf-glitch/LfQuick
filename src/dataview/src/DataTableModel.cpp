@@ -152,11 +152,11 @@ void DataTableModel::setRows(const QVariantList &rows)
     emit countChanged();
 }
 
-void DataTableModel::appendRow(const QVariantMap &row)
+void DataTableModel::appendRow(const QVariantMap &value)
 {
     const int row = m_rows.size();
     beginInsertRows({}, row, row);
-    m_rows.push_back(row);
+    m_rows.push_back(value);
     endInsertRows();
     emit countChanged();
 }
