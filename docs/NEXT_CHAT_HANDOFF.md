@@ -9,21 +9,29 @@
 不要重新做需求分析。直接：
 
 1. 读取 `main` 最新 HEAD；
-2. 读取本文件、`docs/IMPLEMENTATION_STATUS.md`、`docs/LfQuick_详细开发计划.md`、`docs/LfQuick_V2.1_架构审查与优化方案.md`、`docs/REFERENCE_POLICY.md`；
+2. 读取本文件、`docs/IMPLEMENTATION_STATUS.md`、详细开发计划、V2.1 架构审查和 REFERENCE_POLICY；
 3. 检查最新 GitHub Actions；
 4. 如果出现真实 Configure / Build / Test steps，先修 Qt 6.8.3 + MSVC2022；
-5. 如果仍然 `steps = null`，明确记录为 runner/infrastructure issue，然后直接继续下一批开发。
+5. 如果仍然 `steps = null`，明确为 runner/infrastructure issue，继续下面开发顺序。
 
-## 2. 当前 main 功能基线
+## 2. 当前功能基线
 
-本轮功能 HEAD：
+最新功能 HEAD：
 
 ```text
-7bc28f77616c897a9d7379df32d7d1bbacaae5d6
-feat(widgetbridge): add QWidget QML focus bridge
+7c54f74d8ffd5ec3926b822254b09930bd8c1884
+feat(demo): exercise DataGrid state and edit validation
 ```
 
-本轮新增提交：
+本批提交：
+
+```text
+1b835b0 feat(dataview): persist stable DataGrid column state
+19129fd feat(dataview): add validated edit transactions
+7c54f74 feat(demo): exercise DataGrid state and edit validation
+```
+
+上一批：
 
 ```text
 013053b feat(runtime): add cross-provider page fallback
@@ -32,200 +40,148 @@ ab06e2c fix(runtime): keep provider fallback ABI incomplete-type safe
 7bc28f7 feat(widgetbridge): add QWidget QML focus bridge
 ```
 
-上一批关键提交仍然有效：
+## 3. 当前关键能力
 
-```text
-c0136fd feat(runtime): add navigation guards and LRU page eviction
-d3615ed feat(ui): add QML error collection and fallback page
-d45a4d5 feat(widgetbridge): add shared-router hybrid migration path
-bfebd2c fix: harden QML fallback and optional widget lifecycle hooks
-1c8f639 feat(ui): expose provider and navigation guard extension points
-```
-
-## 3. 旧分支审查结果
-
-仓库当前普通旧分支只有：
-
-```text
-feat/runtime-foundation
-```
-
-相对 main：
-
-```text
-ahead_by: 9
-behind_by: 49
-status: diverged
-```
-
-其内容是早期 Runtime / QuickSurface / reference policy 等实现，main 已覆盖并继续扩展。本轮没有合并它，避免旧实现覆盖当前结构。后续继续只在 main 开发。
-
-## 4. 当前关键能力
-
-### Runtime
-
-已具备：
+### Runtime / Migration
 
 - PageRouter / Lifecycle / History
-- NavigationGuard C++ contract
 - None / KeepAlive / Lru cache
-- QML/provider-agnostic PageDescriptor
-- Router 级 cross-provider fallback
-- fallback diagnostics signals
+- INavigationGuard
+- Router-level cross-provider fallback
+- provider diagnostics
+- QML failure -> WidgetPageProvider -> legacy QWidget
+- final provider-native ErrorPage
 
-新增 descriptor：
-
-```cpp
-struct PageFallbackDescriptor {
-    QString provider;
-    QVariantMap source;
-};
-
-struct PageDescriptor {
-    ...
-    FallbackPolicy fallbackPolicy;
-    std::optional<PageFallbackDescriptor> fallback;
-};
-```
-
-Router 完全不写死 QWidget/QML。
-
-当前 fallback 语义：
-
-```text
-primary create failure
-  ↓
-LegacyBeforeActivate
-or LegacyIfStateless + metadata["stateless"] == true
-  ↓
-cross-provider create
-  ↓ failure
-primary provider createErrorFallback()
-  ↓ failure
-RouteResult failure + provider diagnostics
-```
+Runtime 不感知 QWidget/QML 技术栈。
 
 ### Quick/UI
 
-已有：
-
 - QuickRuntime / QuickPageProvider
-- QmlErrorCollector
-- PageLoadError
+- QmlErrorCollector / PageLoadError
 - Overlay / Busy
 - FocusNavigator
-- provider / descriptor extension points
+- NavigationGuardState / NavigationGuardController
+- confirm/cancel retry-once flow
 
-本轮新增：
+### WidgetBridge
+
+- QuickSurface
+- WidgetPageProvider
+- WidgetFocusBridge / FocusTransferPolicy
+- QWidget ↔ QML Tab/Backtab
+- focus remember/restore
+- scanner isolation
+- modal focus trap
+
+### DataView — 本批新增
+
+#### ColumnStateModel
+
+通用列状态：
 
 ```text
-NavigationGuardState
-NavigationGuardController
+stable id
+modelColumn
+title
+width
+visible
+visual order
 ```
 
-properties：
+恢复规则以 stable id 为准。旧 model column index 不作为身份；模型列顺发生变化时，配置仍按 id 迁移。
+
+#### ColumnConfigStore
+
+配置 key：
 
 ```text
-dirty
-busy
-enabled
-reason
-confirmRequired
+tableId
+schemaVersion
+modelSchema
 ```
+
+当前 backend：QSettings，测试可指定独立 INI filePath。payload 为 JSON column list。
+
+后续可抽 `IColumnConfigBackend`，但当前 API 不依赖任何医疗/product 字段。
+
+#### DataGrid
+
+兼容旧 `columnWidths[]`，同时新增 ColumnStateModel 路径。
+
+使用 Qt 6.8 public API：
+
+```text
+moveColumn
+columnMoved
+clearColumnReordering
+columnWidthProvider
+```
+
+支持：
+
+- width persistence
+- order persistence
+- visibility persistence
+- schema-safe restore
+
+#### DataEditTransaction
 
 流程：
 
 ```text
-route request
-  ↓ guard block
-controller stores exact NavigationContext
+begin(row, logicalColumn)
   ↓
-UI confirmationRequested / hardBlocked
-  ├─ cancelPending -> current route unchanged
-  └─ confirmPending -> retry original action exactly once
-                       bypass only this controller once
-                       other guards still execute
+temporaryValue
+  ↓
+acceptValidation(...)
+  ├─ invalid -> commit rejected / rollback
+  └─ valid -> commit -> model.setData(Qt::EditRole)
 ```
 
-Guard 不弹 Dialog；Hybrid Demo 的 QML UI 负责 Dialog。
+重要：DataGrid 列移动后，transaction / validator / signals 使用 **logical model column**，不能使用 visual column。
 
-### WidgetBridge
-
-已有：
-
-- QuickSurface
-- WidgetPageProvider
-- lifecycle adapter
-
-本轮新增：
+DataGrid properties/signals：
 
 ```text
-WidgetFocusBridge
-FocusTransferPolicy
+editTransaction
+editValidator
+editCommitted
+editRejected
 ```
 
-MVP 支持：
+### Medical Demo Results
 
-- QWidget -> QML Tab
-- QML -> QWidget Tab
-- Backtab reverse transfer
-- rememberFocus / restoreFocus
-- scannerIsolation
-- modalFocusTrap
+已验证：
 
-Focus Bridge 只存在于 WidgetBridge，不进入 Runtime。
+- 7 stable result column ids
+- width/order/visibility persistence
+- hide/show Flag
+- Reset Columns
+- DataEditTransaction
+- numeric result validation
+- commit/reject UI feedback
 
-## 5. Hybrid Demo 当前验证链路
+## 4. Tests
 
-```text
-QApplication / QWidget Shell
-→ QStackedWidget
-→ QuickSurface + Legacy QWidget
-→ QuickPageProvider + WidgetPageProvider
-→ same QuickRuntime / PageRouter / History
-```
+`tst_dataview` 新增：
 
-Demo 新增：
+- stable-id restore across model-column changes
+- new column keeps schema default
+- persistence round-trip
+- schemaVersion/modelSchema mismatch
+- commit blocked before validation
+- validation failure keeps source model untouched
+- rollback keeps original value
 
-1. Broken QML → Router cross-provider fallback → Legacy results QWidget；
-2. fallback signal/status 展示；
-3. dirty guard + confirm/cancel Dialog；
-4. busy guard + hard block；
-5. `QLineEdit -> QML TextField -> QLineEdit` Tab/Backtab；
-6. scanner focus isolation toggle；
-7. route back focus remember/restore 基础。
+这些仍然 **没有真实 Qt 6.8.3 + MSVC2022 CI 编译结果**。
 
-## 6. 测试新增
+## 5. CI 状态
 
-### Runtime tests
-
-- LegacyBeforeActivate fallback success
-- LegacyIfStateless explicit safety gate
-- cross-provider failure -> ErrorPage
-- full fallback chain failure diagnostics
-
-### UI tests
-
-- guard confirm retries once
-- cancel remains current route
-- hard block cannot be confirmed
-- original parameters preserved
-
-### WidgetBridge tests
-
-- provider lastError for unknown factory
-- widget -> quick boundary transfer MVP
-- scanner isolation suppresses transfer
-
-这些目前只有源码/静态实现，**还没有真实 Qt 6.8.3 Windows CI 编译结果**。
-
-## 7. CI 状态
-
-本轮最新 run：
+最新功能 run：
 
 ```text
-run: 38892175280
-head: 7bc28f77616c897a9d7379df32d7d1bbacaae5d6
+run: 38893152500
+head: 7c54f74d8ffd5ec3926b822254b09930bd8c1884
 job: windows-qt683
 status: completed
 conclusion: failure
@@ -233,75 +189,79 @@ steps: null
 logs_url: null
 ```
 
-仍然是同一基础设施异常：job 创建后约 3 秒结束，完全没有 checkout / Install Qt / Configure / Build / Test。
+仍为基础设施异常。不要宣称 CI Green，也不要宣称源码编译失败。
 
-必须继续使用下面表述：
+Runner 恢复后优先检查：
 
-```text
-GitHub Actions runner/infrastructure abnormal
-Real Qt 6.8.3 compile has NOT executed
-Do not claim CI green
-Do not claim source compile failure without compiler output
-```
+- ColumnStateModel QML_ELEMENT / moc
+- QSettings/QJsonDocument persistence
+- DataEditTransaction QAbstractItemModel* property
+- Qt 6.8 TableView moveColumn/columnMoved
+- edit delegate / model.edit writable behavior
+- QSortFilterProxyModel setData forwarding
+- ResultsPage QML registration
+- 上一批 fallback/guard/focus 相关 MSVC/QML 问题
 
-Runner 恢复后重点检查：
-
-- optional PageFallbackDescriptor + MSVC public header
-- IPageProvider fallback virtual ABI
-- NavigationGuardController moc / Q_PROPERTY pointer types
-- QVariant QObject* initial property injection
-- WidgetFocusBridge QQuickWidget focus event behavior
-- GUI unit test stability
-- QML Dialog/TextField/resource registration
-
-## 8. 下一开发批次
-
-严格按以下顺序：
+## 6. 下一开发批次
 
 ### Step 0 — Build gate
 
-先查 Actions。只要出现真实 steps，就暂停大功能，修完 Configure / Build / CTest。
+每次开工先查 Actions。若有实际 steps，先修构建测试。
 
-### Step 1 — DataGrid 第二阶段（当前最高功能优先级）
+### Step 1 — DataGrid typed delegates
 
-优先做一个完整纵向切片：
-
-```text
-stable column id
-  +
-ColumnStateModel / ColumnConfigStore
-  +
-width/order/visibility persistence
-  +
-schemaVersion/tableId/modelSchema
-```
-
-Persistence contract 不要直接写死 QSettings；可以先提供 interface + QSettings adapter，方便产品替换存储。
-
-然后做：
+继续优先于 NavigationView：
 
 ```text
-edit transaction
-Begin -> Temporary -> Validate -> Commit / Rollback
+CheckDelegate
+ComboDelegate
+ProgressDelegate
+IconDelegate
+EditorDelegate contract
 ```
 
-再加入：
+要求：
 
-- CheckDelegate
-- ComboDelegate
-- ProgressDelegate
-- IconDelegate
-- EditorDelegate
-- batch selection
-- context menu
-- keyboard / cross-table navigation
-- 20k / 50k row benchmark
+- delegate contract 不依赖 Sample/Patient/Reagent；
+- typed editor 要继续走 DataEditTransaction；
+- validation 由调用层提供；
+- 不让 delegate 自己存长期业务状态。
 
-DataGrid 不能出现 Sample / Patient / Reagent 业务字段。
+### Step 2 — Selection / actions / keyboard
 
-### Step 2 — Medical Demo 真实页面
+实现：
 
-优先：
+- batch row selection helpers
+- selected row/index export
+- context-menu request contract
+- row/cell action contract
+- cross-table keyboard navigation
+- Home/End/PageUp/PageDown 等可验证行为
+
+### Step 3 — Performance
+
+建立：
+
+```text
+20k rows
+50k rows
+8 / 20 / 40 columns
+update 1 / 10 / 100 per sec
+```
+
+先记录：
+
+- model population time
+- filter/sort time
+- first population
+- memory baseline（可获取时）
+- QML scroll/frame 指标后续在 GUI benchmark 中补
+
+不要设置脆弱的绝对性能断言，先输出 benchmark telemetry。
+
+### Step 4 — Medical Demo
+
+继续：
 
 ```text
 Sample Register
@@ -309,9 +269,7 @@ Sample Rack
 Results Review
 ```
 
-每页至少验证 2~4 个框架系统。
-
-Results Review 推荐：
+Results Review 最终验证：
 
 ```text
 DataGrid
@@ -321,41 +279,32 @@ DataGrid
 + Overlay
 ```
 
-### Step 3 — 后续
+### Step 5 — 后续
 
 - Permission attached API
 - Validation RuleTable
-- Toast/Dialog dual-stack consistency
-- QuickSurface DPI/resize/z-order stress
-- Focus Bridge GUI stress / restore policy refinement
+- Toast/Dialog dual-stack
+- Focus Bridge GUI stress
 - WindowRouter
-- NavigationView（仍不优先做巨大版本）
-- Charts abstraction
-- Diagnostics HUD
+- NavigationView（不优先巨大版本）
+- Charts
+- Diagnostics
 - Hot Reload
 - Qt 6.12 adapter
 
-## 9. 已知债务
+## 7. 已知债务
 
-- Singleton 仍非 route-global singleton。
-- LRU 无 memory cost/weight。
-- LegacyIfStateless 暂用 metadata["stateless"]，后续可 typed field。
-- NavigationGuardController 当前只保存一个 pending request；快速连续请求需要后续明确覆盖/丢弃策略。
-- Focus Bridge 是 boundary MVP，不重写完整 Qt/QML focus chain。
-- route back focus restore 需要真实 GUI stress。
+- Singleton 非 route-global singleton。
+- LRU 无 memory weight。
+- NavigationGuardController 单 pending request。
+- Focus Bridge boundary MVP。
+- ColumnConfigStore backend 目前内置 QSettings/INI，后续可抽 interface。
+- typed DataGrid delegates 尚未完成。
+- batch/context/cross-table nav 尚未完成。
+- 20k/50k benchmark 尚未建立。
 - CI 尚未实编。
 
-## 10. 不要做
-
-- 不要先开发巨大 NavigationView。
-- 不要为了全 QML 强行移除 QWidget。
-- 不要把 QWidget/QQuickItem 写进 Runtime。
-- 不要把业务 Permission ID / domain model 放进 Core/DataGrid。
-- 不要让 Scanner 承担业务规则。
-- 不要在 CI 无 steps 时宣称构建失败或 CI Green。
-- 不要创建新的普通 feature branch。
-
-## 11. 架构边界
+## 8. 架构边界
 
 ```text
 LfQuickCore      -> QtCore only
@@ -367,14 +316,6 @@ WidgetBridge     -> optional Qt Widgets / QuickWidgets
 Integration.*    -> legacy/product-specific adapters
 ```
 
-Core 禁止：EventFunc Adapter、LfWidget.dll Adapter、WindowManager Adapter、QXlsx、LimeReport、HookProc、ScanerHook、Patient/Sample/Reagent domain、医疗业务 Permission ID、QC/Calibration 算法。
+不要把 EventFunc / LfWidget.dll / WindowManager / QXlsx / LimeReport / HookProc / ScanerHook / Patient/Sample/Reagent domain / medical Permission IDs / QC-Calibration 算法写进 Core/DataGrid。
 
-## 12. External Reference
-
-继续遵守 `docs/REFERENCE_POLICY.md`：
-
-- FluentUI MIT 公开源码允许研究；复制/实质衍生必须保留 MIT 记录；
-- FluentUI2/Pro 只做 public API/qmltypes/demo/behavior clean-room 参考；
-- 不逆向 DLL；
-- 不还原私有 Pro 实现；
-- LfQuick 架构边界优先于模仿 FluentUI。
+继续遵守 `docs/REFERENCE_POLICY.md`，FluentUI2/Pro 只做 public API/behavior clean-room 参考。
