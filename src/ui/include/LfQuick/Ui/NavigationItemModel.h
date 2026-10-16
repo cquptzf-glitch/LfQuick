@@ -8,6 +8,8 @@
 #include <QVariantMap>
 #include <QtQmlIntegration/qqmlintegration.h>
 
+#include <optional>
+
 namespace LfQuick {
 
 class PermissionEvaluator;
@@ -24,7 +26,7 @@ class LFQUICKUI_EXPORT NavigationItemModel final : public QAbstractListModel
     QML_ELEMENT
     Q_PROPERTY(QString selectedRoute READ selectedRoute WRITE setSelectedRoute NOTIFY selectedRouteChanged FINAL)
     Q_PROPERTY(PermissionEvaluator* permissionEvaluator READ permissionEvaluator WRITE setPermissionEvaluator NOTIFY permissionEvaluatorChanged FINAL)
-    Q_PROPERTY(int count READ rowCount NOTIFY countChanged FINAL)
+    Q_PROPERTY(int count READ count NOTIFY countChanged FINAL)
 
 public:
     enum Role {
@@ -48,6 +50,7 @@ public:
     int rowCount(const QModelIndex &parent = {}) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
+    int count() const noexcept { return m_items.size(); }
 
     QString selectedRoute() const { return m_selectedRoute; }
     void setSelectedRoute(const QString &route);
