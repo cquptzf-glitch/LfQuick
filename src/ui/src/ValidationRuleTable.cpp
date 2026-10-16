@@ -1,5 +1,9 @@
 #include <LfQuick/Ui/ValidationRuleTable.h>
 
+#include <QStringView>
+
+#include <utility>
+
 namespace LfQuick {
 
 ValidationRuleTable::ValidationRuleTable(QObject *parent)
@@ -145,7 +149,7 @@ QVariantMap ValidationRuleTable::resolvedRule(const QString &ruleId) const
     if (!m_provider)
         return {};
 
-    ValidationRule providerRule = m_provider->rule(id);
+    ValidationRule providerRule = m_provider->rule(QStringView{id});
     if (providerRule.id.trimmed().isEmpty())
         return {};
     return ruleToMap(providerRule);
