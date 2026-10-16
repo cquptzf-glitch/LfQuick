@@ -6,7 +6,7 @@
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
-#include <QtQml/qqmlintegration.h>
+#include <QtQmlIntegration/qqmlintegration.h>
 
 namespace LfQuick {
 

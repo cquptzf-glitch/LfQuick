@@ -6,7 +6,7 @@
 #include <QObject>
 #include <QString>
 #include <QVariantMap>
-#include <QtQml/qqmlintegration.h>
+#include <QtQmlIntegration/qqmlintegration.h>
 
 #include <memory>
 

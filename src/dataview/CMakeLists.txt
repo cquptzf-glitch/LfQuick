@@ -49,6 +49,7 @@ target_link_libraries(LfQuickDataView
         LfQuick::Ui
         Qt6::Core
         Qt6::Qml
+        Qt6::QmlIntegration
         Qt6::Quick
         Qt6::QuickControls2
 )

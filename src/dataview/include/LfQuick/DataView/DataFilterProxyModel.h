@@ -3,7 +3,7 @@
 #include <LfQuick/DataView/LfQuickDataViewGlobal.h>
 
 #include <QSortFilterProxyModel>
-#include <QtQml/qqmlintegration.h>
+#include <QtQmlIntegration/qqmlintegration.h>
 
 namespace LfQuick {
 

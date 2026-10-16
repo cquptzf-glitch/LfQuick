@@ -4,7 +4,7 @@
 
 #include <QObject>
 #include <QVariantMap>
-#include <QtQml/qqmlintegration.h>
+#include <QtQmlIntegration/qqmlintegration.h>
 
 namespace LfQuick {
 

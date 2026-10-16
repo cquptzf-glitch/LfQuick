@@ -59,6 +59,7 @@ target_link_libraries(LfQuickUi
         LfQuick::Runtime
         Qt6::Gui
         Qt6::Qml
+        Qt6::QmlIntegration
         Qt6::Quick
         Qt6::QuickControls2
         Qt6::QuickLayouts

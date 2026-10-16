@@ -8,7 +8,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <QVector>
-#include <QtQml/qqmlintegration.h>
+#include <QtQmlIntegration/qqmlintegration.h>
 
 namespace LfQuick {
 

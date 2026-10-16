@@ -6,7 +6,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QStringList>
-#include <QtQml/qqmlintegration.h>
+#include <QtQmlIntegration/qqmlintegration.h>
 
 class QQuickItem;
 

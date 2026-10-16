@@ -6,7 +6,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QVariant>
-#include <QtQml/qqmlintegration.h>
+#include <QtQmlIntegration/qqmlintegration.h>
 
 namespace LfQuick {
 
