@@ -4,6 +4,7 @@ qt_add_library(LfQuickDataView
     src/ColumnStateModel.cpp
     src/ColumnConfigStore.cpp
     src/DataEditTransaction.cpp
+    src/DataGridSelectionController.cpp
 )
 add_library(LfQuick::DataView ALIAS LfQuickDataView)
 
@@ -21,6 +22,13 @@ qt_add_qml_module(LfQuickDataView
     RESOURCE_PREFIX /qt/qml
     QML_FILES
         qml/DataGrid.qml
+        qml/DataGridEditorDelegate.qml
+        qml/DataGridCheckDelegate.qml
+        qml/DataGridCheckEditorDelegate.qml
+        qml/DataGridComboDelegate.qml
+        qml/DataGridComboEditorDelegate.qml
+        qml/DataGridProgressDelegate.qml
+        qml/DataGridIconDelegate.qml
 )
 
 target_sources(LfQuickDataView PUBLIC
@@ -33,6 +41,7 @@ target_sources(LfQuickDataView PUBLIC
         include/LfQuick/DataView/ColumnStateModel.h
         include/LfQuick/DataView/ColumnConfigStore.h
         include/LfQuick/DataView/DataEditTransaction.h
+        include/LfQuick/DataView/DataGridSelectionController.h
 )
 
 target_link_libraries(LfQuickDataView

@@ -188,6 +188,18 @@ int ColumnStateModel::modelColumnAt(int visualIndex) const
     return m_columns.at(visualIndex).modelColumn;
 }
 
+QString ColumnStateModel::idForModelColumn(int modelColumn) const
+{
+    const int index = indexOfModelColumn(modelColumn);
+    return index < 0 ? QString{} : m_columns.at(index).id;
+}
+
+QString ColumnStateModel::titleForModelColumn(int modelColumn) const
+{
+    const int index = indexOfModelColumn(modelColumn);
+    return index < 0 ? QString{} : m_columns.at(index).title;
+}
+
 qreal ColumnStateModel::widthForModelColumn(int modelColumn, qreal fallback) const
 {
     const int index = indexOfModelColumn(modelColumn);

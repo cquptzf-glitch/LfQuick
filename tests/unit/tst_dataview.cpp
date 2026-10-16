@@ -2,8 +2,10 @@
 #include <LfQuick/DataView/ColumnStateModel.h>
 #include <LfQuick/DataView/DataEditTransaction.h>
 #include <LfQuick/DataView/DataFilterProxyModel.h>
+#include <LfQuick/DataView/DataGridSelectionController.h>
 #include <LfQuick/DataView/DataTableModel.h>
 
+#include <QItemSelectionModel>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
@@ -82,6 +84,8 @@ private slots:
 
         QVERIFY(changedSchema.restoreState(saved));
         QCOMPARE(changedSchema.modelColumnAt(0), 2);
+        QCOMPARE(changedSchema.idForModelColumn(0), QStringLiteral("status"));
+        QCOMPARE(changedSchema.titleForModelColumn(3), QStringLiteral("flag"));
         QCOMPARE(changedSchema.widthForModelColumn(0), 188.0);
         QVERIFY(!changedSchema.isModelColumnVisible(2));
         QCOMPARE(changedSchema.modelColumnAt(3), 3);
@@ -146,6 +150,40 @@ private slots:
         transaction.rollback();
         QVERIFY(!transaction.active());
         QCOMPARE(model.data(model.index(0, 0), Qt::DisplayRole).toString(), QStringLiteral("Pending"));
+    }
+
+    void selectionControllerSupportsBatchRowsAndCurrentCell()
+    {
+        DataTableModel model;
+        model.setColumnKeys({QStringLiteral("id"), QStringLiteral("status")});
+        for (int i = 0; i < 4; ++i) {
+            model.appendRow({{QStringLiteral("id"), QString::number(i)},
+                             {QStringLiteral("status"), QStringLiteral("Ready")}});
+        }
+
+        QItemSelectionModel selection(&model);
+        DataGridSelectionController controller;
+        controller.setSelectionModel(&selection);
+        controller.setSelectRows(true);
+
+        QVERIFY(controller.selectRowsList({0, 2}));
+        QCOMPARE(controller.selectedRowsList(), QVariantList({0, 2}));
+        QCOMPARE(controller.selectedRowCount(), 2);
+        QVERIFY(controller.isRowSelected(2));
+
+        QVERIFY(controller.setCurrentCell(1, 1));
+        QCOMPARE(controller.currentRow(), 1);
+        QCOMPARE(controller.currentColumn(), 1);
+        QCOMPARE(controller.selectedRowsList(), QVariantList({1}));
+
+        QVERIFY(controller.moveCurrent(2, 0));
+        QCOMPARE(controller.currentRow(), 3);
+        QVERIFY(controller.selectAllRows());
+        QCOMPARE(controller.selectedRowCount(), 4);
+
+        controller.clear();
+        QCOMPARE(controller.selectedRowCount(), 0);
+        QCOMPARE(controller.currentRow(), -1);
     }
 };
 

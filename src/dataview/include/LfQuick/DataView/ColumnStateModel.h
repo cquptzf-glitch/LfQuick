@@ -38,6 +38,8 @@ public:
 
     Q_INVOKABLE int indexOfId(const QString &id) const;
     Q_INVOKABLE int modelColumnAt(int visualIndex) const;
+    Q_INVOKABLE QString idForModelColumn(int modelColumn) const;
+    Q_INVOKABLE QString titleForModelColumn(int modelColumn) const;
     Q_INVOKABLE qreal widthForModelColumn(int modelColumn, qreal fallback = 140.0) const;
     Q_INVOKABLE bool isModelColumnVisible(int modelColumn) const;
     Q_INVOKABLE bool setWidth(const QString &id, qreal width);
