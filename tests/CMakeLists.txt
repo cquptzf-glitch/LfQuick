@@ -107,3 +107,11 @@ if(LFQUICK_BUILD_WIDGET_BRIDGE)
     target_link_libraries(tst_widgetbridge PRIVATE LfQuick::WidgetBridge Qt6::Test)
     lfquick_register_test(tst_widgetbridge)
 endif()
+
+if(LFQUICK_BUILD_CHARTS)
+    qt_add_executable(tst_charts
+        unit/tst_charts.cpp
+    )
+    target_link_libraries(tst_charts PRIVATE LfQuick::Charts Qt6::Test)
+    lfquick_register_test(tst_charts)
+endif()
