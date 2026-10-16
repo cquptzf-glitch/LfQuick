@@ -6,13 +6,18 @@
 namespace LfQuick {
 
 ChartDataModel::ChartDataModel(QObject *parent)
-    : QAbstractListModel(parent)
+    : QAbstractTableModel(parent)
 {
 }
 
 int ChartDataModel::rowCount(const QModelIndex &parent) const
 {
     return parent.isValid() ? 0 : m_points.size();
+}
+
+int ChartDataModel::columnCount(const QModelIndex &parent) const
+{
+    return parent.isValid() ? 0 : static_cast<int>(ColumnCount);
 }
 
 QVariant ChartDataModel::data(const QModelIndex &index, int role) const
@@ -23,8 +28,12 @@ QVariant ChartDataModel::data(const QModelIndex &index, int role) const
     const auto &point = m_points.at(index.row());
     switch (role) {
     case Qt::DisplayRole:
-        return QVariantMap{{QStringLiteral("x"), point.x},
-                           {QStringLiteral("y"), point.y}};
+    case Qt::EditRole:
+        if (index.column() == XColumn)
+            return point.x;
+        if (index.column() == YColumn)
+            return point.y;
+        return {};
     case XRole:
         return point.x;
     case YRole:
@@ -36,6 +45,61 @@ QVariant ChartDataModel::data(const QModelIndex &index, int role) const
     }
 }
 
+bool ChartDataModel::setData(const QModelIndex &index, const QVariant &value, int role)
+{
+    if (!index.isValid() || index.row() < 0 || index.row() >= m_points.size())
+        return false;
+
+    bool ok = false;
+    const double numericValue = value.toDouble(&ok);
+    if (!ok)
+        return false;
+
+    auto &point = m_points[index.row()];
+    int changedRole = role;
+    if (role == Qt::EditRole) {
+        if (index.column() == XColumn) {
+            point.x = numericValue;
+            changedRole = XRole;
+        } else if (index.column() == YColumn) {
+            point.y = numericValue;
+            changedRole = YRole;
+        } else {
+            return false;
+        }
+    } else if (role == XRole) {
+        point.x = numericValue;
+    } else if (role == YRole) {
+        point.y = numericValue;
+    } else {
+        return false;
+    }
+
+    emit dataChanged(index, index, {Qt::DisplayRole, Qt::EditRole, changedRole});
+    emit boundsChanged();
+    return true;
+}
+
+Qt::ItemFlags ChartDataModel::flags(const QModelIndex &index) const
+{
+    if (!index.isValid())
+        return Qt::NoItemFlags;
+    return Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable;
+}
+
+QVariant ChartDataModel::headerData(int section,
+                                    Qt::Orientation orientation,
+                                    int role) const
+{
+    if (role != Qt::DisplayRole || orientation != Qt::Horizontal)
+        return {};
+    if (section == XColumn)
+        return QStringLiteral("X");
+    if (section == YColumn)
+        return QStringLiteral("Y");
+    return {};
+}
+
 QHash<int, QByteArray> ChartDataModel::roleNames() const
 {
     return {
@@ -43,6 +107,15 @@ QHash<int, QByteArray> ChartDataModel::roleNames() const
         {YRole, "y"},
         {MetadataRole, "metadata"}
     };
+}
+
+QList<QPointF> ChartDataModel::points() const
+{
+    QList<QPointF> result;
+    result.reserve(m_points.size());
+    for (const auto &point : m_points)
+        result.append(QPointF(point.x, point.y));
+    return result;
 }
 
 void ChartDataModel::setPoints(const QVariantList &points)
