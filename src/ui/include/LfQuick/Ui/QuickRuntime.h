@@ -36,6 +36,9 @@ class LFQUICKUI_EXPORT QuickRuntime : public QObject
     Q_PROPERTY(QmlErrorCollector* errorCollector READ errorCollector CONSTANT FINAL)
     Q_PROPERTY(NavigationGuardController* navigationGuard READ navigationGuard CONSTANT FINAL)
     Q_PROPERTY(int maxRetainedLruPages READ maxRetainedLruPages WRITE setMaxRetainedLruPages NOTIFY cachePolicyChanged FINAL)
+    Q_PROPERTY(qint64 maxRetainedLruWeight READ maxRetainedLruWeight WRITE setMaxRetainedLruWeight NOTIFY cachePolicyChanged FINAL)
+    Q_PROPERTY(qint64 retainedLruWeight READ retainedLruWeight NOTIFY cacheStateChanged FINAL)
+    Q_PROPERTY(int singletonCount READ singletonCount NOTIFY cacheStateChanged FINAL)
 
 public:
     explicit QuickRuntime(QQmlEngine *engine, QObject *parent = nullptr);
@@ -53,6 +56,10 @@ public:
 
     int maxRetainedLruPages() const;
     void setMaxRetainedLruPages(int value);
+    qint64 maxRetainedLruWeight() const;
+    void setMaxRetainedLruWeight(qint64 value);
+    qint64 retainedLruWeight() const;
+    int singletonCount() const;
 
     bool registerProvider(std::shared_ptr<IPageProvider> provider);
     bool registerDescriptor(PageDescriptor descriptor);
@@ -63,7 +70,8 @@ public:
     Q_INVOKABLE bool registerPage(const QString &route,
                                   const QUrl &source,
                                   int cachePolicy = static_cast<int>(PageCachePolicy::KeepAlive),
-                                  bool useErrorFallback = true);
+                                  bool useErrorFallback = true,
+                                  qint64 cacheWeight = 1);
     Q_INVOKABLE bool unregisterPage(const QString &route);
 
     Q_INVOKABLE bool push(const QString &route, const QVariantMap &parameters = {});
@@ -76,6 +84,7 @@ signals:
     void navigationChanged();
     void hostChanged();
     void cachePolicyChanged();
+    void cacheStateChanged();
     void navigationFailed(const QString &route, const QString &message);
     void navigationBlocked(const QString &fromRoute,
                            const QString &toRoute,
@@ -96,7 +105,8 @@ private:
     PageDescriptor descriptorFor(const QString &route,
                                  const QUrl &source,
                                  int cachePolicy,
-                                 bool useErrorFallback) const;
+                                 bool useErrorFallback,
+                                 qint64 cacheWeight) const;
 
     QPointer<QQmlEngine> m_engine;
     QPointer<QQuickItem> m_host;
