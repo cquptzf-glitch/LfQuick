@@ -26,6 +26,7 @@ qt_add_qml_module(LfQuickUi
     SOURCES
         include/LfQuick/Ui/QmlErrorCollector.h
         src/QmlErrorCollector.cpp
+        include/LfQuick/Ui/OverlayBackend.h
         include/LfQuick/Ui/OverlayCoordinator.h
         src/OverlayCoordinator.cpp
         include/LfQuick/Ui/FocusNavigator.h
@@ -48,6 +49,8 @@ qt_add_qml_module(LfQuickUi
         qml/Tokens.qml
         qml/OverlayHost.qml
         qml/BusyOverlay.qml
+        qml/ToastStack.qml
+        qml/DialogOverlay.qml
         qml/FocusDebugPanel.qml
 )
 
@@ -58,6 +61,7 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/LfQuickUiGlobal.h
         include/LfQuick/Ui/QuickPageProvider.h
         include/LfQuick/Ui/QmlErrorCollector.h
+        include/LfQuick/Ui/OverlayBackend.h
         include/LfQuick/Ui/OverlayCoordinator.h
         include/LfQuick/Ui/FocusNavigator.h
         include/LfQuick/Ui/NavigationGuardState.h
