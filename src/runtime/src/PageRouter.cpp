@@ -7,19 +7,35 @@
 #include <LfQuick/Runtime/PageRegistry.h>
 
 #include <algorithm>
+#include <utility>
 
 namespace LfQuick {
 namespace {
 
-QString providerError(const std::shared_ptr<IPageProvider> &provider,
-                      const QString &fallbackMessage)
+PageProviderError providerErrorInfo(const std::shared_ptr<IPageProvider> &provider,
+                                    const QString &fallbackCode,
+                                    const QString &fallbackMessage,
+                                    const QVariantMap &fallbackDetails = {})
 {
-    if (provider) {
-        const QString message = provider->lastError().trimmed();
-        if (!message.isEmpty())
-            return message;
+    PageProviderError error = provider ? provider->lastErrorInfo() : PageProviderError{};
+    if (error.code.trimmed().isEmpty())
+        error.code = fallbackCode;
+    if (error.message.trimmed().isEmpty())
+        error.message = fallbackMessage;
+    for (auto it = fallbackDetails.cbegin(); it != fallbackDetails.cend(); ++it) {
+        if (!error.details.contains(it.key()))
+            error.details.insert(it.key(), it.value());
     }
-    return fallbackMessage;
+    return error;
+}
+
+void insertProviderFailure(QVariantMap &diagnostics,
+                           const QString &legacyKey,
+                           const QString &structuredKey,
+                           const PageProviderError &error)
+{
+    diagnostics.insert(legacyKey, error.message);
+    diagnostics.insert(structuredKey, error.toVariantMap());
 }
 
 QString creationFailureMessage(const QVariantMap &diagnostics)
@@ -43,9 +59,10 @@ struct PageRouter::Entry
 {
     PageDescriptor descriptor;
     QVariantMap parameters;
-    std::unique_ptr<IPageInstance> instance;
+    std::shared_ptr<IPageInstance> instance;
     bool suspended = false;
     quint64 lastTouched = 0;
+    qint64 cacheWeight = 1;
 };
 
 PageRouter::PageRouter(PageRegistry *pages,
@@ -102,6 +119,31 @@ void PageRouter::setMaxRetainedLruPages(int value)
     emit cachePolicyChanged();
 }
 
+void PageRouter::setMaxRetainedLruWeight(qint64 value)
+{
+    value = std::max<qint64>(0, value);
+    if (m_maxRetainedLruWeight == value)
+        return;
+
+    m_maxRetainedLruWeight = value;
+    enforceLruLimit();
+    emit cachePolicyChanged();
+}
+
+qint64 PageRouter::retainedLruWeight() const noexcept
+{
+    qint64 weight = 0;
+    if (m_history.size() <= 1)
+        return weight;
+
+    for (size_t i = 0; i + 1 < m_history.size(); ++i) {
+        const Entry &entry = m_history[i];
+        if (entry.descriptor.cachePolicy == PageCachePolicy::Lru && entry.instance)
+            weight += entry.cacheWeight;
+    }
+    return weight;
+}
+
 bool PageRouter::addGuard(std::shared_ptr<INavigationGuard> guard)
 {
     if (!guard)
@@ -138,9 +180,38 @@ RouteResult PageRouter::createEntry(const RouteRequest &request, Entry &entry)
                   QStringLiteral("Route is not registered")));
     }
 
+    entry.descriptor = *descriptor;
+    entry.parameters = request.parameters;
+    entry.cacheWeight = std::max<qint64>(1, descriptor->cacheWeight);
+
+    if (descriptor->cachePolicy == PageCachePolicy::Singleton) {
+        const auto cached = m_singletons.constFind(descriptor->route);
+        if (cached != m_singletons.cend() && cached.value()) {
+            if (!request.parameters.isEmpty()
+                && !cached.value()->updateParameters(request.parameters)) {
+                QVariantMap details{
+                    {QStringLiteral("route"), request.route},
+                    {QStringLiteral("cachePolicy"), QStringLiteral("singleton")},
+                    {QStringLiteral("parameters"), request.parameters}
+                };
+                return RouteResult::failure(
+                    request.route,
+                    Error(QStringLiteral("routing"), 7,
+                          QStringLiteral("Singleton page rejected updated navigation parameters"),
+                          details));
+            }
+
+            entry.instance = cached.value();
+            entry.suspended = true;
+            touch(entry);
+            emit singletonReused(descriptor->route);
+            return RouteResult::success(request.route);
+        }
+    }
+
     QVariantMap diagnostics;
-    auto instance = createInstance(*descriptor, request.parameters, diagnostics);
-    if (!instance) {
+    auto created = createInstance(*descriptor, request.parameters, diagnostics);
+    if (!created) {
         diagnostics.insert(QStringLiteral("route"), request.route);
         return RouteResult::failure(
             request.route,
@@ -148,10 +219,15 @@ RouteResult PageRouter::createEntry(const RouteRequest &request, Entry &entry)
                   creationFailureMessage(diagnostics), diagnostics));
     }
 
-    entry.descriptor = *descriptor;
-    entry.parameters = request.parameters;
-    entry.instance = std::move(instance);
+    entry.instance = std::shared_ptr<IPageInstance>(std::move(created));
     touch(entry);
+
+    if (descriptor->cachePolicy == PageCachePolicy::Singleton) {
+        m_singletons.insert(descriptor->route, entry.instance);
+        emit singletonCreated(descriptor->route);
+        emit cacheStateChanged();
+    }
+
     return RouteResult::success(request.route);
 }
 
@@ -163,34 +239,52 @@ std::unique_ptr<IPageInstance> PageRouter::createInstance(const PageDescriptor &
     diagnostics.insert(QStringLiteral("primaryProvider"), descriptor.provider);
 
     if (!m_providers) {
-        diagnostics.insert(QStringLiteral("primaryError"),
-                           QStringLiteral("Page provider registry is not configured"));
+        const PageProviderError error{
+            QStringLiteral("runtime.provider-registry-missing"),
+            QStringLiteral("Page provider registry is not configured"),
+            {{QStringLiteral("route"), descriptor.route}}
+        };
+        insertProviderFailure(diagnostics, QStringLiteral("primaryError"),
+                              QStringLiteral("primaryFailure"), error);
         return {};
     }
 
     const auto primaryProvider = m_providers->find(descriptor.provider);
-    QString primaryError;
+    PageProviderError primaryFailure;
 
     if (!primaryProvider) {
-        primaryError = QStringLiteral("Page provider '%1' is not registered")
-                           .arg(descriptor.provider);
+        primaryFailure = {
+            QStringLiteral("runtime.provider-not-registered"),
+            QStringLiteral("Page provider '%1' is not registered").arg(descriptor.provider),
+            {{QStringLiteral("provider"), descriptor.provider},
+             {QStringLiteral("route"), descriptor.route}}
+        };
     } else if (!primaryProvider->canCreate(descriptor)) {
-        primaryError = providerError(
+        primaryFailure = providerErrorInfo(
             primaryProvider,
+            QStringLiteral("runtime.provider-rejected"),
             QStringLiteral("Page provider '%1' rejected the descriptor")
-                .arg(descriptor.provider));
+                .arg(descriptor.provider),
+            {{QStringLiteral("provider"), descriptor.provider},
+             {QStringLiteral("route"), descriptor.route},
+             {QStringLiteral("stage"), QStringLiteral("canCreate")}});
     } else {
         auto primaryInstance = primaryProvider->create(descriptor, parameters);
         if (primaryInstance)
             return primaryInstance;
 
-        primaryError = providerError(
+        primaryFailure = providerErrorInfo(
             primaryProvider,
+            QStringLiteral("runtime.provider-create-failed"),
             QStringLiteral("Page provider '%1' failed to create the page")
-                .arg(descriptor.provider));
+                .arg(descriptor.provider),
+            {{QStringLiteral("provider"), descriptor.provider},
+             {QStringLiteral("route"), descriptor.route},
+             {QStringLiteral("stage"), QStringLiteral("create")}});
     }
 
-    diagnostics.insert(QStringLiteral("primaryError"), primaryError);
+    insertProviderFailure(diagnostics, QStringLiteral("primaryError"),
+                          QStringLiteral("primaryFailure"), primaryFailure);
 
     const bool stateless = descriptor.metadata.value(QStringLiteral("stateless")).toBool();
     const bool crossProviderAllowed = descriptor.fallback.has_value()
@@ -208,18 +302,27 @@ std::unique_ptr<IPageInstance> PageRouter::createInstance(const PageDescriptor &
         emit pageFallbackAttempted(descriptor.route,
                                    descriptor.provider,
                                    fallbackDescriptor.provider,
-                                   primaryError);
+                                   primaryFailure.message);
 
         const auto fallbackProvider = m_providers->find(fallbackDescriptor.provider);
-        QString fallbackError;
+        PageProviderError fallbackFailure;
         if (!fallbackProvider) {
-            fallbackError = QStringLiteral("Fallback provider '%1' is not registered")
-                                .arg(fallbackDescriptor.provider);
+            fallbackFailure = {
+                QStringLiteral("runtime.fallback-provider-not-registered"),
+                QStringLiteral("Fallback provider '%1' is not registered")
+                    .arg(fallbackDescriptor.provider),
+                {{QStringLiteral("provider"), fallbackDescriptor.provider},
+                 {QStringLiteral("route"), descriptor.route}}
+            };
         } else if (!fallbackProvider->canCreate(fallbackDescriptor)) {
-            fallbackError = providerError(
+            fallbackFailure = providerErrorInfo(
                 fallbackProvider,
+                QStringLiteral("runtime.fallback-provider-rejected"),
                 QStringLiteral("Fallback provider '%1' rejected the descriptor")
-                    .arg(fallbackDescriptor.provider));
+                    .arg(fallbackDescriptor.provider),
+                {{QStringLiteral("provider"), fallbackDescriptor.provider},
+                 {QStringLiteral("route"), descriptor.route},
+                 {QStringLiteral("stage"), QStringLiteral("canCreate")}});
         } else {
             auto fallbackInstance = fallbackProvider->create(fallbackDescriptor, parameters);
             if (fallbackInstance) {
@@ -232,20 +335,24 @@ std::unique_ptr<IPageInstance> PageRouter::createInstance(const PageDescriptor &
                 return fallbackInstance;
             }
 
-            fallbackError = providerError(
+            fallbackFailure = providerErrorInfo(
                 fallbackProvider,
+                QStringLiteral("runtime.fallback-provider-create-failed"),
                 QStringLiteral("Fallback provider '%1' failed to create the page")
-                    .arg(fallbackDescriptor.provider));
+                    .arg(fallbackDescriptor.provider),
+                {{QStringLiteral("provider"), fallbackDescriptor.provider},
+                 {QStringLiteral("route"), descriptor.route},
+                 {QStringLiteral("stage"), QStringLiteral("create")}});
         }
 
-        diagnostics.insert(QStringLiteral("fallbackError"), fallbackError);
-        emit pageFallbackFailed(descriptor.route, fallbackDescriptor.provider, fallbackError);
+        insertProviderFailure(diagnostics, QStringLiteral("fallbackError"),
+                              QStringLiteral("fallbackFailure"), fallbackFailure);
+        emit pageFallbackFailed(descriptor.route, fallbackDescriptor.provider,
+                                fallbackFailure.message);
     }
 
-    // ErrorPage is the final provider-native fallback. For the Legacy* policies
-    // it runs only after the cross-provider attempt failed (or was unsafe).
     if (primaryProvider && descriptor.fallbackPolicy != FallbackPolicy::None) {
-        QString reason = primaryError;
+        QString reason = primaryFailure.message;
         const QString crossProviderError = diagnostics.value(QStringLiteral("fallbackError")).toString();
         if (!crossProviderError.isEmpty())
             reason += QStringLiteral("\nCross-provider fallback failed: ") + crossProviderError;
@@ -260,10 +367,18 @@ std::unique_ptr<IPageInstance> PageRouter::createInstance(const PageDescriptor &
             return errorInstance;
         }
 
-        const QString errorFallbackError = primaryProvider->lastError().trimmed();
-        if (!errorFallbackError.isEmpty()) {
-            diagnostics.insert(QStringLiteral("errorFallbackError"), errorFallbackError);
-            emit pageFallbackFailed(descriptor.route, descriptor.provider, errorFallbackError);
+        PageProviderError fallbackFailure = providerErrorInfo(
+            primaryProvider,
+            QStringLiteral("runtime.error-fallback-create-failed"),
+            QStringLiteral("Provider-native error fallback failed"),
+            {{QStringLiteral("provider"), descriptor.provider},
+             {QStringLiteral("route"), descriptor.route},
+             {QStringLiteral("stage"), QStringLiteral("error-fallback")}});
+        if (!fallbackFailure.message.isEmpty()) {
+            insertProviderFailure(diagnostics, QStringLiteral("errorFallbackError"),
+                                  QStringLiteral("errorFallbackFailure"), fallbackFailure);
+            emit pageFallbackFailed(descriptor.route, descriptor.provider,
+                                    fallbackFailure.message);
         }
     }
 
@@ -385,8 +500,6 @@ RouteResult PageRouter::back()
 
 void PageRouter::reset()
 {
-    // Hard reset intentionally bypasses navigation guards. It is used for
-    // shutdown/recovery and must always be able to release every page.
     for (auto it = m_history.rbegin(); it != m_history.rend(); ++it) {
         if (it == m_history.rbegin() && it->instance)
             it->instance->deactivate();
@@ -395,6 +508,7 @@ void PageRouter::reset()
 
     const bool hadEntries = !m_history.empty();
     m_history.clear();
+    destroySingletonCache();
     if (hadEntries)
         notifyRouteChange();
 }
@@ -404,13 +518,31 @@ bool PageRouter::ensureInstance(Entry &entry)
     if (entry.instance)
         return true;
 
+    if (entry.descriptor.cachePolicy == PageCachePolicy::Singleton) {
+        const auto cached = m_singletons.constFind(entry.descriptor.route);
+        if (cached != m_singletons.cend() && cached.value()) {
+            entry.instance = cached.value();
+            entry.suspended = true;
+            touch(entry);
+            emit singletonReused(entry.descriptor.route);
+            return true;
+        }
+    }
+
     QVariantMap diagnostics;
-    entry.instance = createInstance(entry.descriptor, entry.parameters, diagnostics);
-    if (!entry.instance)
+    auto created = createInstance(entry.descriptor, entry.parameters, diagnostics);
+    if (!created)
         return false;
 
+    entry.instance = std::shared_ptr<IPageInstance>(std::move(created));
     entry.suspended = false;
     touch(entry);
+
+    if (entry.descriptor.cachePolicy == PageCachePolicy::Singleton) {
+        m_singletons.insert(entry.descriptor.route, entry.instance);
+        emit singletonCreated(entry.descriptor.route);
+        emit cacheStateChanged();
+    }
     return true;
 }
 
@@ -418,6 +550,12 @@ bool PageRouter::activate(Entry &entry)
 {
     if (!ensureInstance(entry))
         return false;
+
+    if (entry.descriptor.cachePolicy == PageCachePolicy::Singleton
+        && !entry.parameters.isEmpty()
+        && !entry.instance->updateParameters(entry.parameters)) {
+        return false;
+    }
 
     if (entry.suspended) {
         entry.instance->resume();
@@ -437,19 +575,27 @@ void PageRouter::deactivateCurrent(bool suspend)
     Entry &entry = m_history.back();
     entry.instance->deactivate();
 
-    if (!suspend)
+    const bool singletonRetained = entry.descriptor.cachePolicy == PageCachePolicy::Singleton;
+    if (!suspend && !singletonRetained)
         return;
 
     switch (entry.descriptor.cachePolicy) {
     case PageCachePolicy::None:
-        destroy(entry);
+        if (suspend)
+            destroy(entry);
         break;
     case PageCachePolicy::Singleton:
-    case PageCachePolicy::KeepAlive:
-    case PageCachePolicy::Lru:
         entry.instance->suspend();
         entry.suspended = true;
         touch(entry);
+        break;
+    case PageCachePolicy::KeepAlive:
+    case PageCachePolicy::Lru:
+        if (suspend) {
+            entry.instance->suspend();
+            entry.suspended = true;
+            touch(entry);
+        }
         break;
     }
 }
@@ -459,9 +605,29 @@ void PageRouter::destroy(Entry &entry)
     if (!entry.instance)
         return;
 
+    if (entry.descriptor.cachePolicy == PageCachePolicy::Singleton) {
+        entry.instance.reset();
+        entry.suspended = false;
+        return;
+    }
+
     entry.instance->destroy();
     entry.instance.reset();
     entry.suspended = false;
+}
+
+void PageRouter::destroySingletonCache()
+{
+    if (m_singletons.isEmpty())
+        return;
+
+    const auto instances = m_singletons.values();
+    m_singletons.clear();
+    for (const auto &instance : instances) {
+        if (instance)
+            instance->destroy();
+    }
+    emit cacheStateChanged();
 }
 
 void PageRouter::touch(Entry &entry)
@@ -474,29 +640,37 @@ void PageRouter::enforceLruLimit()
     if (m_history.size() <= 1)
         return;
 
+    bool evictedAny = false;
     while (true) {
         int retained = 0;
+        qint64 retainedWeight = 0;
         Entry *oldest = nullptr;
 
-        // The current page is never an eviction candidate. The limit applies
-        // only to inactive LRU pages that are retained for fast back navigation.
         for (size_t i = 0; i + 1 < m_history.size(); ++i) {
             Entry &entry = m_history[i];
             if (entry.descriptor.cachePolicy != PageCachePolicy::Lru || !entry.instance)
                 continue;
 
             ++retained;
+            retainedWeight += entry.cacheWeight;
             if (!oldest || entry.lastTouched < oldest->lastTouched)
                 oldest = &entry;
         }
 
-        if (retained <= m_maxRetainedLruPages || !oldest)
+        const bool countExceeded = retained > m_maxRetainedLruPages;
+        const bool weightExceeded = m_maxRetainedLruWeight > 0
+            && retainedWeight > m_maxRetainedLruWeight;
+        if ((!countExceeded && !weightExceeded) || !oldest)
             break;
 
         const QString route = oldest->descriptor.route;
         destroy(*oldest);
+        evictedAny = true;
         emit cacheEntryEvicted(route);
     }
+
+    if (evictedAny)
+        emit cacheStateChanged();
 }
 
 bool PageRouter::passesGuards(NavigationAction action,
@@ -540,6 +714,7 @@ void PageRouter::notifyRouteChange()
 {
     emit currentRouteChanged(currentRoute());
     emit historyChanged();
+    emit cacheStateChanged();
 }
 
 } // namespace LfQuick
