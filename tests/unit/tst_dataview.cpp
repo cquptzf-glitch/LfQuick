@@ -1,8 +1,10 @@
 #include <LfQuick/DataView/ColumnConfigStore.h>
 #include <LfQuick/DataView/ColumnStateModel.h>
+#include <LfQuick/DataView/DataEditTransaction.h>
 #include <LfQuick/DataView/DataFilterProxyModel.h>
 #include <LfQuick/DataView/DataTableModel.h>
 
+#include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -61,7 +63,7 @@ private slots:
     {
         ColumnStateModel original;
         QVERIFY(original.setColumns({
-            QVariantMap{{QStringLiteral("id"), QStringLiteral("sample" )}, {QStringLiteral("modelColumn"), 0}, {QStringLiteral("width"), 120}},
+            QVariantMap{{QStringLiteral("id"), QStringLiteral("sample")}, {QStringLiteral("modelColumn"), 0}, {QStringLiteral("width"), 120}},
             QVariantMap{{QStringLiteral("id"), QStringLiteral("status")}, {QStringLiteral("modelColumn"), 1}, {QStringLiteral("width"), 100}},
             QVariantMap{{QStringLiteral("id"), QStringLiteral("result")}, {QStringLiteral("modelColumn"), 2}, {QStringLiteral("width"), 90}}
         }));
@@ -79,10 +81,10 @@ private slots:
         }));
 
         QVERIFY(changedSchema.restoreState(saved));
-        QCOMPARE(changedSchema.modelColumnAt(0), 2); // result keeps saved visual order by id
-        QCOMPARE(changedSchema.widthForModelColumn(0), 188.0); // status moved to model column 0
+        QCOMPARE(changedSchema.modelColumnAt(0), 2);
+        QCOMPARE(changedSchema.widthForModelColumn(0), 188.0);
         QVERIFY(!changedSchema.isModelColumnVisible(2));
-        QCOMPARE(changedSchema.modelColumnAt(3), 3); // new column remains after restored known columns
+        QCOMPARE(changedSchema.modelColumnAt(3), 3);
     }
 
     void columnConfigStoreRoundTripsAndRejectsSchemaMismatch()
@@ -100,11 +102,50 @@ private slots:
         const QVariantMap restored = store.load(QStringLiteral("results"), 2, QStringLiteral("ResultModel.v3"));
         QVERIFY(restored.value(QStringLiteral("matched")).toBool());
         QCOMPARE(restored.value(QStringLiteral("columns")).toList().size(), 1);
+        QVERIFY(!store.load(QStringLiteral("results"), 3, QStringLiteral("ResultModel.v3")).value(QStringLiteral("matched")).toBool());
+        QVERIFY(!store.load(QStringLiteral("results"), 2, QStringLiteral("ResultModel.v4")).value(QStringLiteral("matched")).toBool());
+    }
 
-        const QVariantMap stale = store.load(QStringLiteral("results"), 3, QStringLiteral("ResultModel.v3"));
-        QVERIFY(!stale.value(QStringLiteral("matched")).toBool());
-        const QVariantMap wrongModel = store.load(QStringLiteral("results"), 2, QStringLiteral("ResultModel.v4"));
-        QVERIFY(!wrongModel.value(QStringLiteral("matched")).toBool());
+    void editTransactionCommitsOnlyAfterValidation()
+    {
+        DataTableModel model;
+        model.setColumnKeys({QStringLiteral("sample"), QStringLiteral("result")});
+        model.appendRow({{QStringLiteral("sample"), QStringLiteral("S-001")},
+                         {QStringLiteral("result"), 12.5}});
+
+        DataEditTransaction transaction;
+        transaction.setModel(&model);
+        QSignalSpy committed(&transaction, &DataEditTransaction::committed);
+
+        QVERIFY(transaction.begin(0, 1));
+        QCOMPARE(transaction.originalValue().toDouble(), 12.5);
+        transaction.setTemporaryValue(13.8);
+        QVERIFY(!transaction.commit());
+        QCOMPARE(model.data(model.index(0, 1), Qt::DisplayRole).toDouble(), 12.5);
+
+        QVERIFY(transaction.acceptValidation(true));
+        QVERIFY(transaction.commit());
+        QCOMPARE(model.data(model.index(0, 1), Qt::DisplayRole).toDouble(), 13.8);
+        QCOMPARE(committed.count(), 1);
+    }
+
+    void editTransactionRollbackAndValidationFailureLeaveModelUntouched()
+    {
+        DataTableModel model;
+        model.setColumnKeys({QStringLiteral("status")});
+        model.appendRow({{QStringLiteral("status"), QStringLiteral("Pending")}});
+
+        DataEditTransaction transaction;
+        transaction.setModel(&model);
+        QVERIFY(transaction.begin(0, 0));
+        transaction.setTemporaryValue(QStringLiteral("Invalid"));
+        QVERIFY(!transaction.acceptValidation(false, QStringLiteral("Unsupported state")));
+        QVERIFY(!transaction.commit());
+        QCOMPARE(model.data(model.index(0, 0), Qt::DisplayRole).toString(), QStringLiteral("Pending"));
+
+        transaction.rollback();
+        QVERIFY(!transaction.active());
+        QCOMPARE(model.data(model.index(0, 0), Qt::DisplayRole).toString(), QStringLiteral("Pending"));
     }
 };
 

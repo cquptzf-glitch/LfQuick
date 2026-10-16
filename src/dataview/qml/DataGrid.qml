@@ -12,8 +12,11 @@ Control {
     property int minimumColumnWidth: 80
     property var columnWidths: []
     property var columnState: null
+    property var editTransaction: null
+    property var editValidator: null
     property bool movableColumns: true
     property bool resizableColumns: true
+    property bool editable: true
     property bool alternatingRows: true
     property bool selectRows: true
     property int selectionMode: TableView.ExtendedSelection
@@ -23,6 +26,9 @@ Control {
     readonly property alias selectionModel: selectionModel
     property bool _restoringColumnState: false
     property var _visualOrder: []
+
+    signal editCommitted(int row, int column, var value)
+    signal editRejected(int row, int column, var value, string reason)
 
     implicitWidth: 640
     implicitHeight: 360
@@ -37,6 +43,22 @@ Control {
         if (visualColumn >= 0 && visualColumn < root._visualOrder.length)
             return root._visualOrder[visualColumn]
         return visualColumn
+    }
+
+    function validateEdit(row, column, value) {
+        if (!root.editValidator)
+            return { "accepted": true, "message": "" }
+        var result = root.editValidator(row, column, value)
+        if (result === undefined || result === true)
+            return { "accepted": true, "message": "" }
+        if (result === false)
+            return { "accepted": false, "message": qsTr("Value rejected") }
+        if (typeof result === "string")
+            return { "accepted": false, "message": result }
+        return {
+            "accepted": result.accepted !== false,
+            "message": result.message ? String(result.message) : ""
+        }
     }
 
     function applyColumnState() {
@@ -78,6 +100,14 @@ Control {
     }
 
     onColumnStateChanged: Qt.callLater(applyColumnState)
+    onModelChanged: {
+        if (root.editTransaction)
+            root.editTransaction.model = root.model
+    }
+    onEditTransactionChanged: {
+        if (root.editTransaction)
+            root.editTransaction.model = root.model
+    }
 
     ItemSelectionModel {
         id: selectionModel
@@ -100,6 +130,7 @@ Control {
         alternatingRows: root.alternatingRows
         resizableColumns: root.resizableColumns
         resizableRows: false
+        editTriggers: root.editable ? TableView.DoubleTapped | TableView.EditKeyPressed : TableView.NoEditTriggers
         columnSpacing: 1
         rowSpacing: 1
         boundsBehavior: Flickable.StopAtBounds
@@ -130,6 +161,7 @@ Control {
         onLayoutChanged: root.captureExplicitWidths()
 
         delegate: Rectangle {
+            id: cell
             required property bool selected
             required property bool current
             required property int row
@@ -159,12 +191,52 @@ Control {
                 color: selected ? Tokens.onScrim : Tokens.textPrimary
                 text: model.display
             }
+
+            TableView.editDelegate: FocusScope {
+                implicitWidth: cell.width
+                implicitHeight: cell.height
+
+                TextField {
+                    id: editor
+                    anchors.fill: parent
+                    text: model.edit === undefined ? model.display : model.edit
+                    selectByMouse: true
+
+                    Component.onCompleted: {
+                        forceActiveFocus()
+                        selectAll()
+                        if (root.editTransaction)
+                            root.editTransaction.begin(cell.row, cell.column)
+                    }
+                }
+
+                TableView.onCommit: {
+                    if (!root.editTransaction) {
+                        model.edit = editor.text
+                        root.editCommitted(cell.row, cell.column, editor.text)
+                        return
+                    }
+
+                    root.editTransaction.setTemporaryValue(editor.text)
+                    var result = root.validateEdit(cell.row, cell.column, editor.text)
+                    root.editTransaction.acceptValidation(result.accepted, result.message)
+                    if (result.accepted && root.editTransaction.commit()) {
+                        root.editCommitted(cell.row, cell.column, editor.text)
+                    } else {
+                        var reason = result.message.length > 0 ? result.message : qsTr("Edit commit failed")
+                        root.editRejected(cell.row, cell.column, editor.text, reason)
+                        root.editTransaction.rollback()
+                    }
+                }
+            }
         }
 
         Component.onCompleted: {
             root._visualOrder = []
             for (var i = 0; i < table.columns; ++i)
                 root._visualOrder.push(i)
+            if (root.editTransaction)
+                root.editTransaction.model = root.model
             Qt.callLater(root.applyColumnState)
         }
     }
