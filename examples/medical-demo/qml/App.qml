@@ -96,7 +96,7 @@ ApplicationWindow {
     Component.onCompleted: {
         navigationModel.permissionEvaluator = permissionEvaluator
         navigationModel.setItems(window.navigationDefinitions)
-        quickRuntime.setHost(shell.pageHost)
+        quickRuntime.host = shell.pageHost
 
         for (let i = 0; i < window.navigationDefinitions.length; ++i) {
             const definition = window.navigationDefinitions[i]
