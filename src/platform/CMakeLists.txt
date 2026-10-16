@@ -9,8 +9,8 @@ target_compile_definitions(LfQuickPlatform PRIVATE LFQUICKPLATFORM_LIBRARY)
 
 target_include_directories(LfQuickPlatform
     PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_INSTALL_INCLUDEDIR}
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 target_sources(LfQuickPlatform PUBLIC
@@ -28,10 +28,4 @@ target_link_libraries(LfQuickPlatform
         LfQuick::Core
         Qt6::Core
         Qt6::Gui
-)
-
-set_target_properties(LfQuickPlatform PROPERTIES
-    AUTOMOC ON
-    AUTOUIC OFF
-    AUTORCC OFF
 )
