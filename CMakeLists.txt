@@ -39,6 +39,13 @@ if(LFQUICK_BUILD_WIDGET_BRIDGE)
     find_package(Qt6 6.8.3 REQUIRED COMPONENTS Widgets QuickWidgets)
 endif()
 
+if(LFQUICK_BUILD_QT_GRAPHS_ADAPTER)
+    if(NOT LFQUICK_BUILD_CHARTS)
+        message(FATAL_ERROR "LFQUICK_BUILD_QT_GRAPHS_ADAPTER requires LFQUICK_BUILD_CHARTS=ON")
+    endif()
+    find_package(Qt6 6.8.3 REQUIRED COMPONENTS Graphs)
+endif()
+
 add_subdirectory(src/core)
 add_subdirectory(src/runtime)
 
