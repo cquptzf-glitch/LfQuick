@@ -3,11 +3,30 @@
 #include <LfQuick/Runtime/LfQuickRuntimeGlobal.h>
 #include <LfQuick/Runtime/PageDescriptor.h>
 
+#include <QVariantMap>
+
 #include <memory>
 
 namespace LfQuick {
 
 class IPageInstance;
+
+struct LFQUICKRUNTIME_EXPORT PageProviderError
+{
+    QString code;
+    QString message;
+    QVariantMap details;
+
+    bool isEmpty() const noexcept { return code.isEmpty() && message.isEmpty() && details.isEmpty(); }
+    QVariantMap toVariantMap() const
+    {
+        return {
+            {QStringLiteral("code"), code},
+            {QStringLiteral("message"), message},
+            {QStringLiteral("details"), details}
+        };
+    }
+};
 
 class LFQUICKRUNTIME_EXPORT IPageProvider
 {
@@ -18,9 +37,11 @@ public:
     virtual std::unique_ptr<IPageInstance> create(const PageDescriptor &descriptor,
                                                    const QVariantMap &parameters) = 0;
 
-    // Providers may expose a technology-specific creation error to the generic
-    // router without leaking implementation types into Runtime.
+    // Legacy string error access remains for source compatibility. New code
+    // should prefer lastErrorInfo() so diagnostics keep stable machine-readable
+    // codes and provider-specific details.
     virtual QString lastError() const { return {}; }
+    virtual PageProviderError lastErrorInfo() const;
 
     // Optional provider-native final fallback. QuickPageProvider uses this for
     // PageLoadError.qml; other providers can leave the default implementation.
