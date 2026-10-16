@@ -31,7 +31,10 @@ Control {
 
     TableView {
         id: table
-        anchors.fill: parent
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: header.bottom
+        anchors.bottom: parent.bottom
         model: root.model
         selectionModel: selectionModel
         selectionBehavior: root.selectRows ? TableView.SelectRows : TableView.SelectCells
