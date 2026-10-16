@@ -4,6 +4,7 @@
 #include <LfQuick/Runtime/INavigationGuard.h>
 #include <LfQuick/Runtime/LfQuickRuntimeGlobal.h>
 
+#include <QHash>
 #include <QObject>
 #include <QStringList>
 
@@ -24,6 +25,9 @@ class LFQUICKRUNTIME_EXPORT PageRouter : public QObject
     Q_PROPERTY(bool canGoBack READ canGoBack NOTIFY historyChanged FINAL)
     Q_PROPERTY(int depth READ depth NOTIFY historyChanged FINAL)
     Q_PROPERTY(int maxRetainedLruPages READ maxRetainedLruPages WRITE setMaxRetainedLruPages NOTIFY cachePolicyChanged FINAL)
+    Q_PROPERTY(qint64 maxRetainedLruWeight READ maxRetainedLruWeight WRITE setMaxRetainedLruWeight NOTIFY cachePolicyChanged FINAL)
+    Q_PROPERTY(qint64 retainedLruWeight READ retainedLruWeight NOTIFY cachePolicyChanged FINAL)
+    Q_PROPERTY(int singletonCount READ singletonCount NOTIFY cachePolicyChanged FINAL)
 
 public:
     explicit PageRouter(PageRegistry *pages,
@@ -38,6 +42,10 @@ public:
 
     int maxRetainedLruPages() const noexcept;
     void setMaxRetainedLruPages(int value);
+    qint64 maxRetainedLruWeight() const noexcept { return m_maxRetainedLruWeight; }
+    void setMaxRetainedLruWeight(qint64 value);
+    qint64 retainedLruWeight() const noexcept;
+    int singletonCount() const noexcept { return m_singletons.size(); }
 
     bool addGuard(std::shared_ptr<INavigationGuard> guard);
     void clearGuards();
@@ -56,6 +64,8 @@ signals:
                            const QString &toRoute,
                            const QString &reason);
     void cacheEntryEvicted(const QString &route);
+    void singletonCreated(const QString &route);
+    void singletonReused(const QString &route);
     void pageFallbackAttempted(const QString &route,
                                const QString &primaryProvider,
                                const QString &fallbackProvider,
@@ -78,6 +88,7 @@ private:
     bool activate(Entry &entry);
     void deactivateCurrent(bool suspend);
     void destroy(Entry &entry);
+    void destroySingletonCache();
     void touch(Entry &entry);
     void enforceLruLimit();
     bool passesGuards(NavigationAction action,
@@ -90,7 +101,9 @@ private:
     PageProviderRegistry *m_providers = nullptr;
     std::vector<Entry> m_history;
     std::vector<std::shared_ptr<INavigationGuard>> m_guards;
+    QHash<QString, std::shared_ptr<IPageInstance>> m_singletons;
     int m_maxRetainedLruPages = 3;
+    qint64 m_maxRetainedLruWeight = 0;
     quint64 m_touchSequence = 0;
 };
 
