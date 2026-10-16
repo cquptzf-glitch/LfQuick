@@ -1,5 +1,4 @@
-# LfQuick
-
+# LfQuick -Developed by OpenAI GPT-6 Sol.
 LfQuick is a modular Qt UI Runtime Framework targeting **Qt 6.8.3** with a planned migration path to **Qt 6.12 LTS**.
 
 The project focuses on large desktop/device applications that need:
