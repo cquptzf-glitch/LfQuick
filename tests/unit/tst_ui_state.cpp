@@ -1,6 +1,8 @@
 #include <LfQuick/Core/Permission.h>
 #include <LfQuick/Core/Validation.h>
 #include <LfQuick/Ui/LfAttached.h>
+#include <LfQuick/Ui/OverlayBackend.h>
+#include <LfQuick/Ui/OverlayCoordinator.h>
 #include <LfQuick/Ui/PermissionEvaluator.h>
 #include <LfQuick/Ui/ValidationFormState.h>
 #include <LfQuick/Ui/ValidationRuleTable.h>
@@ -51,6 +53,47 @@ public:
         result.maxLength = 4;
         return result;
     }
+};
+
+class TestOverlayBackend final : public IOverlayBackend
+{
+public:
+    using IOverlayBackend::IOverlayBackend;
+
+    void presentToast(const ToastRequest &request) override
+    {
+        presentedToasts.append(request);
+    }
+
+    void dismissToast(const QString &requestId) override
+    {
+        dismissedToasts.append(requestId);
+    }
+
+    void presentDialog(const DialogRequest &request) override
+    {
+        presentedDialogs.append(request);
+    }
+
+    void dismissDialog(const QString &requestId) override
+    {
+        dismissedDialogs.append(requestId);
+    }
+
+    void simulateToastDismiss(const QString &requestId)
+    {
+        emit toastDismissRequested(requestId);
+    }
+
+    void simulateDialogResult(const QString &requestId, const QString &buttonId)
+    {
+        emit dialogResolved(requestId, buttonId);
+    }
+
+    QList<ToastRequest> presentedToasts;
+    QStringList dismissedToasts;
+    QList<DialogRequest> presentedDialogs;
+    QStringList dismissedDialogs;
 };
 
 } // namespace
@@ -204,6 +247,88 @@ private slots:
         QVERIFY(form.valid());
         QVERIFY(!sampleId->touched());
         QVERIFY(!rack->touched());
+    }
+
+    void toastCoordinatorDeduplicatesAndEnforcesLimit()
+    {
+        OverlayCoordinator coordinator;
+        coordinator.setMaxVisibleToasts(2);
+
+        const QString first = coordinator.showToast(
+            QStringLiteral("Connected"),
+            {{QStringLiteral("severity"), QStringLiteral("success")},
+             {QStringLiteral("durationMs"), 0},
+             {QStringLiteral("dedupKey"), QStringLiteral("connection")}});
+        QVERIFY(!first.isEmpty());
+        QCOMPARE(coordinator.toastCount(), 1);
+
+        const QString duplicate = coordinator.showToast(
+            QStringLiteral("Connected again"),
+            {{QStringLiteral("severity"), QStringLiteral("success")},
+             {QStringLiteral("durationMs"), 0},
+             {QStringLiteral("dedupKey"), QStringLiteral("connection")}});
+        QCOMPARE(duplicate, first);
+        QCOMPARE(coordinator.toastCount(), 1);
+        QCOMPARE(coordinator.toasts().constLast().toMap().value(QStringLiteral("message")).toString(),
+                 QStringLiteral("Connected again"));
+
+        const QString second = coordinator.showToast(
+            QStringLiteral("Queued"), {{QStringLiteral("durationMs"), 0}});
+        const QString third = coordinator.showToast(
+            QStringLiteral("Completed"), {{QStringLiteral("durationMs"), 0}});
+        QVERIFY(!second.isEmpty());
+        QVERIFY(!third.isEmpty());
+        QCOMPARE(coordinator.toastCount(), 2);
+        QVERIFY(!coordinator.toasts().toVector().contains(QVariantMap{{QStringLiteral("id"), first}}));
+
+        TestOverlayBackend backend;
+        coordinator.setBackend(&backend);
+        QVERIFY(coordinator.externalBackendActive());
+        QCOMPARE(backend.presentedToasts.size(), 2);
+
+        backend.simulateToastDismiss(second);
+        QCOMPARE(coordinator.toastCount(), 1);
+        QVERIFY(backend.dismissedToasts.contains(second));
+    }
+
+    void dialogCoordinatorSerializesRequestsAcrossBackend()
+    {
+        OverlayCoordinator coordinator;
+        TestOverlayBackend backend;
+        coordinator.setBackend(&backend);
+        QSignalSpy resolved(&coordinator, &OverlayCoordinator::dialogResolved);
+
+        const QString first = coordinator.requestDialog(
+            QStringLiteral("Leave page?"), QStringLiteral("Unsaved changes"),
+            {{QStringLiteral("buttons"), QStringList{QStringLiteral("yes"), QStringLiteral("no")}},
+             {QStringLiteral("defaultButton"), QStringLiteral("no")},
+             {QStringLiteral("context"), QVariantMap{{QStringLiteral("kind"), QStringLiteral("guard")}}}});
+        const QString second = coordinator.requestDialog(
+            QStringLiteral("Notice"), QStringLiteral("Queued dialog"),
+            {{QStringLiteral("buttons"), QStringList{QStringLiteral("ok")}}});
+
+        QVERIFY(!first.isEmpty());
+        QVERIFY(!second.isEmpty());
+        QVERIFY(coordinator.dialogActive());
+        QCOMPARE(coordinator.pendingDialogCount(), 2);
+        QCOMPARE(coordinator.activeDialog().value(QStringLiteral("id")).toString(), first);
+        QCOMPARE(backend.presentedDialogs.size(), 1);
+
+        QVERIFY(!coordinator.resolveDialog(first, QStringLiteral("unsupported")));
+        backend.simulateDialogResult(first, QStringLiteral("yes"));
+        QCOMPARE(resolved.count(), 1);
+        QCOMPARE(resolved.at(0).at(0).toString(), first);
+        QCOMPARE(resolved.at(0).at(1).toString(), QStringLiteral("yes"));
+        QCOMPARE(resolved.at(0).at(2).toMap().value(QStringLiteral("kind")).toString(),
+                 QStringLiteral("guard"));
+
+        QCOMPARE(coordinator.activeDialog().value(QStringLiteral("id")).toString(), second);
+        QCOMPARE(backend.presentedDialogs.size(), 2);
+        QVERIFY(coordinator.cancelDialog(second));
+        QCOMPARE(resolved.count(), 2);
+        QCOMPARE(resolved.at(1).at(1).toString(), QStringLiteral("ok"));
+        QVERIFY(!coordinator.dialogActive());
+        QCOMPARE(coordinator.pendingDialogCount(), 0);
     }
 };
 
