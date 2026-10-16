@@ -4,6 +4,7 @@
 #include <LfQuick/WidgetBridge/LfQuickWidgetBridgeGlobal.h>
 
 #include <QAbstractButton>
+#include <QEvent>
 #include <QFrame>
 #include <QHash>
 #include <QMessageBox>
