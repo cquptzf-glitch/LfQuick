@@ -14,6 +14,7 @@ public:
     virtual void deactivate() = 0;
     virtual void suspend() = 0;
     virtual void resume() = 0;
+    virtual void destroy() {}
 };
 
 } // namespace LfQuick

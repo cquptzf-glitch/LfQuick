@@ -2,6 +2,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import LfQuick
 
 ApplicationWindow {
     id: window
@@ -9,6 +10,7 @@ ApplicationWindow {
     height: 900
     visible: true
     title: qsTr("LfQuick Medical Demo")
+    color: Tokens.surface
 
     property int currentPage: 0
 
@@ -21,6 +23,11 @@ ApplicationWindow {
             Item { Layout.fillWidth: true }
             Label { text: qsTr("Instrument: Ready") }
             Label { text: qsTr("Scenario: Normal") }
+            Switch {
+                text: qsTr("Dark")
+                checked: Theme.dark
+                onToggled: Theme.dark = checked
+            }
         }
     }
 
@@ -47,5 +54,10 @@ ApplicationWindow {
             AlarmsPage {}
             DeveloperPage {}
         }
+    }
+
+    OverlayHost {
+        id: overlayHost
+        anchors.fill: parent
     }
 }

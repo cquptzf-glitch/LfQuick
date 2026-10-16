@@ -2,6 +2,7 @@
 add_library(LfQuickCore
     src/Error.cpp
     src/OperationHandle.cpp
+    src/Event.cpp
 )
 add_library(LfQuick::Core ALIAS LfQuickCore)
 
@@ -25,4 +26,7 @@ target_sources(LfQuickCore PUBLIC
         include/LfQuick/Core/OperationHandle.h
         include/LfQuick/Core/Validation.h
         include/LfQuick/Core/Permission.h
+        include/LfQuick/Core/Command.h
+        include/LfQuick/Core/Event.h
+        include/LfQuick/Core/Route.h
 )
