@@ -36,6 +36,10 @@ qt_add_qml_module(LfQuickUi
         src/LfAttached.cpp
         include/LfQuick/Ui/ValidationEvaluator.h
         src/ValidationEvaluator.cpp
+        include/LfQuick/Ui/ValidationRuleTable.h
+        src/ValidationRuleTable.cpp
+        include/LfQuick/Ui/ValidationFormState.h
+        src/ValidationFormState.cpp
     QML_FILES
         qml/LfPage.qml
         qml/QuickHostRoot.qml
@@ -61,6 +65,8 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/PermissionEvaluator.h
         include/LfQuick/Ui/LfAttached.h
         include/LfQuick/Ui/ValidationEvaluator.h
+        include/LfQuick/Ui/ValidationRuleTable.h
+        include/LfQuick/Ui/ValidationFormState.h
         include/LfQuick/Ui/QuickRuntime.h
 )
 
