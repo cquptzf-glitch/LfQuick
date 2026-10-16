@@ -96,6 +96,15 @@ public:
     QStringList dismissedDialogs;
 };
 
+bool containsToast(const QVariantList &toasts, const QString &requestId)
+{
+    for (const QVariant &toast : toasts) {
+        if (toast.toMap().value(QStringLiteral("id")).toString() == requestId)
+            return true;
+    }
+    return false;
+}
+
 } // namespace
 
 class UiStateTest : public QObject
@@ -279,7 +288,9 @@ private slots:
         QVERIFY(!second.isEmpty());
         QVERIFY(!third.isEmpty());
         QCOMPARE(coordinator.toastCount(), 2);
-        QVERIFY(!coordinator.toasts().toVector().contains(QVariantMap{{QStringLiteral("id"), first}}));
+        QVERIFY(!containsToast(coordinator.toasts(), first));
+        QVERIFY(containsToast(coordinator.toasts(), second));
+        QVERIFY(containsToast(coordinator.toasts(), third));
 
         TestOverlayBackend backend;
         coordinator.setBackend(&backend);
