@@ -1,10 +1,13 @@
 #include <LfQuick/Runtime/PageDescriptor.h>
+#include <LfQuick/Runtime/WindowProviderRegistry.h>
+#include <LfQuick/Runtime/WindowRouter.h>
 #include <LfQuick/Ui/OverlayCoordinator.h>
 #include <LfQuick/Ui/QuickRuntime.h>
 #include <LfQuick/WidgetBridge/QuickSurface.h>
 #include <LfQuick/WidgetBridge/WidgetFocusBridge.h>
 #include <LfQuick/WidgetBridge/WidgetOverlayBackend.h>
 #include <LfQuick/WidgetBridge/WidgetPageProvider.h>
+#include <LfQuick/WidgetBridge/WidgetWindowProvider.h>
 
 #include <QApplication>
 #include <QCheckBox>
@@ -67,6 +70,55 @@ QWidget *createLegacyResultsPage(QWidget *parent, const QVariantMap &parameters)
     return page;
 }
 
+QWidget *createRoutedToolWindow(QWidget *owner, const QVariantMap &parameters)
+{
+    auto *tool = new QWidget(owner, Qt::Window);
+    tool->resize(520, 300);
+    tool->setWindowTitle(parameters.value(QStringLiteral("title"),
+                                          QStringLiteral("LfQuick Routed Tool Window"))
+                             .toString());
+
+    auto *layout = new QVBoxLayout(tool);
+    layout->setContentsMargins(24, 24, 24, 24);
+    layout->setSpacing(12);
+
+    auto *title = new QLabel(tool->windowTitle(), tool);
+    QFont titleFont = title->font();
+    titleFont.setPointSize(titleFont.pointSize() + 4);
+    titleFont.setBold(true);
+    title->setFont(titleFont);
+    layout->addWidget(title);
+
+    auto *description = new QLabel(
+        QStringLiteral("This is a real top-level QWidget managed by WindowRouter through "
+                       "WidgetWindowProvider. The title-bar close button is routed back through "
+                       "WindowRouter, so close guards and owner propagation remain authoritative."),
+        tool);
+    description->setWordWrap(true);
+    layout->addWidget(description);
+
+    const QString role = parameters.value(QStringLiteral("role"), QStringLiteral("standalone")).toString();
+    auto *roleLabel = new QLabel(QStringLiteral("Role: %1").arg(role), tool);
+    layout->addWidget(roleLabel);
+
+    auto *blockClose = new QCheckBox(QStringLiteral("Block close to exercise WindowRouter close guard"), tool);
+    QObject::connect(blockClose, &QCheckBox::toggled, tool, [tool](bool blocked) {
+        tool->setProperty("lfquickWindowCloseBlocked", blocked);
+        tool->setProperty("lfquickWindowCloseReason",
+                          blocked ? QStringLiteral("Demo window has unsaved state") : QString());
+    });
+    layout->addWidget(blockClose);
+
+    auto *hint = new QLabel(
+        QStringLiteral("Try enabling the guard and clicking the native × button. The window stays "
+                       "open because the close request is sent back through WindowRouter."), tool);
+    hint->setWordWrap(true);
+    layout->addWidget(hint);
+    layout->addStretch(1);
+
+    return tool;
+}
+
 } // namespace
 
 int main(int argc, char *argv[])
@@ -75,7 +127,7 @@ int main(int argc, char *argv[])
 
     QWidget window;
     window.setWindowTitle(QStringLiteral("LfQuick Hybrid Migration Demo"));
-    window.resize(1200, 820);
+    window.resize(1320, 860);
 
     OverlayCoordinator overlayCoordinator;
     WidgetOverlayBackend overlayBackend(&window);
@@ -89,13 +141,18 @@ int main(int argc, char *argv[])
     auto *backButton = new QPushButton(QStringLiteral("Back"), &window);
     auto *toastButton = new QPushButton(QStringLiteral("Toast"), &window);
     auto *dialogButton = new QPushButton(QStringLiteral("Dialog"), &window);
+    auto *inspectorButton = new QPushButton(QStringLiteral("Inspector Window"), &window);
+    auto *ownedToolButton = new QPushButton(QStringLiteral("Owned Tool Window"), &window);
+    auto *closeWindowsButton = new QPushButton(QStringLiteral("Close Routed Windows"), &window);
     auto *routeLabel = new QLabel(QStringLiteral("Route: -"), &window);
+    auto *windowLabel = new QLabel(QStringLiteral("Windows: 0"), &window);
     auto *metricsLabel = new QLabel(QStringLiteral("QuickSurface: loading"), &window);
 
     quickButton->setEnabled(false);
     legacyButton->setEnabled(false);
     fallbackButton->setEnabled(false);
     backButton->setEnabled(false);
+    closeWindowsButton->setEnabled(false);
 
     toolbar->addWidget(quickButton);
     toolbar->addWidget(legacyButton);
@@ -103,8 +160,13 @@ int main(int argc, char *argv[])
     toolbar->addWidget(backButton);
     toolbar->addWidget(toastButton);
     toolbar->addWidget(dialogButton);
+    toolbar->addSpacing(12);
+    toolbar->addWidget(inspectorButton);
+    toolbar->addWidget(ownedToolButton);
+    toolbar->addWidget(closeWindowsButton);
     toolbar->addSpacing(16);
     toolbar->addWidget(routeLabel);
+    toolbar->addWidget(windowLabel);
     toolbar->addStretch(1);
     toolbar->addWidget(metricsLabel);
     rootLayout->addLayout(toolbar);
@@ -155,6 +217,28 @@ int main(int argc, char *argv[])
     legacyDescriptor.source.insert(QStringLiteral("factory"), QStringLiteral("legacy-results"));
     legacyDescriptor.cachePolicy = PageCachePolicy::KeepAlive;
     runtime.registerDescriptor(legacyDescriptor);
+
+    WindowProviderRegistry windowProviders;
+    auto widgetWindowProvider = std::make_shared<WidgetWindowProvider>();
+    widgetWindowProvider->registerFactory(QStringLiteral("routed-tool"), createRoutedToolWindow);
+    windowProviders.registerProvider(widgetWindowProvider);
+    WindowRouter windowRouter(&windowProviders);
+
+    WindowDescriptor inspectorDescriptor;
+    inspectorDescriptor.id = QStringLiteral("hybrid.inspector");
+    inspectorDescriptor.provider = QStringLiteral("widget-window");
+    inspectorDescriptor.source.insert(QStringLiteral("factory"), QStringLiteral("routed-tool"));
+    inspectorDescriptor.openPolicy = WindowOpenPolicy::SingleInstance;
+    inspectorDescriptor.ownerClosePolicy = OwnerClosePolicy::CloseWithOwner;
+    windowRouter.registerWindow(inspectorDescriptor);
+
+    WindowDescriptor ownedToolDescriptor;
+    ownedToolDescriptor.id = QStringLiteral("hybrid.owned-tool");
+    ownedToolDescriptor.provider = QStringLiteral("widget-window");
+    ownedToolDescriptor.source.insert(QStringLiteral("factory"), QStringLiteral("routed-tool"));
+    ownedToolDescriptor.openPolicy = WindowOpenPolicy::MultipleInstances;
+    ownedToolDescriptor.ownerClosePolicy = OwnerClosePolicy::CloseWithOwner;
+    windowRouter.registerWindow(ownedToolDescriptor);
 
     bool routesInitialized = false;
     const auto initializeQuickRoutes = [&] {
@@ -286,6 +370,66 @@ int main(int argc, char *argv[])
         metricsLabel->setText(
             QStringLiteral("Dialog result: %1 (%2)")
                 .arg(buttonId, context.value(QStringLiteral("source")).toString()));
+    });
+
+    QObject::connect(inspectorButton, &QPushButton::clicked,
+                     &window, [&windowRouter, metricsLabel] {
+        const auto result = windowRouter.open(
+            {QStringLiteral("hybrid.inspector"),
+             {{QStringLiteral("title"), QStringLiteral("Single-instance Inspector")},
+              {QStringLiteral("role"), QStringLiteral("single-instance owner")}},
+             {}, {}, {}});
+        metricsLabel->setText(result.accepted
+                                  ? QStringLiteral("WindowRouter: inspector %1")
+                                        .arg(result.diagnostics.value(QStringLiteral("reused")).toBool()
+                                                 ? QStringLiteral("reused")
+                                                 : QStringLiteral("opened"))
+                                  : QStringLiteral("WindowRouter error: %1").arg(result.error.message()));
+    });
+    QObject::connect(ownedToolButton, &QPushButton::clicked,
+                     &window, [&windowRouter, metricsLabel] {
+        const auto owner = windowRouter.open(
+            {QStringLiteral("hybrid.inspector"),
+             {{QStringLiteral("title"), QStringLiteral("Single-instance Inspector")},
+              {QStringLiteral("role"), QStringLiteral("single-instance owner")}},
+             {}, {}, {}});
+        if (!owner.accepted) {
+            metricsLabel->setText(QStringLiteral("WindowRouter owner error: %1").arg(owner.error.message()));
+            return;
+        }
+
+        const int sequence = windowRouter.instances(QStringLiteral("hybrid.owned-tool")).size() + 1;
+        const auto child = windowRouter.open(
+            {QStringLiteral("hybrid.owned-tool"),
+             {{QStringLiteral("title"), QStringLiteral("Owned Tool #%1").arg(sequence)},
+              {QStringLiteral("role"), QStringLiteral("multi-instance child")}},
+             owner.instanceId, {}, {}});
+        metricsLabel->setText(child.accepted
+                                  ? QStringLiteral("WindowRouter: owned child opened")
+                                  : QStringLiteral("WindowRouter child error: %1").arg(child.error.message()));
+    });
+    QObject::connect(closeWindowsButton, &QPushButton::clicked,
+                     &window, [&windowRouter, metricsLabel] {
+        const auto result = windowRouter.closeAll();
+        metricsLabel->setText(result.accepted
+                                  ? QStringLiteral("WindowRouter: all routed windows closed")
+                                  : QStringLiteral("WindowRouter close blocked: %1").arg(result.error.message()));
+    });
+    QObject::connect(&windowRouter, &WindowRouter::windowsChanged,
+                     &window, [&windowRouter, windowLabel, closeWindowsButton] {
+        windowLabel->setText(QStringLiteral("Windows: %1").arg(windowRouter.count()));
+        closeWindowsButton->setEnabled(windowRouter.count() > 0);
+    });
+    QObject::connect(&windowRouter, &WindowRouter::windowCloseBlocked,
+                     &window, [metricsLabel](const QString &windowId,
+                                             const QString &instanceId,
+                                             const QString &reason) {
+        metricsLabel->setText(
+            QStringLiteral("Close blocked: %1 [%2] — %3").arg(windowId, instanceId, reason));
+    });
+    QObject::connect(&windowRouter, &WindowRouter::windowOpenFailed,
+                     &window, [metricsLabel](const QString &windowId, const QString &message) {
+        metricsLabel->setText(QStringLiteral("Open failed: %1 — %2").arg(windowId, message));
     });
 
     const auto updateNavigationUi = [&] {
