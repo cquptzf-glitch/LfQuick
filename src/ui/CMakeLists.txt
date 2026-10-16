@@ -1,5 +1,6 @@
 qt_add_library(LfQuickUi
     src/QuickPageProvider.cpp
+    src/QmlErrorCollector.cpp
     src/OverlayCoordinator.cpp
     src/FocusNavigator.cpp
     src/QuickRuntime.cpp
@@ -24,6 +25,7 @@ qt_add_qml_module(LfQuickUi
     QML_FILES
         qml/LfPage.qml
         qml/QuickHostRoot.qml
+        qml/PageLoadError.qml
         qml/Theme.qml
         qml/Tokens.qml
         qml/OverlayHost.qml
@@ -37,6 +39,7 @@ target_sources(LfQuickUi PUBLIC
     FILES
         include/LfQuick/Ui/LfQuickUiGlobal.h
         include/LfQuick/Ui/QuickPageProvider.h
+        include/LfQuick/Ui/QmlErrorCollector.h
         include/LfQuick/Ui/OverlayCoordinator.h
         include/LfQuick/Ui/FocusNavigator.h
         include/LfQuick/Ui/QuickRuntime.h

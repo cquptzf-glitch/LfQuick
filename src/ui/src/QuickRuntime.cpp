@@ -1,8 +1,9 @@
 #include <LfQuick/Ui/QuickRuntime.h>
 
-#include <LfQuick/Runtime/PageRouter.h>
 #include <LfQuick/Runtime/PageProviderRegistry.h>
 #include <LfQuick/Runtime/PageRegistry.h>
+#include <LfQuick/Runtime/PageRouter.h>
+#include <LfQuick/Ui/QmlErrorCollector.h>
 #include <LfQuick/Ui/QuickPageProvider.h>
 
 #include <QQmlEngine>
@@ -15,26 +16,33 @@ QuickRuntime::QuickRuntime(QQmlEngine *engine, QObject *parent)
     , m_engine(engine)
     , m_pages(std::make_unique<PageRegistry>())
     , m_providers(std::make_unique<PageProviderRegistry>())
+    , m_errorCollector(std::make_unique<QmlErrorCollector>())
     , m_provider(std::make_shared<QuickPageProvider>(engine))
     , m_router(std::make_unique<PageRouter>(m_pages.get(), m_providers.get(), this))
 {
+    m_provider->setErrorCollector(m_errorCollector.get());
     m_providers->registerProvider(m_provider);
 
     connect(m_router.get(), &PageRouter::currentRouteChanged, this, [this] {
         emit currentRouteChanged();
         emit navigationChanged();
     });
-    connect(m_router.get(), &PageRouter::historyChanged, this,
-            &QuickRuntime::navigationChanged);
-    connect(m_router.get(), &PageRouter::navigationFailed, this,
-            &QuickRuntime::navigationFailed);
+    connect(m_router.get(), &PageRouter::historyChanged,
+            this, &QuickRuntime::navigationChanged);
+    connect(m_router.get(), &PageRouter::cachePolicyChanged,
+            this, &QuickRuntime::cachePolicyChanged);
+    connect(m_router.get(), &PageRouter::navigationFailed,
+            this, &QuickRuntime::navigationFailed);
+    connect(m_router.get(), &PageRouter::navigationBlocked,
+            this, &QuickRuntime::navigationBlocked);
+    connect(m_router.get(), &PageRouter::cacheEntryEvicted,
+            this, &QuickRuntime::cacheEntryEvicted);
 }
 
 QuickRuntime::~QuickRuntime()
 {
     m_router->reset();
     m_providers->unregisterProvider(QStringLiteral("quick"));
-    // Registries and router are owned by unique_ptr and are destroyed automatically.
 }
 
 QString QuickRuntime::currentRoute() const
@@ -67,12 +75,32 @@ void QuickRuntime::setHost(QQuickItem *host)
     emit hostChanged();
 }
 
-bool QuickRuntime::registerPage(const QString &route, const QUrl &source, int cachePolicy)
+QmlErrorCollector *QuickRuntime::errorCollector() const
 {
-    if (route.isEmpty() || !source.isValid())
+    return m_errorCollector.get();
+}
+
+int QuickRuntime::maxRetainedLruPages() const
+{
+    return m_router ? m_router->maxRetainedLruPages() : 0;
+}
+
+void QuickRuntime::setMaxRetainedLruPages(int value)
+{
+    if (m_router)
+        m_router->setMaxRetainedLruPages(value);
+}
+
+bool QuickRuntime::registerPage(const QString &route,
+                                const QUrl &source,
+                                int cachePolicy,
+                                bool useErrorFallback)
+{
+    if (route.isEmpty() || !source.isValid() || source.isEmpty())
         return false;
 
-    return m_pages->registerPage(descriptorFor(route, source, cachePolicy));
+    return m_pages->registerPage(
+        descriptorFor(route, source, cachePolicy, useErrorFallback));
 }
 
 bool QuickRuntime::unregisterPage(const QString &route)
@@ -118,7 +146,8 @@ void QuickRuntime::reset()
 
 PageDescriptor QuickRuntime::descriptorFor(const QString &route,
                                            const QUrl &source,
-                                           int cachePolicy) const
+                                           int cachePolicy,
+                                           bool useErrorFallback) const
 {
     PageDescriptor descriptor;
     descriptor.route = route;
@@ -128,7 +157,16 @@ PageDescriptor QuickRuntime::descriptorFor(const QString &route,
         qBound(static_cast<int>(PageCachePolicy::None),
                cachePolicy,
                static_cast<int>(PageCachePolicy::Lru)));
-    descriptor.fallbackPolicy = FallbackPolicy::ErrorPage;
+
+    if (useErrorFallback) {
+        descriptor.fallbackPolicy = FallbackPolicy::ErrorPage;
+        descriptor.source.insert(
+            QStringLiteral("fallbackUrl"),
+            QUrl(QStringLiteral("qrc:/qt/qml/LfQuick/PageLoadError.qml")));
+    } else {
+        descriptor.fallbackPolicy = FallbackPolicy::None;
+    }
+
     return descriptor;
 }
 

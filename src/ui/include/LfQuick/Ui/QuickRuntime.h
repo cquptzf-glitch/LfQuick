@@ -19,6 +19,7 @@ namespace LfQuick {
 class PageRouter;
 class PageRegistry;
 class PageProviderRegistry;
+class QmlErrorCollector;
 class QuickPageProvider;
 
 class LFQUICKUI_EXPORT QuickRuntime : public QObject
@@ -28,6 +29,8 @@ class LFQUICKUI_EXPORT QuickRuntime : public QObject
     Q_PROPERTY(bool canGoBack READ canGoBack NOTIFY navigationChanged FINAL)
     Q_PROPERTY(int depth READ depth NOTIFY navigationChanged FINAL)
     Q_PROPERTY(QQuickItem* host READ host WRITE setHost NOTIFY hostChanged FINAL)
+    Q_PROPERTY(QmlErrorCollector* errorCollector READ errorCollector CONSTANT FINAL)
+    Q_PROPERTY(int maxRetainedLruPages READ maxRetainedLruPages WRITE setMaxRetainedLruPages NOTIFY cachePolicyChanged FINAL)
 
 public:
     explicit QuickRuntime(QQmlEngine *engine, QObject *parent = nullptr);
@@ -40,9 +43,15 @@ public:
     QQuickItem *host() const;
     void setHost(QQuickItem *host);
 
+    QmlErrorCollector *errorCollector() const;
+
+    int maxRetainedLruPages() const;
+    void setMaxRetainedLruPages(int value);
+
     Q_INVOKABLE bool registerPage(const QString &route,
                                   const QUrl &source,
-                                  int cachePolicy = static_cast<int>(PageCachePolicy::KeepAlive));
+                                  int cachePolicy = static_cast<int>(PageCachePolicy::KeepAlive),
+                                  bool useErrorFallback = true);
     Q_INVOKABLE bool unregisterPage(const QString &route);
 
     Q_INVOKABLE bool push(const QString &route, const QVariantMap &parameters = {});
@@ -54,15 +63,24 @@ signals:
     void currentRouteChanged();
     void navigationChanged();
     void hostChanged();
+    void cachePolicyChanged();
     void navigationFailed(const QString &route, const QString &message);
+    void navigationBlocked(const QString &fromRoute,
+                           const QString &toRoute,
+                           const QString &reason);
+    void cacheEntryEvicted(const QString &route);
 
 private:
-    PageDescriptor descriptorFor(const QString &route, const QUrl &source, int cachePolicy) const;
+    PageDescriptor descriptorFor(const QString &route,
+                                 const QUrl &source,
+                                 int cachePolicy,
+                                 bool useErrorFallback) const;
 
     QPointer<QQmlEngine> m_engine;
     QPointer<QQuickItem> m_host;
     std::unique_ptr<PageRegistry> m_pages;
     std::unique_ptr<PageProviderRegistry> m_providers;
+    std::unique_ptr<QmlErrorCollector> m_errorCollector;
     std::shared_ptr<QuickPageProvider> m_provider;
     std::unique_ptr<PageRouter> m_router;
 };

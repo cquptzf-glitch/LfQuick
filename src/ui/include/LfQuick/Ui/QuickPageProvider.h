@@ -9,6 +9,8 @@ class QQuickItem;
 
 namespace LfQuick {
 
+class QmlErrorCollector;
+
 class QuickPageProvider final : public IPageProvider
 {
 public:
@@ -20,11 +22,13 @@ public:
                                            const QVariantMap &parameters) override;
 
     void setHost(QQuickItem *host);
+    void setErrorCollector(QmlErrorCollector *collector);
     QString lastError() const { return m_lastError; }
 
 private:
     QPointer<QQmlEngine> m_engine;
     QPointer<QQuickItem> m_host;
+    QPointer<QmlErrorCollector> m_errorCollector;
     QString m_lastError;
 };
 

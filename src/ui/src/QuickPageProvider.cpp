@@ -1,6 +1,7 @@
 #include <LfQuick/Ui/QuickPageProvider.h>
 
 #include <LfQuick/Runtime/IPageInstance.h>
+#include <LfQuick/Ui/QmlErrorCollector.h>
 
 #include <QQmlComponent>
 #include <QQmlEngine>
@@ -23,10 +24,12 @@ public:
             const QPointer<QQuickItem> item = m_item;
             const QPointer<QQuickItem> host = m_host;
             QObject::connect(m_host, &QQuickItem::widthChanged, m_item, [item, host] {
-                if (item && host) item->setWidth(host->width());
+                if (item && host)
+                    item->setWidth(host->width());
             });
             QObject::connect(m_host, &QQuickItem::heightChanged, m_item, [item, host] {
-                if (item && host) item->setHeight(host->height());
+                if (item && host)
+                    item->setHeight(host->height());
             });
         }
     }
@@ -89,6 +92,46 @@ QUrl sourceUrl(const PageDescriptor &descriptor)
     return QUrl(raw.toString());
 }
 
+QUrl fallbackUrl(const PageDescriptor &descriptor)
+{
+    const auto raw = descriptor.source.value(QStringLiteral("fallbackUrl"));
+    if (raw.canConvert<QUrl>())
+        return raw.toUrl();
+    return QUrl(raw.toString());
+}
+
+QQuickItem *createItem(QQmlEngine *engine,
+                       const QUrl &url,
+                       const QVariantMap &properties,
+                       QString &error)
+{
+    if (!engine || url.isEmpty() || !url.isValid()) {
+        error = QStringLiteral("Invalid QML source URL");
+        return nullptr;
+    }
+
+    QQmlComponent component(engine, url);
+    if (component.status() == QQmlComponent::Error) {
+        error = component.errorString();
+        return nullptr;
+    }
+
+    QObject *object = component.createWithInitialProperties(properties);
+    if (!object) {
+        error = component.errorString();
+        return nullptr;
+    }
+
+    auto *item = qobject_cast<QQuickItem *>(object);
+    if (!item) {
+        error = QStringLiteral("Quick page root must inherit QQuickItem");
+        object->deleteLater();
+        return nullptr;
+    }
+
+    return item;
+}
+
 } // namespace
 
 QuickPageProvider::QuickPageProvider(QQmlEngine *engine, QQuickItem *host)
@@ -104,7 +147,8 @@ QString QuickPageProvider::id() const
 
 bool QuickPageProvider::canCreate(const PageDescriptor &descriptor) const
 {
-    return m_engine && descriptor.provider == id() && sourceUrl(descriptor).isValid();
+    const QUrl url = sourceUrl(descriptor);
+    return m_engine && descriptor.provider == id() && url.isValid() && !url.isEmpty();
 }
 
 std::unique_ptr<IPageInstance> QuickPageProvider::create(const PageDescriptor &descriptor,
@@ -113,27 +157,42 @@ std::unique_ptr<IPageInstance> QuickPageProvider::create(const PageDescriptor &d
     m_lastError.clear();
     if (!canCreate(descriptor)) {
         m_lastError = QStringLiteral("Invalid quick page descriptor or QQmlEngine");
+        if (m_errorCollector)
+            m_errorCollector->record(descriptor.route, sourceUrl(descriptor), m_lastError,
+                                     QStringLiteral("validate"));
         return {};
     }
 
-    QQmlComponent component(m_engine, sourceUrl(descriptor));
-    if (component.status() == QQmlComponent::Error) {
-        m_lastError = component.errorString();
-        return {};
-    }
+    const QUrl primarySource = sourceUrl(descriptor);
+    QString primaryError;
+    QQuickItem *item = createItem(m_engine, primarySource, parameters, primaryError);
 
-    QObject *object = component.createWithInitialProperties(parameters);
-    if (!object) {
-        m_lastError = component.errorString();
-        return {};
-    }
-
-    auto *item = qobject_cast<QQuickItem *>(object);
     if (!item) {
-        m_lastError = QStringLiteral("Quick page root must inherit QQuickItem");
-        object->deleteLater();
-        return {};
+        m_lastError = primaryError;
+        if (m_errorCollector)
+            m_errorCollector->record(descriptor.route, primarySource, primaryError,
+                                     QStringLiteral("primary"));
+
+        const QUrl fallbackSource = fallbackUrl(descriptor);
+        if (descriptor.fallbackPolicy == FallbackPolicy::ErrorPage
+            && fallbackSource.isValid() && !fallbackSource.isEmpty()) {
+            QVariantMap fallbackProperties = parameters;
+            fallbackProperties.insert(QStringLiteral("route"), descriptor.route);
+            fallbackProperties.insert(QStringLiteral("errorMessage"), primaryError);
+
+            QString fallbackError;
+            item = createItem(m_engine, fallbackSource, fallbackProperties, fallbackError);
+            if (!item) {
+                if (m_errorCollector)
+                    m_errorCollector->record(descriptor.route, fallbackSource, fallbackError,
+                                             QStringLiteral("fallback"));
+                m_lastError += QStringLiteral("\nFallback failed: ") + fallbackError;
+            }
+        }
     }
+
+    if (!item)
+        return {};
 
     if (m_host) {
         item->setParent(m_host);
@@ -147,6 +206,11 @@ std::unique_ptr<IPageInstance> QuickPageProvider::create(const PageDescriptor &d
 void QuickPageProvider::setHost(QQuickItem *host)
 {
     m_host = host;
+}
+
+void QuickPageProvider::setErrorCollector(QmlErrorCollector *collector)
+{
+    m_errorCollector = collector;
 }
 
 } // namespace LfQuick
