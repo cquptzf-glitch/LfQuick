@@ -1,0 +1,11 @@
+#pragma once
+
+#include <QtCore/qglobal.h>
+
+#if defined(LFQUICK_STATIC)
+#  define LFQUICKDIAGNOSTICS_EXPORT
+#elif defined(LFQUICKDIAGNOSTICS_LIBRARY)
+#  define LFQUICKDIAGNOSTICS_EXPORT Q_DECL_EXPORT
+#else
+#  define LFQUICKDIAGNOSTICS_EXPORT Q_DECL_IMPORT
+#endif
