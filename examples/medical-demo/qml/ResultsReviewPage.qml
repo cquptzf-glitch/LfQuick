@@ -11,9 +11,13 @@ LfPage {
     property string roleId: "reviewer"
     property string operationStatus: qsTr("Select rows or edit Result / Flag / Status")
     property bool pageActive: false
-    readonly property bool canReview: permissionEvaluator
-        ? permissionEvaluator.isEditable("demo.results.review", { "role": root.roleId })
-        : false
+
+    Lf.permission.evaluator: permissionEvaluator
+    Lf.permission.permissionId: "demo.results.review"
+    Lf.permission.context: ({ "role": root.roleId })
+
+    readonly property bool canReview: Lf.permission.editable
+    readonly property bool permissionEnabled: Lf.permission.enabled
 
     function defaultColumns() {
         return [
@@ -209,7 +213,9 @@ LfPage {
             }
 
             Label {
-                text: root.canReview ? qsTr("Editable") : qsTr("Read-only")
+                text: root.canReview
+                      ? qsTr("Editable")
+                      : (root.permissionEnabled ? qsTr("Read-only") : qsTr("Denied"))
                 color: root.canReview ? Tokens.success : Tokens.textSecondary
             }
 
