@@ -14,17 +14,30 @@ ApplicationWindow {
     property string guardDialogId: ""
     property bool compactNavigation: false
 
-    readonly property var navigationDefinitions: [
-        { "route": "/dashboard", "label": qsTr("Dashboard"), "page": "DashboardPage.qml", "section": "primary", "group": qsTr("Workflow") },
-        { "route": "/samples", "label": qsTr("Samples"), "page": "SamplesPage.qml", "section": "primary", "group": qsTr("Workflow") },
-        { "route": "/sample-register", "label": qsTr("Sample Register"), "page": "SampleRegisterPage.qml", "section": "primary", "group": qsTr("Workflow") },
-        { "route": "/sample-rack", "label": qsTr("Sample Rack"), "page": "SampleRackPage.qml", "section": "primary", "group": qsTr("Workflow") },
-        { "route": "/results", "label": qsTr("Results"), "page": "ResultsPage.qml", "section": "primary", "group": qsTr("Results") },
-        { "route": "/results-review", "label": qsTr("Results Review"), "page": "ResultsReviewPage.qml", "section": "primary", "group": qsTr("Results"), "permissionId": "demo.results.review", "permissionContext": { "role": "operator" } },
-        { "route": "/instrument", "label": qsTr("Instrument"), "page": "InstrumentPage.qml", "section": "secondary", "group": qsTr("System") },
-        { "route": "/alarms", "label": qsTr("Alarms"), "page": "AlarmsPage.qml", "section": "secondary", "group": qsTr("System"), "badge": 3 },
-        { "route": "/developer", "label": qsTr("Developer"), "page": "DeveloperPage.qml", "section": "footer", "group": qsTr("Tools") }
-    ]
+    readonly property var navigationDefinitions: {
+        const definitions = [
+            { "route": "/dashboard", "label": qsTr("Dashboard"), "page": "DashboardPage.qml", "section": "primary", "group": qsTr("Workflow") },
+            { "route": "/samples", "label": qsTr("Samples"), "page": "SamplesPage.qml", "section": "primary", "group": qsTr("Workflow") },
+            { "route": "/sample-register", "label": qsTr("Sample Register"), "page": "SampleRegisterPage.qml", "section": "primary", "group": qsTr("Workflow") },
+            { "route": "/sample-rack", "label": qsTr("Sample Rack"), "page": "SampleRackPage.qml", "section": "primary", "group": qsTr("Workflow") },
+            { "route": "/results", "label": qsTr("Results"), "page": "ResultsPage.qml", "section": "primary", "group": qsTr("Results") },
+            { "route": "/results-review", "label": qsTr("Results Review"), "page": "ResultsReviewPage.qml", "section": "primary", "group": qsTr("Results"), "permissionId": "demo.results.review", "permissionContext": { "role": "operator" } },
+            { "route": "/instrument", "label": qsTr("Instrument"), "page": "InstrumentPage.qml", "section": "secondary", "group": qsTr("System") },
+            { "route": "/alarms", "label": qsTr("Alarms"), "page": "AlarmsPage.qml", "section": "secondary", "group": qsTr("System"), "badge": 3 },
+            { "route": "/developer", "label": qsTr("Developer"), "page": "DeveloperPage.qml", "section": "footer", "group": qsTr("Tools") }
+        ]
+
+        if (chartsAvailable) {
+            definitions.splice(6, 0, {
+                "route": "/charts",
+                "label": qsTr("Charts"),
+                "page": "ChartsPage.qml",
+                "section": "secondary",
+                "group": qsTr("Visualization")
+            })
+        }
+        return definitions
+    }
 
     NavigationItemModel {
         id: navigationModel
