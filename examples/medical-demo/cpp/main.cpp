@@ -2,6 +2,7 @@
 #include <LfQuick/Platform/InputRouter.h>
 #include <LfQuick/Platform/KeyboardWedgeScanner.h>
 #include <LfQuick/Ui/OverlayCoordinator.h>
+#include <LfQuick/Ui/QuickRuntime.h>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -16,40 +17,23 @@ namespace {
 void seedSampleModel(DataTableModel &model, int count)
 {
     model.setColumnKeys({
-        QStringLiteral("sampleId"),
-        QStringLiteral("barcode"),
-        QStringLiteral("sampleType"),
-        QStringLiteral("rack"),
-        QStringLiteral("position"),
-        QStringLiteral("priority"),
-        QStringLiteral("status"),
-        QStringLiteral("testCount"),
-        QStringLiteral("result"),
+        QStringLiteral("sampleId"), QStringLiteral("barcode"), QStringLiteral("sampleType"),
+        QStringLiteral("rack"), QStringLiteral("position"), QStringLiteral("priority"),
+        QStringLiteral("status"), QStringLiteral("testCount"), QStringLiteral("result"),
         QStringLiteral("createTime")
     });
-
     model.setColumnTitles({
-        QStringLiteral("Sample ID"),
-        QStringLiteral("Barcode"),
-        QStringLiteral("Type"),
-        QStringLiteral("Rack"),
-        QStringLiteral("Position"),
-        QStringLiteral("Priority"),
-        QStringLiteral("Status"),
-        QStringLiteral("Tests"),
-        QStringLiteral("Result"),
+        QStringLiteral("Sample ID"), QStringLiteral("Barcode"), QStringLiteral("Type"),
+        QStringLiteral("Rack"), QStringLiteral("Position"), QStringLiteral("Priority"),
+        QStringLiteral("Status"), QStringLiteral("Tests"), QStringLiteral("Result"),
         QStringLiteral("Created")
     });
 
     QVariantList rows;
     rows.reserve(count);
-
     const QStringList statuses{
-        QStringLiteral("Pending"),
-        QStringLiteral("Running"),
-        QStringLiteral("Completed"),
-        QStringLiteral("Retest"),
-        QStringLiteral("Failed")
+        QStringLiteral("Pending"), QStringLiteral("Running"),
+        QStringLiteral("Completed"), QStringLiteral("Retest"), QStringLiteral("Failed")
     };
 
     for (int i = 0; i < count; ++i) {
@@ -69,41 +53,27 @@ void seedSampleModel(DataTableModel &model, int count)
                 .arg(i % 60, 2, 10, QLatin1Char('0'))}
         });
     }
-
     model.setRows(rows);
 }
 
 void seedResultModel(DataTableModel &model, int count)
 {
     model.setColumnKeys({
-        QStringLiteral("sampleId"),
-        QStringLiteral("assay"),
-        QStringLiteral("result"),
-        QStringLiteral("unit"),
-        QStringLiteral("flag"),
-        QStringLiteral("status"),
+        QStringLiteral("sampleId"), QStringLiteral("assay"), QStringLiteral("result"),
+        QStringLiteral("unit"), QStringLiteral("flag"), QStringLiteral("status"),
         QStringLiteral("time")
     });
-
     model.setColumnTitles({
-        QStringLiteral("Sample ID"),
-        QStringLiteral("Assay"),
-        QStringLiteral("Result"),
-        QStringLiteral("Unit"),
-        QStringLiteral("Flag"),
-        QStringLiteral("Status"),
+        QStringLiteral("Sample ID"), QStringLiteral("Assay"), QStringLiteral("Result"),
+        QStringLiteral("Unit"), QStringLiteral("Flag"), QStringLiteral("Status"),
         QStringLiteral("Time")
     });
 
     QVariantList rows;
     rows.reserve(count);
-
     const QStringList assays{
-        QStringLiteral("GLU"),
-        QStringLiteral("ALT"),
-        QStringLiteral("AST"),
-        QStringLiteral("CRP"),
-        QStringLiteral("TSH")
+        QStringLiteral("GLU"), QStringLiteral("ALT"), QStringLiteral("AST"),
+        QStringLiteral("CRP"), QStringLiteral("TSH")
     };
 
     for (int i = 0; i < count; ++i) {
@@ -120,7 +90,6 @@ void seedResultModel(DataTableModel &model, int count)
                 .arg(i % 60, 2, 10, QLatin1Char('0'))}
         });
     }
-
     model.setRows(rows);
 }
 
@@ -145,13 +114,22 @@ int main(int argc, char *argv[])
 
     OverlayCoordinator overlayCoordinator;
 
+    QQmlApplicationEngine engine;
+    QuickRuntime quickRuntime(&engine);
+
+    engine.rootContext()->setContextProperty(QStringLiteral("sampleModel"), &sampleModel);
+    engine.rootContext()->setContextProperty(QStringLiteral("resultModel"), &resultModel);
+    engine.rootContext()->setContextProperty(QStringLiteral("scanner"), &scanner);
+    engine.rootContext()->setContextProperty(QStringLiteral("inputRouter"), &inputRouter);
+    engine.rootContext()->setContextProperty(QStringLiteral("overlayCoordinator"), &overlayCoordinator);
+    engine.rootContext()->setContextProperty(QStringLiteral("quickRuntime"), &quickRuntime);
+
     QTimer liveDataTimer(&app);
     QObject::connect(&liveDataTimer, &QTimer::timeout, &sampleModel, [&sampleModel] {
         static int cursor = 0;
         const int rowCount = sampleModel.rowCount();
         if (rowCount == 0)
             return;
-
         for (int i = 0; i < 3; ++i) {
             const int row = (cursor + i) % rowCount;
             sampleModel.setCell(row, QStringLiteral("status"),
@@ -161,13 +139,6 @@ int main(int argc, char *argv[])
         cursor = (cursor + 3) % rowCount;
     });
     liveDataTimer.start(800);
-
-    QQmlApplicationEngine engine;
-    engine.rootContext()->setContextProperty(QStringLiteral("sampleModel"), &sampleModel);
-    engine.rootContext()->setContextProperty(QStringLiteral("resultModel"), &resultModel);
-    engine.rootContext()->setContextProperty(QStringLiteral("scanner"), &scanner);
-    engine.rootContext()->setContextProperty(QStringLiteral("inputRouter"), &inputRouter);
-    engine.rootContext()->setContextProperty(QStringLiteral("overlayCoordinator"), &overlayCoordinator);
 
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
                      &app, [] { QCoreApplication::exit(-1); },
