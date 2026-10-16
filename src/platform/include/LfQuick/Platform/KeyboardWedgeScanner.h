@@ -1,14 +1,13 @@
 #pragma once
 
 #include <LfQuick/Platform/LfQuickPlatformGlobal.h>
+#include <LfQuick/Platform/ScannerSession.h>
 
 #include <QObject>
 
 class QKeyEvent;
 
 namespace LfQuick {
-
-class ScannerSession;
 
 class LFQUICKPLATFORM_EXPORT KeyboardWedgeScanner : public QObject
 {

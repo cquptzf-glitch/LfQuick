@@ -4,10 +4,10 @@
 
 #include <QObject>
 #include <QPointer>
+#include <QQuickItem>
 #include <QString>
 
 class QKeyEvent;
-class QQuickItem;
 class QQuickWidget;
 class QWidget;
 

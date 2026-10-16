@@ -1,13 +1,12 @@
 #pragma once
 
+#include <LfQuick/Platform/KeyboardWedgeScanner.h>
 #include <LfQuick/Platform/LfQuickPlatformGlobal.h>
 
 #include <QPointer>
 #include <QObject>
 
 namespace LfQuick {
-
-class KeyboardWedgeScanner;
 
 class LFQUICKPLATFORM_EXPORT InputRouter : public QObject
 {

@@ -10,6 +10,7 @@
 #include <LfQuick/Runtime/IPageInstance.h>
 #include <LfQuick/Runtime/IPageProvider.h>
 
+#include <QSignalSpy>
 #include <QTest>
 #include <QQmlEngine>
 #include <QUrl>
