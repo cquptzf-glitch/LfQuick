@@ -24,12 +24,9 @@ public:
     // Optional provider-native final fallback. QuickPageProvider uses this for
     // PageLoadError.qml; other providers can leave the default implementation.
     virtual std::unique_ptr<IPageInstance> createErrorFallback(
-        const PageDescriptor &,
-        const QVariantMap &,
-        const QString &)
-    {
-        return {};
-    }
+        const PageDescriptor &descriptor,
+        const QVariantMap &parameters,
+        const QString &primaryError);
 };
 
 } // namespace LfQuick

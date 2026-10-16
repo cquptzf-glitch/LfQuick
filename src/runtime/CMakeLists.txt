@@ -1,4 +1,5 @@
 add_library(LfQuickRuntime
+    src/IPageProvider.cpp
     src/PageRegistry.cpp
     src/PageProviderRegistry.cpp
     src/PageLifecycle.cpp
