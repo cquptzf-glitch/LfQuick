@@ -19,6 +19,22 @@ target_include_directories(LfQuickUi
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
+target_sources(LfQuickUi PUBLIC
+    FILE_SET HEADERS
+    BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
+    FILES
+        include/LfQuick/Ui/LfQuickUiGlobal.h
+        include/LfQuick/Ui/QuickPageProvider.h
+        include/LfQuick/Ui/QmlErrorCollector.h
+        include/LfQuick/Ui/OverlayCoordinator.h
+        include/LfQuick/Ui/FocusNavigator.h
+        include/LfQuick/Ui/NavigationGuardState.h
+        include/LfQuick/Ui/NavigationGuardController.h
+        include/LfQuick/Ui/PermissionEvaluator.h
+        include/LfQuick/Ui/ValidationEvaluator.h
+        include/LfQuick/Ui/QuickRuntime.h
+)
+
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 set_source_files_properties(qml/Tokens.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
@@ -35,22 +51,6 @@ qt_add_qml_module(LfQuickUi
         qml/OverlayHost.qml
         qml/BusyOverlay.qml
         qml/FocusDebugPanel.qml
-)
-
-target_sources(LfQuickUi PUBLIC
-    FILE_SET HEADERS
-    BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
-    FILES
-        include/LfQuick/Ui/LfQuickUiGlobal.h
-        include/LfQuick/Ui/QuickPageProvider.h
-        include/LfQuick/Ui/QmlErrorCollector.h
-        include/LfQuick/Ui/OverlayCoordinator.h
-        include/LfQuick/Ui/FocusNavigator.h
-        include/LfQuick/Ui/NavigationGuardState.h
-        include/LfQuick/Ui/NavigationGuardController.h
-        include/LfQuick/Ui/PermissionEvaluator.h
-        include/LfQuick/Ui/ValidationEvaluator.h
-        include/LfQuick/Ui/QuickRuntime.h
 )
 
 target_link_libraries(LfQuickUi

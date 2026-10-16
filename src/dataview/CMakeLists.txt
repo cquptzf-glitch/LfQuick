@@ -16,6 +16,19 @@ target_include_directories(LfQuickDataView
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
+target_sources(LfQuickDataView PUBLIC
+    FILE_SET HEADERS
+    BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
+    FILES
+        include/LfQuick/DataView/LfQuickDataViewGlobal.h
+        include/LfQuick/DataView/DataTableModel.h
+        include/LfQuick/DataView/DataFilterProxyModel.h
+        include/LfQuick/DataView/ColumnStateModel.h
+        include/LfQuick/DataView/ColumnConfigStore.h
+        include/LfQuick/DataView/DataEditTransaction.h
+        include/LfQuick/DataView/DataGridSelectionController.h
+)
+
 qt_add_qml_module(LfQuickDataView
     URI LfQuick.DataView
     VERSION 1.0
@@ -29,19 +42,6 @@ qt_add_qml_module(LfQuickDataView
         qml/DataGridComboEditorDelegate.qml
         qml/DataGridProgressDelegate.qml
         qml/DataGridIconDelegate.qml
-)
-
-target_sources(LfQuickDataView PUBLIC
-    FILE_SET HEADERS
-    BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
-    FILES
-        include/LfQuick/DataView/LfQuickDataViewGlobal.h
-        include/LfQuick/DataView/DataTableModel.h
-        include/LfQuick/DataView/DataFilterProxyModel.h
-        include/LfQuick/DataView/ColumnStateModel.h
-        include/LfQuick/DataView/ColumnConfigStore.h
-        include/LfQuick/DataView/DataEditTransaction.h
-        include/LfQuick/DataView/DataGridSelectionController.h
 )
 
 target_link_libraries(LfQuickDataView
