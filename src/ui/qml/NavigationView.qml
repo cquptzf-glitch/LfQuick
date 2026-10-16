@@ -67,18 +67,31 @@ Item {
 
             delegate: Item {
                 id: delegateRoot
+
+                required property int index
+                required property string route
+                required property string label
+                required property string icon
+                required property string section
+                required property string group
+                required property var badge
+                required property bool itemVisible
+                required property bool itemEnabled
+                required property bool selected
+                required property var parameters
+
                 width: ListView.view.width
-                visible: model.itemVisible
+                visible: itemVisible
                 height: visible ? contentColumn.implicitHeight : 0
 
-                readonly property bool showGroupHeader: model.group.length > 0
+                readonly property bool showGroupHeader: group.length > 0
                     && (index === 0
                         || !root.model
-                        || root.model.get(index - 1).group !== model.group
-                        || root.model.get(index - 1).section !== model.section)
+                        || root.model.get(index - 1).group !== group
+                        || root.model.get(index - 1).section !== section)
                 readonly property bool showSectionDivider: index > 0
                     && root.model
-                    && root.model.get(index - 1).section !== model.section
+                    && root.model.get(index - 1).section !== section
 
                 ColumnLayout {
                     id: contentColumn
@@ -95,7 +108,7 @@ Item {
                     Label {
                         Layout.fillWidth: true
                         visible: delegateRoot.showGroupHeader && !root.compact
-                        text: model.group
+                        text: delegateRoot.group
                         color: Tokens.textSecondary
                         font.pixelSize: 12
                         elide: Text.ElideRight
@@ -104,10 +117,11 @@ Item {
                     }
 
                     Button {
+                        id: navigationButton
                         Layout.fillWidth: true
                         checkable: true
-                        checked: model.selected
-                        enabled: model.itemEnabled
+                        checked: delegateRoot.selected
+                        enabled: delegateRoot.itemEnabled
                         leftPadding: 10
                         rightPadding: 10
 
@@ -115,8 +129,8 @@ Item {
                             spacing: 8
 
                             Image {
-                                visible: model.icon.length > 0
-                                source: model.icon
+                                visible: delegateRoot.icon.length > 0
+                                source: delegateRoot.icon
                                 sourceSize.width: 18
                                 sourceSize.height: 18
                                 Layout.preferredWidth: visible ? 18 : 0
@@ -127,30 +141,30 @@ Item {
                             Label {
                                 Layout.fillWidth: true
                                 visible: !root.compact
-                                text: model.label
-                                color: parent.parent.enabled ? Tokens.textPrimary : Tokens.textSecondary
+                                text: delegateRoot.label
+                                color: navigationButton.enabled ? Tokens.textPrimary : Tokens.textSecondary
                                 elide: Text.ElideRight
                             }
 
                             Label {
-                                visible: root.compact && model.icon.length === 0
-                                text: model.label.length > 0 ? model.label.slice(0, 1) : "•"
-                                color: Tokens.textPrimary
+                                visible: root.compact && delegateRoot.icon.length === 0
+                                text: delegateRoot.label.length > 0 ? delegateRoot.label.slice(0, 1) : "•"
+                                color: navigationButton.enabled ? Tokens.textPrimary : Tokens.textSecondary
                                 horizontalAlignment: Text.AlignHCenter
                                 Layout.fillWidth: true
                             }
 
                             Label {
-                                visible: model.badge !== undefined
-                                    && model.badge !== null
-                                    && String(model.badge).length > 0
-                                text: String(model.badge)
+                                visible: delegateRoot.badge !== undefined
+                                    && delegateRoot.badge !== null
+                                    && String(delegateRoot.badge).length > 0
+                                text: String(delegateRoot.badge)
                                 color: Tokens.textSecondary
                                 font.pixelSize: 11
                             }
                         }
 
-                        onClicked: root.navigate(model.route, model.parameters)
+                        onClicked: root.navigate(delegateRoot.route, delegateRoot.parameters)
                     }
                 }
             }
