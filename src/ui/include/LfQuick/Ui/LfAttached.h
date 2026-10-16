@@ -15,6 +15,7 @@ namespace LfQuick {
 class LFQUICKUI_EXPORT PermissionBinding : public QObject
 {
     Q_OBJECT
+    QML_ANONYMOUS
     Q_PROPERTY(PermissionEvaluator *evaluator READ evaluator WRITE setEvaluator NOTIFY evaluatorChanged FINAL)
     Q_PROPERTY(QString permissionId READ permissionId WRITE setPermissionId NOTIFY permissionIdChanged FINAL)
     Q_PROPERTY(QVariantMap context READ context WRITE setContext NOTIFY contextChanged FINAL)
@@ -63,6 +64,7 @@ private:
 class LFQUICKUI_EXPORT LfAttached : public QObject
 {
     Q_OBJECT
+    QML_ANONYMOUS
     Q_PROPERTY(PermissionBinding *permission READ permission CONSTANT FINAL)
 
 public:
