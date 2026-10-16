@@ -1,7 +1,9 @@
 #include <LfQuick/Runtime/PageDescriptor.h>
+#include <LfQuick/Ui/OverlayCoordinator.h>
 #include <LfQuick/Ui/QuickRuntime.h>
 #include <LfQuick/WidgetBridge/QuickSurface.h>
 #include <LfQuick/WidgetBridge/WidgetFocusBridge.h>
+#include <LfQuick/WidgetBridge/WidgetOverlayBackend.h>
 #include <LfQuick/WidgetBridge/WidgetPageProvider.h>
 
 #include <QApplication>
@@ -75,12 +77,18 @@ int main(int argc, char *argv[])
     window.setWindowTitle(QStringLiteral("LfQuick Hybrid Migration Demo"));
     window.resize(1200, 820);
 
+    OverlayCoordinator overlayCoordinator;
+    WidgetOverlayBackend overlayBackend(&window);
+    overlayCoordinator.setBackend(&overlayBackend);
+
     auto *rootLayout = new QVBoxLayout(&window);
     auto *toolbar = new QHBoxLayout;
     auto *quickButton = new QPushButton(QStringLiteral("QML Page"), &window);
     auto *legacyButton = new QPushButton(QStringLiteral("Legacy QWidget Page"), &window);
     auto *fallbackButton = new QPushButton(QStringLiteral("Broken QML → Legacy Fallback"), &window);
     auto *backButton = new QPushButton(QStringLiteral("Back"), &window);
+    auto *toastButton = new QPushButton(QStringLiteral("Toast"), &window);
+    auto *dialogButton = new QPushButton(QStringLiteral("Dialog"), &window);
     auto *routeLabel = new QLabel(QStringLiteral("Route: -"), &window);
     auto *metricsLabel = new QLabel(QStringLiteral("QuickSurface: loading"), &window);
 
@@ -93,6 +101,8 @@ int main(int argc, char *argv[])
     toolbar->addWidget(legacyButton);
     toolbar->addWidget(fallbackButton);
     toolbar->addWidget(backButton);
+    toolbar->addWidget(toastButton);
+    toolbar->addWidget(dialogButton);
     toolbar->addSpacing(16);
     toolbar->addWidget(routeLabel);
     toolbar->addStretch(1);
@@ -248,6 +258,34 @@ int main(int argc, char *argv[])
         focusBridge.rememberFocus();
         if (runtime.back())
             focusBridge.restoreFocus();
+    });
+    QObject::connect(toastButton, &QPushButton::clicked,
+                     &window, [&overlayCoordinator] {
+        overlayCoordinator.showToast(
+            QStringLiteral("Shared coordinator rendered this toast through QWidget"),
+            {{QStringLiteral("severity"), QStringLiteral("success")},
+             {QStringLiteral("durationMs"), 3500},
+             {QStringLiteral("dedupKey"), QStringLiteral("hybrid-toast")}});
+    });
+    QObject::connect(dialogButton, &QPushButton::clicked,
+                     &window, [&overlayCoordinator] {
+        overlayCoordinator.requestDialog(
+            QStringLiteral("Shared overlay backend"),
+            QStringLiteral("This non-blocking dialog uses the same request protocol as QML."),
+            {{QStringLiteral("buttons"),
+              QStringList{QStringLiteral("yes"), QStringLiteral("no")}},
+             {QStringLiteral("defaultButton"), QStringLiteral("no")},
+             {QStringLiteral("context"),
+              QVariantMap{{QStringLiteral("source"), QStringLiteral("hybrid-demo")}}}});
+    });
+    QObject::connect(&overlayCoordinator, &OverlayCoordinator::dialogResolved,
+                     &window, [metricsLabel](const QString &requestId,
+                                             const QString &buttonId,
+                                             const QVariantMap &context) {
+        Q_UNUSED(requestId)
+        metricsLabel->setText(
+            QStringLiteral("Dialog result: %1 (%2)")
+                .arg(buttonId, context.value(QStringLiteral("source")).toString()));
     });
 
     const auto updateNavigationUi = [&] {
