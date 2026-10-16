@@ -61,8 +61,8 @@ private:
 
     QPointer<QQmlEngine> m_engine;
     QPointer<QQuickItem> m_host;
-    PageRegistry *m_pages = nullptr;
-    PageProviderRegistry *m_providers = nullptr;
+    std::unique_ptr<PageRegistry> m_pages;
+    std::unique_ptr<PageProviderRegistry> m_providers;
     std::shared_ptr<QuickPageProvider> m_provider;
     std::unique_ptr<PageRouter> m_router;
 };
