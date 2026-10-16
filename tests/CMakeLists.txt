@@ -115,3 +115,11 @@ if(LFQUICK_BUILD_CHARTS)
     target_link_libraries(tst_charts PRIVATE LfQuick::Charts Qt6::Test)
     lfquick_register_test(tst_charts)
 endif()
+
+if(LFQUICK_BUILD_DIAGNOSTICS)
+    qt_add_executable(tst_diagnostics
+        unit/tst_diagnostics.cpp
+    )
+    target_link_libraries(tst_diagnostics PRIVATE LfQuick::Diagnostics Qt6::Test)
+    lfquick_register_test(tst_diagnostics)
+endif()
