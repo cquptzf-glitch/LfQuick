@@ -174,8 +174,12 @@ protected:
     {
         if (watched == m_widget && event && event->type() == QEvent::Close
             && !m_closingFromRouter && m_closeRequestHandler) {
+            const auto handler = m_closeRequestHandler;
             event->ignore();
-            m_closeRequestHandler();
+            QMetaObject::invokeMethod(this, [handler] {
+                if (handler)
+                    handler();
+            }, Qt::QueuedConnection);
             return true;
         }
         return QObject::eventFilter(watched, event);
