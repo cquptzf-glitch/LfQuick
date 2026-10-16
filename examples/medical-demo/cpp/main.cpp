@@ -6,6 +6,10 @@
 #include <LfQuick/Ui/PermissionEvaluator.h>
 #include <LfQuick/Ui/QuickRuntime.h>
 
+#ifdef LFQUICK_HAS_QT_GRAPHS_ADAPTER
+#include <LfQuick/Charts/ChartDataModel.h>
+#endif
+
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -13,6 +17,7 @@
 #include <QTimer>
 #include <QVariantList>
 
+#include <cmath>
 #include <memory>
 
 using namespace LfQuick;
@@ -120,6 +125,24 @@ void seedResultModel(DataTableModel &model, int count)
     model.setRows(rows);
 }
 
+#ifdef LFQUICK_HAS_QT_GRAPHS_ADAPTER
+void seedSyntheticChartModel(ChartDataModel &model)
+{
+    QVariantList points;
+    points.reserve(120);
+    for (int i = 0; i < 120; ++i) {
+        const double x = static_cast<double>(i);
+        const double y = 50.0 + std::sin(x * 0.12) * 8.0 + std::cos(x * 0.035) * 3.0;
+        points.append(QVariantMap{
+            {QStringLiteral("x"), x},
+            {QStringLiteral("y"), y},
+            {QStringLiteral("metadata"), QVariantMap{{QStringLiteral("source"), QStringLiteral("synthetic-demo")}}}
+        });
+    }
+    model.setPoints(points);
+}
+#endif
+
 } // namespace
 
 int main(int argc, char *argv[])
@@ -131,6 +154,11 @@ int main(int argc, char *argv[])
     DataTableModel resultModel;
     seedSampleModel(sampleModel, 10000);
     seedResultModel(resultModel, 5000);
+
+#ifdef LFQUICK_HAS_QT_GRAPHS_ADAPTER
+    ChartDataModel syntheticChartModel;
+    seedSyntheticChartModel(syntheticChartModel);
+#endif
 
     KeyboardWedgeScanner scanner;
     scanner.session()->setMinimumLength(4);
@@ -153,6 +181,12 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("overlayCoordinator"), &overlayCoordinator);
     engine.rootContext()->setContextProperty(QStringLiteral("permissionEvaluator"), &permissionEvaluator);
     engine.rootContext()->setContextProperty(QStringLiteral("quickRuntime"), &quickRuntime);
+#ifdef LFQUICK_HAS_QT_GRAPHS_ADAPTER
+    engine.rootContext()->setContextProperty(QStringLiteral("chartsAvailable"), true);
+    engine.rootContext()->setContextProperty(QStringLiteral("syntheticChartModel"), &syntheticChartModel);
+#else
+    engine.rootContext()->setContextProperty(QStringLiteral("chartsAvailable"), false);
+#endif
 
     QTimer liveDataTimer(&app);
     QObject::connect(&liveDataTimer, &QTimer::timeout, &sampleModel, [&sampleModel] {
