@@ -13,6 +13,7 @@
 namespace LfQuick {
 
 class IPageInstance;
+class PageDescriptor;
 class PageProviderRegistry;
 class PageRegistry;
 
@@ -55,11 +56,24 @@ signals:
                            const QString &toRoute,
                            const QString &reason);
     void cacheEntryEvicted(const QString &route);
+    void pageFallbackAttempted(const QString &route,
+                               const QString &primaryProvider,
+                               const QString &fallbackProvider,
+                               const QString &primaryError);
+    void pageFallbackActivated(const QString &route,
+                               const QString &provider,
+                               const QString &strategy);
+    void pageFallbackFailed(const QString &route,
+                            const QString &provider,
+                            const QString &message);
 
 private:
     struct Entry;
 
     RouteResult createEntry(const RouteRequest &request, Entry &entry);
+    std::unique_ptr<IPageInstance> createInstance(const PageDescriptor &descriptor,
+                                                   const QVariantMap &parameters,
+                                                   QVariantMap &diagnostics);
     bool ensureInstance(Entry &entry);
     bool activate(Entry &entry);
     void deactivateCurrent(bool suspend);

@@ -175,37 +175,58 @@ std::unique_ptr<IPageInstance> QuickPageProvider::create(const PageDescriptor &d
     const QUrl primarySource = sourceUrl(descriptor);
     QString primaryError;
     QQuickItem *item = createItem(m_engine, primarySource, parameters, primaryError);
-
     if (!item) {
         m_lastError = primaryError;
         if (m_errorCollector)
             m_errorCollector->record(descriptor.route, primarySource, primaryError,
                                      QStringLiteral("primary"));
-
-        const QUrl fallbackSource = fallbackUrl(descriptor);
-        if (descriptor.fallbackPolicy == FallbackPolicy::ErrorPage
-            && fallbackSource.isValid() && !fallbackSource.isEmpty()) {
-            // Do not forward the failed business page's initial properties to the
-            // generic fallback page. Unknown properties would make the fallback
-            // fail for exactly the pages where diagnostics are most important.
-            QVariantMap fallbackProperties;
-            fallbackProperties.insert(QStringLiteral("route"), descriptor.route);
-            fallbackProperties.insert(QStringLiteral("errorMessage"), primaryError);
-
-            QString fallbackError;
-            item = createItem(m_engine, fallbackSource, fallbackProperties, fallbackError);
-            if (!item) {
-                if (m_errorCollector)
-                    m_errorCollector->record(descriptor.route, fallbackSource, fallbackError,
-                                             QStringLiteral("fallback"));
-                m_lastError += QStringLiteral("\nFallback failed: ") + fallbackError;
-            }
-        }
+        return {};
     }
 
-    if (!item)
-        return {};
+    if (m_host) {
+        item->setParent(m_host);
+        item->setParentItem(m_host);
+    }
+    item->setVisible(false);
 
+    return std::make_unique<QuickPageInstance>(descriptor.route,
+                                                item,
+                                                m_host,
+                                                m_activationCallback);
+}
+
+std::unique_ptr<IPageInstance> QuickPageProvider::createErrorFallback(
+    const PageDescriptor &descriptor,
+    const QVariantMap &,
+    const QString &primaryError)
+{
+    const QUrl fallbackSource = fallbackUrl(descriptor);
+    if (!fallbackSource.isValid() || fallbackSource.isEmpty()) {
+        m_lastError = primaryError;
+        if (!m_lastError.isEmpty())
+            m_lastError += QLatin1Char('\n');
+        m_lastError += QStringLiteral("Error fallback URL is not configured");
+        return {};
+    }
+
+    QVariantMap fallbackProperties;
+    fallbackProperties.insert(QStringLiteral("route"), descriptor.route);
+    fallbackProperties.insert(QStringLiteral("errorMessage"), primaryError);
+
+    QString fallbackError;
+    QQuickItem *item = createItem(m_engine, fallbackSource, fallbackProperties, fallbackError);
+    if (!item) {
+        if (m_errorCollector)
+            m_errorCollector->record(descriptor.route, fallbackSource, fallbackError,
+                                     QStringLiteral("fallback"));
+        m_lastError = primaryError;
+        if (!m_lastError.isEmpty())
+            m_lastError += QLatin1Char('\n');
+        m_lastError += QStringLiteral("Fallback failed: ") + fallbackError;
+        return {};
+    }
+
+    m_lastError = primaryError;
     if (m_host) {
         item->setParent(m_host);
         item->setParentItem(m_host);

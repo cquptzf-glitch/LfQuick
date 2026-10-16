@@ -25,6 +25,7 @@ public:
     bool canCreate(const PageDescriptor &descriptor) const override;
     std::unique_ptr<IPageInstance> create(const PageDescriptor &descriptor,
                                            const QVariantMap &parameters) override;
+    QString lastError() const override { return m_lastError; }
 
     void setHost(QWidget *host);
     QWidget *host() const;
@@ -36,6 +37,7 @@ public:
 private:
     QPointer<QWidget> m_host;
     QHash<QString, Factory> m_factories;
+    QString m_lastError;
 };
 
 } // namespace LfQuick

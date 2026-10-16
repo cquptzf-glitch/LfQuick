@@ -9,6 +9,35 @@
 #include <algorithm>
 
 namespace LfQuick {
+namespace {
+
+QString providerError(const std::shared_ptr<IPageProvider> &provider,
+                      const QString &fallbackMessage)
+{
+    if (provider) {
+        const QString message = provider->lastError().trimmed();
+        if (!message.isEmpty())
+            return message;
+    }
+    return fallbackMessage;
+}
+
+QString creationFailureMessage(const QVariantMap &diagnostics)
+{
+    QStringList parts;
+    const auto append = [&parts, &diagnostics](const QString &key, const QString &label) {
+        const QString message = diagnostics.value(key).toString().trimmed();
+        if (!message.isEmpty())
+            parts.push_back(label + QStringLiteral(": ") + message);
+    };
+
+    append(QStringLiteral("primaryError"), QStringLiteral("Primary"));
+    append(QStringLiteral("fallbackError"), QStringLiteral("Cross-provider fallback"));
+    append(QStringLiteral("errorFallbackError"), QStringLiteral("Error fallback"));
+    return parts.isEmpty() ? QStringLiteral("Page creation failed") : parts.join(QStringLiteral(" | "));
+}
+
+} // namespace
 
 struct PageRouter::Entry
 {
@@ -109,18 +138,14 @@ RouteResult PageRouter::createEntry(const RouteRequest &request, Entry &entry)
                   QStringLiteral("Route is not registered")));
     }
 
-    const auto provider = m_providers->find(descriptor->provider);
-    if (!provider || !provider->canCreate(*descriptor)) {
-        return RouteResult::failure(request.route,
-            Error(QStringLiteral("routing"), 2,
-                  QStringLiteral("No compatible page provider")));
-    }
-
-    auto instance = provider->create(*descriptor, request.parameters);
+    QVariantMap diagnostics;
+    auto instance = createInstance(*descriptor, request.parameters, diagnostics);
     if (!instance) {
-        return RouteResult::failure(request.route,
+        diagnostics.insert(QStringLiteral("route"), request.route);
+        return RouteResult::failure(
+            request.route,
             Error(QStringLiteral("routing"), 3,
-                  QStringLiteral("Page creation failed")));
+                  creationFailureMessage(diagnostics), diagnostics));
     }
 
     entry.descriptor = *descriptor;
@@ -128,6 +153,121 @@ RouteResult PageRouter::createEntry(const RouteRequest &request, Entry &entry)
     entry.instance = std::move(instance);
     touch(entry);
     return RouteResult::success(request.route);
+}
+
+std::unique_ptr<IPageInstance> PageRouter::createInstance(const PageDescriptor &descriptor,
+                                                           const QVariantMap &parameters,
+                                                           QVariantMap &diagnostics)
+{
+    diagnostics.clear();
+    diagnostics.insert(QStringLiteral("primaryProvider"), descriptor.provider);
+
+    if (!m_providers) {
+        diagnostics.insert(QStringLiteral("primaryError"),
+                           QStringLiteral("Page provider registry is not configured"));
+        return {};
+    }
+
+    const auto primaryProvider = m_providers->find(descriptor.provider);
+    QString primaryError;
+
+    if (!primaryProvider) {
+        primaryError = QStringLiteral("Page provider '%1' is not registered")
+                           .arg(descriptor.provider);
+    } else if (!primaryProvider->canCreate(descriptor)) {
+        primaryError = providerError(
+            primaryProvider,
+            QStringLiteral("Page provider '%1' rejected the descriptor")
+                .arg(descriptor.provider));
+    } else {
+        auto primaryInstance = primaryProvider->create(descriptor, parameters);
+        if (primaryInstance)
+            return primaryInstance;
+
+        primaryError = providerError(
+            primaryProvider,
+            QStringLiteral("Page provider '%1' failed to create the page")
+                .arg(descriptor.provider));
+    }
+
+    diagnostics.insert(QStringLiteral("primaryError"), primaryError);
+
+    const bool stateless = descriptor.metadata.value(QStringLiteral("stateless")).toBool();
+    const bool crossProviderAllowed = descriptor.fallback.has_value()
+        && (descriptor.fallbackPolicy == FallbackPolicy::LegacyBeforeActivate
+            || (descriptor.fallbackPolicy == FallbackPolicy::LegacyIfStateless && stateless));
+
+    if (crossProviderAllowed) {
+        PageDescriptor fallbackDescriptor = descriptor;
+        fallbackDescriptor.provider = descriptor.fallback->provider;
+        fallbackDescriptor.source = descriptor.fallback->source;
+        fallbackDescriptor.fallbackPolicy = FallbackPolicy::None;
+        fallbackDescriptor.fallback.reset();
+
+        diagnostics.insert(QStringLiteral("fallbackProvider"), fallbackDescriptor.provider);
+        emit pageFallbackAttempted(descriptor.route,
+                                   descriptor.provider,
+                                   fallbackDescriptor.provider,
+                                   primaryError);
+
+        const auto fallbackProvider = m_providers->find(fallbackDescriptor.provider);
+        QString fallbackError;
+        if (!fallbackProvider) {
+            fallbackError = QStringLiteral("Fallback provider '%1' is not registered")
+                                .arg(fallbackDescriptor.provider);
+        } else if (!fallbackProvider->canCreate(fallbackDescriptor)) {
+            fallbackError = providerError(
+                fallbackProvider,
+                QStringLiteral("Fallback provider '%1' rejected the descriptor")
+                    .arg(fallbackDescriptor.provider));
+        } else {
+            auto fallbackInstance = fallbackProvider->create(fallbackDescriptor, parameters);
+            if (fallbackInstance) {
+                diagnostics.insert(QStringLiteral("activeProvider"), fallbackDescriptor.provider);
+                diagnostics.insert(QStringLiteral("fallbackStrategy"),
+                                   QStringLiteral("cross-provider"));
+                emit pageFallbackActivated(descriptor.route,
+                                           fallbackDescriptor.provider,
+                                           QStringLiteral("cross-provider"));
+                return fallbackInstance;
+            }
+
+            fallbackError = providerError(
+                fallbackProvider,
+                QStringLiteral("Fallback provider '%1' failed to create the page")
+                    .arg(fallbackDescriptor.provider));
+        }
+
+        diagnostics.insert(QStringLiteral("fallbackError"), fallbackError);
+        emit pageFallbackFailed(descriptor.route, fallbackDescriptor.provider, fallbackError);
+    }
+
+    // ErrorPage is the final provider-native fallback. For the Legacy* policies
+    // it runs only after the cross-provider attempt failed (or was unsafe).
+    if (primaryProvider && descriptor.fallbackPolicy != FallbackPolicy::None) {
+        QString reason = primaryError;
+        const QString crossProviderError = diagnostics.value(QStringLiteral("fallbackError")).toString();
+        if (!crossProviderError.isEmpty())
+            reason += QStringLiteral("\nCross-provider fallback failed: ") + crossProviderError;
+
+        auto errorInstance = primaryProvider->createErrorFallback(descriptor, parameters, reason);
+        if (errorInstance) {
+            diagnostics.insert(QStringLiteral("activeProvider"), descriptor.provider);
+            diagnostics.insert(QStringLiteral("fallbackStrategy"), QStringLiteral("error-page"));
+            emit pageFallbackActivated(descriptor.route,
+                                       descriptor.provider,
+                                       QStringLiteral("error-page"));
+            return errorInstance;
+        }
+
+        const QString errorFallbackError = primaryProvider->lastError().trimmed();
+        if (!errorFallbackError.isEmpty()) {
+            diagnostics.insert(QStringLiteral("errorFallbackError"), errorFallbackError);
+            emit pageFallbackFailed(descriptor.route, descriptor.provider, errorFallbackError);
+        }
+    }
+
+    return {};
 }
 
 RouteResult PageRouter::push(const RouteRequest &request)
@@ -264,14 +404,8 @@ bool PageRouter::ensureInstance(Entry &entry)
     if (entry.instance)
         return true;
 
-    if (!m_providers)
-        return false;
-
-    const auto provider = m_providers->find(entry.descriptor.provider);
-    if (!provider || !provider->canCreate(entry.descriptor))
-        return false;
-
-    entry.instance = provider->create(entry.descriptor, entry.parameters);
+    QVariantMap diagnostics;
+    entry.instance = createInstance(entry.descriptor, entry.parameters, diagnostics);
     if (!entry.instance)
         return false;
 

@@ -24,11 +24,15 @@ public:
     bool canCreate(const PageDescriptor &descriptor) const override;
     std::unique_ptr<IPageInstance> create(const PageDescriptor &descriptor,
                                            const QVariantMap &parameters) override;
+    QString lastError() const override { return m_lastError; }
+    std::unique_ptr<IPageInstance> createErrorFallback(
+        const PageDescriptor &descriptor,
+        const QVariantMap &parameters,
+        const QString &primaryError) override;
 
     void setHost(QQuickItem *host);
     void setErrorCollector(QmlErrorCollector *collector);
     void setActivationCallback(ActivationCallback callback);
-    QString lastError() const { return m_lastError; }
 
 private:
     QPointer<QQmlEngine> m_engine;

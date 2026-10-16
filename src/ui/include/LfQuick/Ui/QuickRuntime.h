@@ -78,6 +78,16 @@ signals:
                            const QString &toRoute,
                            const QString &reason);
     void cacheEntryEvicted(const QString &route);
+    void pageFallbackAttempted(const QString &route,
+                               const QString &primaryProvider,
+                               const QString &fallbackProvider,
+                               const QString &primaryError);
+    void pageFallbackActivated(const QString &route,
+                               const QString &provider,
+                               const QString &strategy);
+    void pageFallbackFailed(const QString &route,
+                            const QString &provider,
+                            const QString &message);
 
 private:
     PageDescriptor descriptorFor(const QString &route,

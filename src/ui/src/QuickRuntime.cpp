@@ -41,6 +41,12 @@ QuickRuntime::QuickRuntime(QQmlEngine *engine, QObject *parent)
             this, &QuickRuntime::navigationBlocked);
     connect(m_router.get(), &PageRouter::cacheEntryEvicted,
             this, &QuickRuntime::cacheEntryEvicted);
+    connect(m_router.get(), &PageRouter::pageFallbackAttempted,
+            this, &QuickRuntime::pageFallbackAttempted);
+    connect(m_router.get(), &PageRouter::pageFallbackActivated,
+            this, &QuickRuntime::pageFallbackActivated);
+    connect(m_router.get(), &PageRouter::pageFallbackFailed,
+            this, &QuickRuntime::pageFallbackFailed);
 }
 
 QuickRuntime::~QuickRuntime()

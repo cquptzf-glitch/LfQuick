@@ -14,6 +14,7 @@ namespace {
 
 struct Counters {
     int created = 0;
+    int errorFallbackCreated = 0;
     int activated = 0;
     int deactivated = 0;
     int suspended = 0;
@@ -58,6 +59,53 @@ public:
     std::shared_ptr<Counters> counters = std::make_shared<Counters>();
 };
 
+class NamedProvider final : public LfQuick::IPageProvider
+{
+public:
+    explicit NamedProvider(QString providerId)
+        : providerId(std::move(providerId)) {}
+
+    QString id() const override { return providerId; }
+    bool canCreate(const LfQuick::PageDescriptor &descriptor) const override
+    {
+        return descriptor.provider == providerId;
+    }
+
+    std::unique_ptr<LfQuick::IPageInstance> create(
+        const LfQuick::PageDescriptor &descriptor, const QVariantMap &) override
+    {
+        ++counters->created;
+        if (failCreate) {
+            error = QStringLiteral("%1 create failed").arg(providerId);
+            return {};
+        }
+        error.clear();
+        return std::make_unique<FakePage>(descriptor.route, counters);
+    }
+
+    QString lastError() const override { return error; }
+
+    std::unique_ptr<LfQuick::IPageInstance> createErrorFallback(
+        const LfQuick::PageDescriptor &descriptor,
+        const QVariantMap &,
+        const QString &) override
+    {
+        ++counters->errorFallbackCreated;
+        if (!supportsErrorFallback) {
+            error = QStringLiteral("%1 error fallback failed").arg(providerId);
+            return {};
+        }
+        error.clear();
+        return std::make_unique<FakePage>(descriptor.route + QStringLiteral(":error"), counters);
+    }
+
+    QString providerId;
+    bool failCreate = false;
+    bool supportsErrorFallback = false;
+    QString error;
+    std::shared_ptr<Counters> counters = std::make_shared<Counters>();
+};
+
 class DenySamplesGuard final : public LfQuick::INavigationGuard
 {
 public:
@@ -78,6 +126,24 @@ LfQuick::PageDescriptor page(QString route,
     descriptor.route = std::move(route);
     descriptor.provider = QStringLiteral("test");
     descriptor.cachePolicy = policy;
+    return descriptor;
+}
+
+LfQuick::PageDescriptor fallbackPage(QString route,
+                                     LfQuick::FallbackPolicy policy,
+                                     bool stateless = false)
+{
+    LfQuick::PageDescriptor descriptor;
+    descriptor.route = std::move(route);
+    descriptor.provider = QStringLiteral("primary");
+    descriptor.cachePolicy = LfQuick::PageCachePolicy::KeepAlive;
+    descriptor.fallbackPolicy = policy;
+    if (stateless)
+        descriptor.metadata.insert(QStringLiteral("stateless"), true);
+
+    LfQuick::PageFallbackDescriptor fallback;
+    fallback.provider = QStringLiteral("legacy");
+    descriptor.fallback = std::move(fallback);
     return descriptor;
 }
 
@@ -212,6 +278,118 @@ private slots:
         guard->blocked = false;
         QVERIFY(router.push({QStringLiteral("/samples"), {}, {}}).accepted);
         QCOMPARE(router.currentRoute(), QStringLiteral("/samples"));
+    }
+
+    void legacyBeforeActivateFallsBackAcrossProviders()
+    {
+        LfQuick::PageRegistry pages;
+        QVERIFY(pages.registerPage(fallbackPage(QStringLiteral("/results"),
+                                                 LfQuick::FallbackPolicy::LegacyBeforeActivate)));
+
+        auto primary = std::make_shared<NamedProvider>(QStringLiteral("primary"));
+        primary->failCreate = true;
+        auto legacy = std::make_shared<NamedProvider>(QStringLiteral("legacy"));
+        LfQuick::PageProviderRegistry providers;
+        QVERIFY(providers.registerProvider(primary));
+        QVERIFY(providers.registerProvider(legacy));
+
+        LfQuick::PageRouter router(&pages, &providers);
+        QSignalSpy attempted(&router, &LfQuick::PageRouter::pageFallbackAttempted);
+        QSignalSpy activated(&router, &LfQuick::PageRouter::pageFallbackActivated);
+
+        const auto result = router.push({QStringLiteral("/results"), {}, {}});
+        QVERIFY(result.accepted);
+        QCOMPARE(router.currentRoute(), QStringLiteral("/results"));
+        QCOMPARE(primary->counters->created, 1);
+        QCOMPARE(legacy->counters->created, 1);
+        QCOMPARE(legacy->counters->activated, 1);
+        QCOMPARE(attempted.count(), 1);
+        QCOMPARE(activated.count(), 1);
+        QCOMPARE(activated.at(0).at(1).toString(), QStringLiteral("legacy"));
+        QCOMPARE(activated.at(0).at(2).toString(), QStringLiteral("cross-provider"));
+    }
+
+    void legacyIfStatelessRequiresExplicitMetadata()
+    {
+        LfQuick::PageRegistry pages;
+        QVERIFY(pages.registerPage(fallbackPage(QStringLiteral("/stateful"),
+                                                 LfQuick::FallbackPolicy::LegacyIfStateless)));
+        QVERIFY(pages.registerPage(fallbackPage(QStringLiteral("/stateless"),
+                                                 LfQuick::FallbackPolicy::LegacyIfStateless,
+                                                 true)));
+
+        auto primary = std::make_shared<NamedProvider>(QStringLiteral("primary"));
+        primary->failCreate = true;
+        primary->supportsErrorFallback = true;
+        auto legacy = std::make_shared<NamedProvider>(QStringLiteral("legacy"));
+        LfQuick::PageProviderRegistry providers;
+        QVERIFY(providers.registerProvider(primary));
+        QVERIFY(providers.registerProvider(legacy));
+
+        LfQuick::PageRouter router(&pages, &providers);
+        QVERIFY(router.push({QStringLiteral("/stateful"), {}, {}}).accepted);
+        QCOMPARE(legacy->counters->created, 0);
+        QCOMPARE(primary->counters->errorFallbackCreated, 1);
+
+        QVERIFY(router.push({QStringLiteral("/stateless"), {}, {}}).accepted);
+        QCOMPARE(legacy->counters->created, 1);
+        QCOMPARE(primary->counters->errorFallbackCreated, 1);
+    }
+
+    void crossProviderFailureFallsBackToErrorPage()
+    {
+        LfQuick::PageRegistry pages;
+        QVERIFY(pages.registerPage(fallbackPage(QStringLiteral("/results"),
+                                                 LfQuick::FallbackPolicy::LegacyBeforeActivate)));
+
+        auto primary = std::make_shared<NamedProvider>(QStringLiteral("primary"));
+        primary->failCreate = true;
+        primary->supportsErrorFallback = true;
+        auto legacy = std::make_shared<NamedProvider>(QStringLiteral("legacy"));
+        legacy->failCreate = true;
+        LfQuick::PageProviderRegistry providers;
+        QVERIFY(providers.registerProvider(primary));
+        QVERIFY(providers.registerProvider(legacy));
+
+        LfQuick::PageRouter router(&pages, &providers);
+        QSignalSpy failed(&router, &LfQuick::PageRouter::pageFallbackFailed);
+        QSignalSpy activated(&router, &LfQuick::PageRouter::pageFallbackActivated);
+
+        const auto result = router.push({QStringLiteral("/results"), {}, {}});
+        QVERIFY(result.accepted);
+        QCOMPARE(primary->counters->errorFallbackCreated, 1);
+        QCOMPARE(failed.count(), 1);
+        QCOMPARE(activated.count(), 1);
+        QCOMPARE(activated.at(0).at(2).toString(), QStringLiteral("error-page"));
+    }
+
+    void failedFallbackChainReturnsProviderDiagnostics()
+    {
+        LfQuick::PageRegistry pages;
+        QVERIFY(pages.registerPage(fallbackPage(QStringLiteral("/results"),
+                                                 LfQuick::FallbackPolicy::LegacyBeforeActivate)));
+
+        auto primary = std::make_shared<NamedProvider>(QStringLiteral("primary"));
+        primary->failCreate = true;
+        auto legacy = std::make_shared<NamedProvider>(QStringLiteral("legacy"));
+        legacy->failCreate = true;
+        LfQuick::PageProviderRegistry providers;
+        QVERIFY(providers.registerProvider(primary));
+        QVERIFY(providers.registerProvider(legacy));
+
+        LfQuick::PageRouter router(&pages, &providers);
+        const auto result = router.push({QStringLiteral("/results"), {}, {}});
+        QVERIFY(!result.accepted);
+        QCOMPARE(result.error.details().value(QStringLiteral("primaryProvider")).toString(),
+                 QStringLiteral("primary"));
+        QCOMPARE(result.error.details().value(QStringLiteral("fallbackProvider")).toString(),
+                 QStringLiteral("legacy"));
+        QVERIFY(result.error.details().value(QStringLiteral("primaryError")).toString()
+                    .contains(QStringLiteral("primary create failed")));
+        QVERIFY(result.error.details().value(QStringLiteral("fallbackError")).toString()
+                    .contains(QStringLiteral("legacy create failed")));
+        QVERIFY(result.error.details().value(QStringLiteral("errorFallbackError")).toString()
+                    .contains(QStringLiteral("primary error fallback failed")));
     }
 };
 

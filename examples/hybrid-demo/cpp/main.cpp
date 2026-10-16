@@ -41,7 +41,8 @@ QWidget *createLegacyResultsPage(QWidget *parent, const QVariantMap &parameters)
 
     auto *description = new QLabel(
         QStringLiteral("This is a legacy QWidget page created through WidgetPageProvider. "
-                       "It shares PageRouter history with the QML page."), page);
+                       "It shares PageRouter history with the QML page and can also be "
+                       "selected automatically when the QML implementation fails."), page);
     description->setWordWrap(true);
     layout->addWidget(description);
 
@@ -74,16 +75,19 @@ int main(int argc, char *argv[])
     auto *toolbar = new QHBoxLayout;
     auto *quickButton = new QPushButton(QStringLiteral("QML Page"), &window);
     auto *legacyButton = new QPushButton(QStringLiteral("Legacy QWidget Page"), &window);
+    auto *fallbackButton = new QPushButton(QStringLiteral("Broken QML → Legacy Fallback"), &window);
     auto *backButton = new QPushButton(QStringLiteral("Back"), &window);
     auto *routeLabel = new QLabel(QStringLiteral("Route: -"), &window);
     auto *metricsLabel = new QLabel(QStringLiteral("QuickSurface: loading"), &window);
 
     quickButton->setEnabled(false);
     legacyButton->setEnabled(false);
+    fallbackButton->setEnabled(false);
     backButton->setEnabled(false);
 
     toolbar->addWidget(quickButton);
     toolbar->addWidget(legacyButton);
+    toolbar->addWidget(fallbackButton);
     toolbar->addWidget(backButton);
     toolbar->addSpacing(16);
     toolbar->addWidget(routeLabel);
@@ -131,7 +135,23 @@ int main(int argc, char *argv[])
             QUrl(QStringLiteral("qrc:/qt/qml/LfQuick/HybridDemo/HybridQuickPage.qml")),
             static_cast<int>(PageCachePolicy::KeepAlive));
 
-        if (!registered) {
+        PageDescriptor fallbackDescriptor;
+        fallbackDescriptor.route = QStringLiteral("/quick/fallback");
+        fallbackDescriptor.provider = QStringLiteral("quick");
+        fallbackDescriptor.source.insert(
+            QStringLiteral("url"),
+            QUrl(QStringLiteral("qrc:/qt/qml/LfQuick/HybridDemo/MissingHybridQuickPage.qml")));
+        fallbackDescriptor.source.insert(
+            QStringLiteral("fallbackUrl"),
+            QUrl(QStringLiteral("qrc:/qt/qml/LfQuick/PageLoadError.qml")));
+        fallbackDescriptor.cachePolicy = PageCachePolicy::KeepAlive;
+        fallbackDescriptor.fallbackPolicy = FallbackPolicy::LegacyBeforeActivate;
+        PageFallbackDescriptor legacyFallback;
+        legacyFallback.provider = QStringLiteral("widget");
+        legacyFallback.source.insert(QStringLiteral("factory"), QStringLiteral("legacy-results"));
+        fallbackDescriptor.fallback = std::move(legacyFallback);
+
+        if (!registered || !runtime.registerDescriptor(std::move(fallbackDescriptor))) {
             metricsLabel->setText(QStringLiteral("QuickSurface: route registration failed"));
             return;
         }
@@ -139,6 +159,7 @@ int main(int argc, char *argv[])
         routesInitialized = true;
         quickButton->setEnabled(true);
         legacyButton->setEnabled(true);
+        fallbackButton->setEnabled(true);
         runtime.push(QStringLiteral("/quick"));
     };
 
@@ -155,6 +176,20 @@ int main(int argc, char *argv[])
                      &window, [metricsLabel](const QString &message) {
         metricsLabel->setText(QStringLiteral("QuickSurface error: %1").arg(message));
     });
+    QObject::connect(&runtime, &QuickRuntime::pageFallbackActivated,
+                     &window, [metricsLabel](const QString &route,
+                                             const QString &provider,
+                                             const QString &strategy) {
+        metricsLabel->setText(
+            QStringLiteral("Fallback %1: %2 via %3").arg(strategy, route, provider));
+    });
+    QObject::connect(&runtime, &QuickRuntime::pageFallbackFailed,
+                     &window, [metricsLabel](const QString &route,
+                                             const QString &provider,
+                                             const QString &message) {
+        metricsLabel->setText(
+            QStringLiteral("Fallback failed: %1 via %2 — %3").arg(route, provider, message));
+    });
 
     QObject::connect(quickButton, &QPushButton::clicked,
                      &window, [&runtime] { runtime.push(QStringLiteral("/quick")); });
@@ -162,6 +197,12 @@ int main(int argc, char *argv[])
                      &window, [&runtime] {
         runtime.push(QStringLiteral("/legacy/results"),
                      {{QStringLiteral("title"), QStringLiteral("Legacy Biochemistry Results")}});
+    });
+    QObject::connect(fallbackButton, &QPushButton::clicked,
+                     &window, [&runtime] {
+        runtime.push(QStringLiteral("/quick/fallback"),
+                     {{QStringLiteral("title"),
+                       QStringLiteral("Legacy fallback after QML creation failure")}});
     });
     QObject::connect(backButton, &QPushButton::clicked,
                      &window, [&runtime] { runtime.back(); });
