@@ -34,6 +34,11 @@ if(LFQUICK_BUILD_QT_GRAPHS_ADAPTER)
     list(APPEND lfquick_medical_demo_qml_files qml/ChartsPage.qml)
 endif()
 
+if(LFQUICK_BUILD_DIAGNOSTICS)
+    target_link_libraries(LfQuickMedicalDemo PRIVATE LfQuick::Diagnostics)
+    target_compile_definitions(LfQuickMedicalDemo PRIVATE LFQUICK_HAS_DIAGNOSTICS=1)
+endif()
+
 qt_add_qml_module(LfQuickMedicalDemo
     URI LfQuick.MedicalDemo
     VERSION 1.0
