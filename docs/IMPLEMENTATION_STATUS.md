@@ -37,6 +37,7 @@
 - IPageProvider / IPageInstance
 - PageLifecycle
 - PageRouter push / replace / back / reset
+- cache-aware instance lifecycle (None vs retained cache policies)
 
 ### UI
 - QML module `LfQuick`
@@ -91,7 +92,7 @@
 ## 下一阶段
 
 ### P0
-- Page cache policy
+- dedicated LRU cache manager / eviction telemetry
 - navigation guard / unsaved-change guard
 - QML error collector + fallback
 - QuickSurface first-frame telemetry
