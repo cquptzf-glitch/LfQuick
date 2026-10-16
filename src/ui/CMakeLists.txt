@@ -1,12 +1,7 @@
 qt_add_library(LfQuickUi
     src/QuickPageProvider.cpp
-    src/QmlErrorCollector.cpp
-    src/OverlayCoordinator.cpp
-    src/FocusNavigator.cpp
     src/NavigationGuardState.cpp
     src/NavigationGuardController.cpp
-    src/PermissionEvaluator.cpp
-    src/ValidationEvaluator.cpp
     src/QuickRuntime.cpp
 )
 add_library(LfQuick::Ui ALIAS LfQuickUi)
@@ -17,6 +12,35 @@ target_include_directories(LfQuickUi
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+
+set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(qml/Tokens.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+
+qt_add_qml_module(LfQuickUi
+    URI LfQuick
+    VERSION 1.0
+    RESOURCE_PREFIX /qt/qml
+    SOURCES
+        include/LfQuick/Ui/QmlErrorCollector.h
+        src/QmlErrorCollector.cpp
+        include/LfQuick/Ui/OverlayCoordinator.h
+        src/OverlayCoordinator.cpp
+        include/LfQuick/Ui/FocusNavigator.h
+        src/FocusNavigator.cpp
+        include/LfQuick/Ui/PermissionEvaluator.h
+        src/PermissionEvaluator.cpp
+        include/LfQuick/Ui/ValidationEvaluator.h
+        src/ValidationEvaluator.cpp
+    QML_FILES
+        qml/LfPage.qml
+        qml/QuickHostRoot.qml
+        qml/PageLoadError.qml
+        qml/Theme.qml
+        qml/Tokens.qml
+        qml/OverlayHost.qml
+        qml/BusyOverlay.qml
+        qml/FocusDebugPanel.qml
 )
 
 target_sources(LfQuickUi PUBLIC
@@ -33,24 +57,6 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/PermissionEvaluator.h
         include/LfQuick/Ui/ValidationEvaluator.h
         include/LfQuick/Ui/QuickRuntime.h
-)
-
-set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
-set_source_files_properties(qml/Tokens.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
-
-qt_add_qml_module(LfQuickUi
-    URI LfQuick
-    VERSION 1.0
-    RESOURCE_PREFIX /qt/qml
-    QML_FILES
-        qml/LfPage.qml
-        qml/QuickHostRoot.qml
-        qml/PageLoadError.qml
-        qml/Theme.qml
-        qml/Tokens.qml
-        qml/OverlayHost.qml
-        qml/BusyOverlay.qml
-        qml/FocusDebugPanel.qml
 )
 
 target_link_libraries(LfQuickUi

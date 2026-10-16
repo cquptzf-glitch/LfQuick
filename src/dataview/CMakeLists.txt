@@ -1,11 +1,4 @@
-qt_add_library(LfQuickDataView
-    src/DataTableModel.cpp
-    src/DataFilterProxyModel.cpp
-    src/ColumnStateModel.cpp
-    src/ColumnConfigStore.cpp
-    src/DataEditTransaction.cpp
-    src/DataGridSelectionController.cpp
-)
+qt_add_library(LfQuickDataView)
 add_library(LfQuick::DataView ALIAS LfQuickDataView)
 
 target_compile_definitions(LfQuickDataView PRIVATE LFQUICKDATAVIEW_LIBRARY)
@@ -14,6 +7,34 @@ target_include_directories(LfQuickDataView
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+
+qt_add_qml_module(LfQuickDataView
+    URI LfQuick.DataView
+    VERSION 1.0
+    RESOURCE_PREFIX /qt/qml
+    SOURCES
+        include/LfQuick/DataView/DataTableModel.h
+        src/DataTableModel.cpp
+        include/LfQuick/DataView/DataFilterProxyModel.h
+        src/DataFilterProxyModel.cpp
+        include/LfQuick/DataView/ColumnStateModel.h
+        src/ColumnStateModel.cpp
+        include/LfQuick/DataView/ColumnConfigStore.h
+        src/ColumnConfigStore.cpp
+        include/LfQuick/DataView/DataEditTransaction.h
+        src/DataEditTransaction.cpp
+        include/LfQuick/DataView/DataGridSelectionController.h
+        src/DataGridSelectionController.cpp
+    QML_FILES
+        qml/DataGrid.qml
+        qml/DataGridEditorDelegate.qml
+        qml/DataGridCheckDelegate.qml
+        qml/DataGridCheckEditorDelegate.qml
+        qml/DataGridComboDelegate.qml
+        qml/DataGridComboEditorDelegate.qml
+        qml/DataGridProgressDelegate.qml
+        qml/DataGridIconDelegate.qml
 )
 
 target_sources(LfQuickDataView PUBLIC
@@ -27,21 +48,6 @@ target_sources(LfQuickDataView PUBLIC
         include/LfQuick/DataView/ColumnConfigStore.h
         include/LfQuick/DataView/DataEditTransaction.h
         include/LfQuick/DataView/DataGridSelectionController.h
-)
-
-qt_add_qml_module(LfQuickDataView
-    URI LfQuick.DataView
-    VERSION 1.0
-    RESOURCE_PREFIX /qt/qml
-    QML_FILES
-        qml/DataGrid.qml
-        qml/DataGridEditorDelegate.qml
-        qml/DataGridCheckDelegate.qml
-        qml/DataGridCheckEditorDelegate.qml
-        qml/DataGridComboDelegate.qml
-        qml/DataGridComboEditorDelegate.qml
-        qml/DataGridProgressDelegate.qml
-        qml/DataGridIconDelegate.qml
 )
 
 target_link_libraries(LfQuickDataView
