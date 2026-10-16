@@ -35,6 +35,15 @@ public:
             *reason = QStringLiteral("unsaved-window-state");
         return false;
     }
+    void setCloseRequestHandler(CloseRequestHandler handler) override
+    {
+        closeRequestHandler = std::move(handler);
+    }
+    void requestNativeClose()
+    {
+        if (closeRequestHandler)
+            closeRequestHandler();
+    }
     bool updateParameters(const QVariantMap &parameters) override
     {
         ++m_counters->parameterUpdates;
@@ -56,6 +65,7 @@ public:
     QVariantMap lastParameters;
     QVariantMap lastRestoreState;
     QVariantMap savedState;
+    CloseRequestHandler closeRequestHandler;
 
 private:
     QString m_id;
@@ -217,6 +227,31 @@ private slots:
         const auto info = router.find(tool.instanceId);
         QVERIFY(info.has_value());
         QVERIFY(info->ownerInstanceId.isEmpty());
+    }
+
+    void nativeCloseRequestUsesRouterGuardsAndBookkeeping()
+    {
+        auto provider = std::make_shared<FakeProvider>();
+        LfQuick::WindowProviderRegistry providers;
+        QVERIFY(providers.registerProvider(provider));
+
+        LfQuick::WindowRouter router(&providers);
+        QVERIFY(router.registerWindow(window(QStringLiteral("native-close"))));
+        const auto opened = router.open({QStringLiteral("native-close"), {}, {}, {}, {}});
+        QVERIFY(opened.accepted);
+
+        auto *nativeWindow = provider->lastCreated;
+        QVERIFY(nativeWindow);
+        nativeWindow->allowClose = false;
+        nativeWindow->requestNativeClose();
+        QCOMPARE(router.count(), 1);
+        QCOMPARE(provider->counters->closed, 0);
+
+        nativeWindow->allowClose = true;
+        nativeWindow->requestNativeClose();
+        QCOMPARE(router.count(), 0);
+        QCOMPARE(provider->counters->closed, 1);
+        QVERIFY(!router.find(opened.instanceId).has_value());
     }
 
     void providerFailurePreservesStructuredDiagnostics()
