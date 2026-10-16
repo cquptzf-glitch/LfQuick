@@ -3,6 +3,7 @@
 #include <LfQuick/Ui/PermissionEvaluator.h>
 
 #include <QMetaType>
+#include <QSet>
 
 namespace LfQuick {
 
@@ -62,8 +63,8 @@ QHash<int, QByteArray> NavigationItemModel::roleNames() const
         {SectionRole, "section"},
         {GroupRole, "group"},
         {BadgeRole, "badge"},
-        {VisibleRole, "visible"},
-        {EnabledRole, "enabled"},
+        {VisibleRole, "itemVisible"},
+        {EnabledRole, "itemEnabled"},
         {SelectedRole, "selected"},
         {PermissionIdRole, "permissionId"},
         {PermissionContextRole, "permissionContext"},
@@ -185,7 +186,17 @@ int NavigationItemModel::rowForRoute(const QString &route) const
 
 NavigationSection NavigationItemModel::sectionFromVariant(const QVariant &value)
 {
-    if (value.metaType().id() == QMetaType::Int || value.canConvert<int>()) {
+    const QString name = value.toString().trimmed().toLower();
+    if (name == QStringLiteral("secondary"))
+        return NavigationSection::Secondary;
+    if (name == QStringLiteral("footer"))
+        return NavigationSection::Footer;
+    if (name == QStringLiteral("primary"))
+        return NavigationSection::Primary;
+
+    const int typeId = value.metaType().id();
+    if (typeId == QMetaType::Int || typeId == QMetaType::UInt
+        || typeId == QMetaType::LongLong || typeId == QMetaType::ULongLong) {
         switch (value.toInt()) {
         case static_cast<int>(NavigationSection::Secondary):
             return NavigationSection::Secondary;
@@ -196,11 +207,6 @@ NavigationSection NavigationItemModel::sectionFromVariant(const QVariant &value)
         }
     }
 
-    const QString name = value.toString().trimmed().toLower();
-    if (name == QStringLiteral("secondary"))
-        return NavigationSection::Secondary;
-    if (name == QStringLiteral("footer"))
-        return NavigationSection::Footer;
     return NavigationSection::Primary;
 }
 
