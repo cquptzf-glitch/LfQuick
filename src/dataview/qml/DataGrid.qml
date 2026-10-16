@@ -27,8 +27,8 @@ Control {
     property bool _restoringColumnState: false
     property var _visualOrder: []
 
-    signal editCommitted(int row, int column, var value)
-    signal editRejected(int row, int column, var value, string reason)
+    signal editCommitted(int row, int modelColumn, var value)
+    signal editRejected(int row, int modelColumn, var value, string reason)
 
     implicitWidth: 640
     implicitHeight: 360
@@ -45,10 +45,10 @@ Control {
         return visualColumn
     }
 
-    function validateEdit(row, column, value) {
+    function validateEdit(row, modelColumn, value) {
         if (!root.editValidator)
             return { "accepted": true, "message": "" }
-        var result = root.editValidator(row, column, value)
+        var result = root.editValidator(row, modelColumn, value)
         if (result === undefined || result === true)
             return { "accepted": true, "message": "" }
         if (result === false)
@@ -205,26 +205,29 @@ Control {
                     Component.onCompleted: {
                         forceActiveFocus()
                         selectAll()
-                        if (root.editTransaction)
-                            root.editTransaction.begin(cell.row, cell.column)
+                        if (root.editTransaction) {
+                            var logicalColumn = root.logicalColumnAtVisual(cell.column)
+                            root.editTransaction.begin(cell.row, logicalColumn)
+                        }
                     }
                 }
 
                 TableView.onCommit: {
+                    var logicalColumn = root.logicalColumnAtVisual(cell.column)
                     if (!root.editTransaction) {
                         model.edit = editor.text
-                        root.editCommitted(cell.row, cell.column, editor.text)
+                        root.editCommitted(cell.row, logicalColumn, editor.text)
                         return
                     }
 
                     root.editTransaction.setTemporaryValue(editor.text)
-                    var result = root.validateEdit(cell.row, cell.column, editor.text)
+                    var result = root.validateEdit(cell.row, logicalColumn, editor.text)
                     root.editTransaction.acceptValidation(result.accepted, result.message)
                     if (result.accepted && root.editTransaction.commit()) {
-                        root.editCommitted(cell.row, cell.column, editor.text)
+                        root.editCommitted(cell.row, logicalColumn, editor.text)
                     } else {
                         var reason = result.message.length > 0 ? result.message : qsTr("Edit commit failed")
-                        root.editRejected(cell.row, cell.column, editor.text, reason)
+                        root.editRejected(cell.row, logicalColumn, editor.text, reason)
                         root.editTransaction.rollback()
                     }
                 }
