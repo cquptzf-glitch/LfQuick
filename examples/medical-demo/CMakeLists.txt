@@ -21,7 +21,6 @@ qt_add_qml_module(LfQuickMedicalDemo
     VERSION 1.0
     QML_FILES
         qml/App.qml
-        qml/NavigationRail.qml
         qml/DashboardPage.qml
         qml/SamplesPage.qml
         qml/SampleRegisterPage.qml
