@@ -1,13 +1,16 @@
-
 qt_add_library(LfQuickUi
     src/QuickPageProvider.cpp
+    src/OverlayCoordinator.cpp
+    src/FocusNavigator.cpp
 )
 add_library(LfQuick::Ui ALIAS LfQuickUi)
 
+target_compile_definitions(LfQuickUi PRIVATE LFQUICKUI_LIBRARY)
+
 target_include_directories(LfQuickUi
     PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
@@ -24,13 +27,17 @@ qt_add_qml_module(LfQuickUi
         qml/Tokens.qml
         qml/OverlayHost.qml
         qml/BusyOverlay.qml
+        qml/FocusDebugPanel.qml
 )
 
 target_sources(LfQuickUi PUBLIC
     FILE_SET HEADERS
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
     FILES
+        include/LfQuick/Ui/LfQuickUiGlobal.h
         include/LfQuick/Ui/QuickPageProvider.h
+        include/LfQuick/Ui/OverlayCoordinator.h
+        include/LfQuick/Ui/FocusNavigator.h
 )
 
 target_link_libraries(LfQuickUi
