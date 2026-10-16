@@ -9,6 +9,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QStringList>
+#include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
 #include <QtQmlIntegration/qqmlintegration.h>
@@ -18,7 +19,6 @@
 namespace LfQuick {
 
 class OperationHandle;
-class QTimer;
 
 class LFQUICKUI_EXPORT OverlayCoordinator : public QObject
 {
