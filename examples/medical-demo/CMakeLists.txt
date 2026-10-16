@@ -30,3 +30,15 @@ qt_add_qml_module(LfQuickMedicalDemo
         qml/AlarmsPage.qml
         qml/DeveloperPage.qml
 )
+
+install(TARGETS LfQuickMedicalDemo
+    BUNDLE DESTINATION .
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+qt_generate_deploy_qml_app_script(
+    TARGET LfQuickMedicalDemo
+    OUTPUT_SCRIPT lfquick_medical_demo_deploy_script
+    NO_UNSUPPORTED_PLATFORM_ERROR
+)
+install(SCRIPT ${lfquick_medical_demo_deploy_script})

@@ -21,3 +21,15 @@ qt_add_qml_module(LfQuickHybridDemo
     QML_FILES
         qml/HybridQuickPage.qml
 )
+
+install(TARGETS LfQuickHybridDemo
+    BUNDLE DESTINATION .
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+qt_generate_deploy_qml_app_script(
+    TARGET LfQuickHybridDemo
+    OUTPUT_SCRIPT lfquick_hybrid_demo_deploy_script
+    NO_UNSUPPORTED_PLATFORM_ERROR
+)
+install(SCRIPT ${lfquick_hybrid_demo_deploy_script})
