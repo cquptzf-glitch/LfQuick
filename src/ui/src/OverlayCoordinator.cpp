@@ -63,8 +63,9 @@ bool OverlayCoordinator::endBusy(const QString &token)
     return true;
 }
 
-QString OverlayCoordinator::bindOperation(OperationHandle *operation)
+QString OverlayCoordinator::bindOperation(QObject *object)
 {
+    auto *operation = qobject_cast<OperationHandle *>(object);
     if (!operation)
         return {};
 
