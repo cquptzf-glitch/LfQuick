@@ -28,7 +28,7 @@ include(LfQuickQtFeatures)
 
 find_package(Qt6 6.8.3 REQUIRED COMPONENTS Core)
 
-if(LFQUICK_BUILD_UI OR LFQUICK_BUILD_MEDICAL_DEMO)
+if(LFQUICK_BUILD_PLATFORM OR LFQUICK_BUILD_UI OR LFQUICK_BUILD_MEDICAL_DEMO)
     find_package(Qt6 6.8.3 REQUIRED COMPONENTS Gui Qml Quick QuickControls2 QuickLayouts)
 endif()
 
@@ -38,7 +38,14 @@ endif()
 
 add_subdirectory(src/core)
 add_subdirectory(src/runtime)
-add_subdirectory(src/platform)
+
+if(LFQUICK_BUILD_PLATFORM)
+    add_subdirectory(src/platform)
+endif()
+
+if(LFQUICK_BUILD_DATAVIEW AND NOT LFQUICK_BUILD_UI)
+    message(FATAL_ERROR "LFQUICK_BUILD_DATAVIEW requires LFQUICK_BUILD_UI=ON")
+endif()
 
 if(LFQUICK_BUILD_UI)
     add_subdirectory(src/ui)
