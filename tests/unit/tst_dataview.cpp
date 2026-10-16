@@ -22,6 +22,8 @@ private slots:
 
         QCOMPARE(model.rowCount(), 1);
         QCOMPARE(model.columnCount(), 3);
+        model.setColumnTitles({QStringLiteral("Sample ID"), QStringLiteral("Status"), QStringLiteral("Result")});
+        QCOMPARE(model.headerData(0, Qt::Horizontal, Qt::DisplayRole).toString(), QStringLiteral("Sample ID"));
         QCOMPARE(model.data(model.index(0, 0), Qt::DisplayRole).toString(), QStringLiteral("S-001"));
         QCOMPARE(model.data(model.index(0, 1), Qt::DisplayRole).toString(), QStringLiteral("Running"));
 
