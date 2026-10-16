@@ -1,4 +1,3 @@
-
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -19,10 +18,32 @@ ApplicationWindow {
             anchors.fill: parent
             anchors.leftMargin: 16
             anchors.rightMargin: 16
-            Label { text: "LfQuick Medical Demo"; font.bold: true }
+
+            Label {
+                text: "LfQuick Medical Demo"
+                font.bold: true
+                color: Tokens.textPrimary
+            }
+
             Item { Layout.fillWidth: true }
-            Label { text: qsTr("Instrument: Ready") }
-            Label { text: qsTr("Scenario: Normal") }
+
+            Label {
+                text: scanner && scanner.enabled
+                    ? qsTr("Scanner: Armed")
+                    : qsTr("Scanner: Off")
+                color: scanner && scanner.enabled ? Tokens.success : Tokens.textSecondary
+            }
+
+            Label {
+                text: qsTr("Instrument: Ready")
+                color: Tokens.success
+            }
+
+            Label {
+                text: qsTr("Scenario: Normal")
+                color: Tokens.textSecondary
+            }
+
             Switch {
                 text: qsTr("Dark")
                 checked: Theme.dark
@@ -59,5 +80,6 @@ ApplicationWindow {
     OverlayHost {
         id: overlayHost
         anchors.fill: parent
+        coordinator: overlayCoordinator
     }
 }
