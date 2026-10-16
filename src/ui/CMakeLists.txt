@@ -41,6 +41,8 @@ qt_add_qml_module(LfQuickUi
         src/ValidationRuleTable.cpp
         include/LfQuick/Ui/ValidationFormState.h
         src/ValidationFormState.cpp
+        include/LfQuick/Ui/NavigationItemModel.h
+        src/NavigationItemModel.cpp
     QML_FILES
         qml/LfPage.qml
         qml/QuickHostRoot.qml
@@ -52,6 +54,8 @@ qt_add_qml_module(LfQuickUi
         qml/ToastStack.qml
         qml/DialogOverlay.qml
         qml/FocusDebugPanel.qml
+        qml/NavigationView.qml
+        qml/ApplicationShell.qml
 )
 
 target_sources(LfQuickUi PUBLIC
@@ -71,6 +75,7 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/ValidationEvaluator.h
         include/LfQuick/Ui/ValidationRuleTable.h
         include/LfQuick/Ui/ValidationFormState.h
+        include/LfQuick/Ui/NavigationItemModel.h
         include/LfQuick/Ui/QuickRuntime.h
 )
 
