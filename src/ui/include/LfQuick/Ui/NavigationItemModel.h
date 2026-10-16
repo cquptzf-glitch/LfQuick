@@ -19,7 +19,7 @@ enum class NavigationSection {
     Footer = 2
 };
 
-class LFQUICKUI_EXPORT NavigationItemModel final : public QAbstractListModel
+class LFQUICKUI_EXPORT NavigationItemModel : public QAbstractListModel
 {
     Q_OBJECT
     QML_ELEMENT
