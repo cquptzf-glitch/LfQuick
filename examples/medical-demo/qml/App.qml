@@ -11,16 +11,24 @@ ApplicationWindow {
     title: qsTr("LfQuick Medical Demo")
     color: Tokens.surface
 
-    property int currentPage: 0
     property string guardDialogId: ""
-    readonly property var routes: [
-        "/dashboard", "/samples", "/sample-register", "/sample-rack",
-        "/results", "/results-review", "/instrument", "/alarms", "/developer"
+    property bool compactNavigation: false
+
+    readonly property var navigationDefinitions: [
+        { "route": "/dashboard", "label": qsTr("Dashboard"), "page": "DashboardPage.qml", "section": "primary", "group": qsTr("Workflow") },
+        { "route": "/samples", "label": qsTr("Samples"), "page": "SamplesPage.qml", "section": "primary", "group": qsTr("Workflow") },
+        { "route": "/sample-register", "label": qsTr("Sample Register"), "page": "SampleRegisterPage.qml", "section": "primary", "group": qsTr("Workflow") },
+        { "route": "/sample-rack", "label": qsTr("Sample Rack"), "page": "SampleRackPage.qml", "section": "primary", "group": qsTr("Workflow") },
+        { "route": "/results", "label": qsTr("Results"), "page": "ResultsPage.qml", "section": "primary", "group": qsTr("Results") },
+        { "route": "/results-review", "label": qsTr("Results Review"), "page": "ResultsReviewPage.qml", "section": "primary", "group": qsTr("Results"), "permissionId": "demo.results.review", "permissionContext": { "role": "operator" } },
+        { "route": "/instrument", "label": qsTr("Instrument"), "page": "InstrumentPage.qml", "section": "secondary", "group": qsTr("System") },
+        { "route": "/alarms", "label": qsTr("Alarms"), "page": "AlarmsPage.qml", "section": "secondary", "group": qsTr("System"), "badge": 3 },
+        { "route": "/developer", "label": qsTr("Developer"), "page": "DeveloperPage.qml", "section": "footer", "group": qsTr("Tools") }
     ]
-    readonly property var pageFiles: [
-        "DashboardPage.qml", "SamplesPage.qml", "SampleRegisterPage.qml", "SampleRackPage.qml",
-        "ResultsPage.qml", "ResultsReviewPage.qml", "InstrumentPage.qml", "AlarmsPage.qml", "DeveloperPage.qml"
-    ]
+
+    NavigationItemModel {
+        id: navigationModel
+    }
 
     header: ToolBar {
         RowLayout {
@@ -53,6 +61,12 @@ ApplicationWindow {
             }
 
             Switch {
+                text: qsTr("Compact Nav")
+                checked: window.compactNavigation
+                onToggled: window.compactNavigation = checked
+            }
+
+            Switch {
                 text: qsTr("Dark")
                 checked: Theme.dark
                 onToggled: Theme.dark = checked
@@ -60,34 +74,13 @@ ApplicationWindow {
         }
     }
 
-    RowLayout {
+    ApplicationShell {
+        id: shell
         anchors.fill: parent
-        spacing: 0
-
-        NavigationRail {
-            Layout.preferredWidth: 210
-            Layout.fillHeight: true
-            currentIndex: window.currentPage
-            onActivated: quickRuntime.push(window.routes[index])
-        }
-
-        Item {
-            id: pageHost
-            objectName: "pageHost"
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
-        }
-    }
-
-    OverlayHost {
-        anchors.fill: parent
-        coordinator: overlayCoordinator
-    }
-
-    function indexForRoute(route) {
-        const index = window.routes.indexOf(route)
-        return index < 0 ? 0 : index
+        navigationModel: navigationModel
+        runtime: quickRuntime
+        overlayCoordinator: overlayCoordinator
+        compactNavigation: window.compactNavigation
     }
 
     function requestGuardDialog(kind, title, reason, buttons, defaultButton) {
@@ -101,21 +94,16 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
-        quickRuntime.setHost(pageHost)
+        navigationModel.permissionEvaluator = permissionEvaluator
+        navigationModel.setItems(window.navigationDefinitions)
+        quickRuntime.setHost(shell.pageHost)
 
-        for (let i = 0; i < window.routes.length; ++i) {
-            const route = window.routes[i]
-            quickRuntime.registerPage(route, Qt.resolvedUrl(window.pageFiles[i]), 2)
+        for (let i = 0; i < window.navigationDefinitions.length; ++i) {
+            const definition = window.navigationDefinitions[i]
+            quickRuntime.registerPage(definition.route, Qt.resolvedUrl(definition.page), 2)
         }
 
         quickRuntime.push("/dashboard")
-    }
-
-    Connections {
-        target: quickRuntime
-        function onCurrentRouteChanged() {
-            window.currentPage = window.indexForRoute(quickRuntime.currentRoute)
-        }
     }
 
     Connections {
