@@ -16,20 +16,29 @@ target_link_libraries(LfQuickMedicalDemo
         Qt6::QuickLayouts
 )
 
+set(lfquick_medical_demo_qml_files
+    qml/App.qml
+    qml/DashboardPage.qml
+    qml/SamplesPage.qml
+    qml/SampleRegisterPage.qml
+    qml/SampleRackPage.qml
+    qml/ResultsPage.qml
+    qml/ResultsReviewPage.qml
+    qml/InstrumentPage.qml
+    qml/AlarmsPage.qml
+    qml/DeveloperPage.qml
+)
+
+if(LFQUICK_BUILD_QT_GRAPHS_ADAPTER)
+    target_link_libraries(LfQuickMedicalDemo PRIVATE LfQuick::Charts)
+    list(APPEND lfquick_medical_demo_qml_files qml/ChartsPage.qml)
+endif()
+
 qt_add_qml_module(LfQuickMedicalDemo
     URI LfQuick.MedicalDemo
     VERSION 1.0
     QML_FILES
-        qml/App.qml
-        qml/DashboardPage.qml
-        qml/SamplesPage.qml
-        qml/SampleRegisterPage.qml
-        qml/SampleRackPage.qml
-        qml/ResultsPage.qml
-        qml/ResultsReviewPage.qml
-        qml/InstrumentPage.qml
-        qml/AlarmsPage.qml
-        qml/DeveloperPage.qml
+        ${lfquick_medical_demo_qml_files}
 )
 
 install(TARGETS LfQuickMedicalDemo
