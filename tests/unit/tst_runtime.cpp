@@ -107,8 +107,37 @@ private slots:
         QVERIFY(router.back().accepted);
         QCOMPARE(router.currentRoute(), QStringLiteral("/dashboard"));
         QCOMPARE(provider->counters->activated, 3);
-        QCOMPARE(provider->counters->resumed, 1);
+        QCOMPARE(provider->counters->resumed, 0);
+        QCOMPARE(provider->counters->suspended, 0);
+        QCOMPARE(provider->counters->destroyed, 2);
+    }
+
+    void routerKeepsExplicitKeepAlivePage()
+    {
+        LfQuick::PageRegistry pages;
+
+        LfQuick::PageDescriptor dashboard;
+        dashboard.route = "/dashboard";
+        dashboard.provider = "test";
+        dashboard.cachePolicy = LfQuick::PageCachePolicy::KeepAlive;
+        QVERIFY(pages.registerPage(dashboard));
+
+        LfQuick::PageDescriptor samples;
+        samples.route = "/samples";
+        samples.provider = "test";
+        QVERIFY(pages.registerPage(samples));
+
+        auto provider = std::make_shared<FakeProvider>();
+        LfQuick::PageProviderRegistry providers;
+        QVERIFY(providers.registerProvider(provider));
+
+        LfQuick::PageRouter router(&pages, &providers);
+        QVERIFY(router.push({QStringLiteral("/dashboard"), {}, {}}).accepted);
+        QVERIFY(router.push({QStringLiteral("/samples"), {}, {}}).accepted);
+        QVERIFY(router.back().accepted);
+
         QCOMPARE(provider->counters->suspended, 1);
+        QCOMPARE(provider->counters->resumed, 1);
         QCOMPARE(provider->counters->destroyed, 1);
     }
 };
