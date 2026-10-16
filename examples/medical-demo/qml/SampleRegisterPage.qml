@@ -14,27 +14,40 @@ LfPage {
     property bool scanArmed: true
     property string busyToken: ""
     property string statusMessage: qsTr("Scan or enter a sample, then submit.")
-    property string barcodeError: ""
-    property string sampleIdError: ""
-    property string rackError: ""
 
-    readonly property var barcodeRule: ({
-        "id": "sample.barcode", "required": true,
-        "minLength": 4, "maxLength": 32,
-        "regularExpression": "[A-Za-z0-9_-]+"
-    })
-    readonly property var sampleIdRule: ({
-        "id": "sample.id", "required": true,
-        "minLength": 3, "maxLength": 24,
-        "regularExpression": "[A-Za-z0-9_-]+"
-    })
-    readonly property var rackRule: ({
-        "id": "sample.rack", "required": true,
-        "minLength": 1, "maxLength": 12,
-        "regularExpression": "[A-Za-z0-9_-]+"
-    })
+    readonly property var barcodeState: formValidation.field("barcode", "sample.barcode")
+    readonly property var sampleIdState: formValidation.field("sampleId", "sample.id")
+    readonly property var rackState: formValidation.field("rack", "sample.rack")
 
-    ValidationEvaluator { id: validation }
+    ValidationRuleTable {
+        id: validationRules
+        rules: ({
+            "sample.barcode": {
+                "required": true,
+                "minLength": 4,
+                "maxLength": 32,
+                "regularExpression": "[A-Za-z0-9_-]+"
+            },
+            "sample.id": {
+                "required": true,
+                "minLength": 3,
+                "maxLength": 24,
+                "regularExpression": "[A-Za-z0-9_-]+"
+            },
+            "sample.rack": {
+                "required": true,
+                "minLength": 1,
+                "maxLength": 12,
+                "regularExpression": "[A-Za-z0-9_-]+"
+            }
+        })
+    }
+
+    ValidationFormState {
+        id: formValidation
+        ruleTable: validationRules
+    }
+
     FocusNavigator { id: focusNavigator; scope: formCard }
 
     function markDirty() {
@@ -68,26 +81,41 @@ LfPage {
                 && !root.submitting
     }
 
-    function validateForm() {
-        var barcodeResult = validation.validate(barcodeField.text.trim(), root.barcodeRule)
-        var idResult = validation.validate(sampleIdField.text.trim(), root.sampleIdRule)
-        var rackResult = validation.validate(rackField.text.trim(), root.rackRule)
-
-        root.barcodeError = barcodeResult.valid ? "" : barcodeResult.message
-        root.sampleIdError = idResult.valid ? "" : idResult.message
-        root.rackError = rackResult.valid ? "" : rackResult.message
-
-        if (barcodeResult.valid && sampleModel.findFirst("barcode", barcodeField.text.trim(), Qt.CaseInsensitive) >= 0)
-            root.barcodeError = qsTr("Barcode already exists")
-        if (idResult.valid && sampleModel.findFirst("sampleId", sampleIdField.text.trim(), Qt.CaseInsensitive) >= 0)
-            root.sampleIdError = qsTr("Sample ID already exists")
-
-        var valid = root.barcodeError.length === 0
-                && root.sampleIdError.length === 0
-                && root.rackError.length === 0
-        if (!valid)
-            root.statusMessage = qsTr("Please correct the highlighted fields before submitting.")
+    function validateBarcode() {
+        var value = barcodeField.text.trim()
+        formValidation.clearExternalError("barcode")
+        var valid = formValidation.validateField("barcode", value)
+        if (valid && sampleModel.findFirst("barcode", value, Qt.CaseInsensitive) >= 0) {
+            formValidation.setExternalError("barcode", qsTr("Barcode already exists"))
+            valid = false
+        }
         return valid
+    }
+
+    function validateSampleId() {
+        var value = sampleIdField.text.trim()
+        formValidation.clearExternalError("sampleId")
+        var valid = formValidation.validateField("sampleId", value)
+        if (valid && sampleModel.findFirst("sampleId", value, Qt.CaseInsensitive) >= 0) {
+            formValidation.setExternalError("sampleId", qsTr("Sample ID already exists"))
+            valid = false
+        }
+        return valid
+    }
+
+    function validateRack() {
+        formValidation.clearExternalError("rack")
+        return formValidation.validateField("rack", rackField.text.trim())
+    }
+
+    function validateForm() {
+        root.validateBarcode()
+        root.validateSampleId()
+        root.validateRack()
+        if (!formValidation.valid)
+            root.statusMessage = qsTr("Please correct %1 invalid field(s) before submitting.")
+                    .arg(formValidation.errorCount)
+        return formValidation.valid
     }
 
     function resetForm() {
@@ -98,9 +126,7 @@ LfPage {
         rackField.text = "R1"
         positionBox.value = 1
         priorityBox.currentIndex = 0
-        root.barcodeError = ""
-        root.sampleIdError = ""
-        root.rackError = ""
+        formValidation.reset()
         root.suppressDirty = false
         root.dirty = false
         root.updateGuard()
@@ -189,13 +215,17 @@ LfPage {
                         placeholderText: qsTr("Scan barcode or type manually")
                         enabled: !root.submitting
                         activeFocusOnTab: true
-                        onTextEdited: root.markDirty()
+                        onTextEdited: {
+                            root.markDirty()
+                            if (root.barcodeState.touched)
+                                root.validateBarcode()
+                        }
                         onActiveFocusChanged: root.updateScanner()
                         onAccepted: sampleIdField.forceActiveFocus()
                     }
                     Label {
-                        visible: root.barcodeError.length > 0
-                        text: root.barcodeError
+                        visible: root.barcodeState.hasError
+                        text: root.barcodeState.message
                         color: Tokens.danger
                     }
                 }
@@ -208,11 +238,15 @@ LfPage {
                         Layout.fillWidth: true
                         placeholderText: qsTr("Unique sample identifier")
                         enabled: !root.submitting
-                        onTextEdited: root.markDirty()
+                        onTextEdited: {
+                            root.markDirty()
+                            if (root.sampleIdState.touched)
+                                root.validateSampleId()
+                        }
                     }
                     Label {
-                        visible: root.sampleIdError.length > 0
-                        text: root.sampleIdError
+                        visible: root.sampleIdState.hasError
+                        text: root.sampleIdState.message
                         color: Tokens.danger
                     }
                 }
@@ -234,11 +268,15 @@ LfPage {
                         Layout.fillWidth: true
                         text: "R1"
                         enabled: !root.submitting
-                        onTextEdited: root.markDirty()
+                        onTextEdited: {
+                            root.markDirty()
+                            if (root.rackState.touched)
+                                root.validateRack()
+                        }
                     }
                     Label {
-                        visible: root.rackError.length > 0
-                        text: root.rackError
+                        visible: root.rackState.hasError
+                        text: root.rackState.message
                         color: Tokens.danger
                     }
                 }
@@ -326,6 +364,10 @@ LfPage {
                 sampleIdField.text = "S-" + value
             root.statusMessage = qsTr("Scanner accepted %1").arg(value)
             root.markDirty()
+            if (root.barcodeState.touched)
+                root.validateBarcode()
+            if (root.sampleIdState.touched)
+                root.validateSampleId()
             sampleIdField.forceActiveFocus()
             root.updateScanner()
         }
