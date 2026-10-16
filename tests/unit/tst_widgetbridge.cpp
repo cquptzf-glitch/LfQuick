@@ -1,8 +1,12 @@
 #include <LfQuick/Runtime/IPageInstance.h>
 #include <LfQuick/Runtime/PageDescriptor.h>
+#include <LfQuick/WidgetBridge/WidgetFocusBridge.h>
 #include <LfQuick/WidgetBridge/WidgetPageProvider.h>
 
 #include <QLabel>
+#include <QLineEdit>
+#include <QQuickItem>
+#include <QQuickWidget>
 #include <QStackedWidget>
 #include <QTest>
 
@@ -60,6 +64,55 @@ private slots:
 
         QVERIFY(!provider.canCreate(descriptor));
         QVERIFY(provider.create(descriptor, {}) == nullptr);
+        QVERIFY(provider.lastError().contains(QStringLiteral("missing")));
+    }
+
+    void focusBridgeTransfersWidgetTabIntoQuickBoundary()
+    {
+        QWidget window;
+        QLineEdit before(&window);
+        QQuickWidget surface(&window);
+        QQuickItem entry;
+        entry.setParentItem(surface.rootObject() ? qobject_cast<QQuickItem *>(surface.rootObject()) : nullptr);
+        QLineEdit after(&window);
+
+        before.show();
+        surface.show();
+        after.show();
+        window.show();
+        QTest::qWaitForWindowExposed(&window);
+
+        WidgetFocusBridge bridge(&surface);
+        bridge.setBoundaryWidgets(&before, &after);
+        bridge.setQuickBoundaryItems(&entry, &entry);
+
+        before.setFocus();
+        QTest::keyClick(&before, Qt::Key_Tab);
+        QCOMPARE(QApplication::focusWidget(), static_cast<QWidget *>(&surface));
+    }
+
+    void focusBridgeScannerIsolationSuppressesTransfer()
+    {
+        QWidget window;
+        QLineEdit before(&window);
+        QQuickWidget surface(&window);
+        QQuickItem entry;
+        QLineEdit after(&window);
+
+        before.show();
+        surface.show();
+        after.show();
+        window.show();
+        QTest::qWaitForWindowExposed(&window);
+
+        WidgetFocusBridge bridge(&surface);
+        bridge.setBoundaryWidgets(&before, &after);
+        bridge.setQuickBoundaryItems(&entry, &entry);
+        bridge.setScannerIsolation(true);
+
+        before.setFocus();
+        QTest::keyClick(&before, Qt::Key_Tab);
+        QVERIFY(QApplication::focusWidget() != &surface);
     }
 };
 

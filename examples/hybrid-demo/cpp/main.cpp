@@ -1,12 +1,15 @@
 #include <LfQuick/Runtime/PageDescriptor.h>
 #include <LfQuick/Ui/QuickRuntime.h>
 #include <LfQuick/WidgetBridge/QuickSurface.h>
+#include <LfQuick/WidgetBridge/WidgetFocusBridge.h>
 #include <LfQuick/WidgetBridge/WidgetPageProvider.h>
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QHeaderView>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QPushButton>
 #include <QQmlEngine>
 #include <QQuickItem>
@@ -70,7 +73,7 @@ int main(int argc, char *argv[])
 
     QWidget window;
     window.setWindowTitle(QStringLiteral("LfQuick Hybrid Migration Demo"));
-    window.resize(1200, 760);
+    window.resize(1200, 820);
 
     auto *rootLayout = new QVBoxLayout(&window);
     auto *toolbar = new QHBoxLayout;
@@ -96,16 +99,35 @@ int main(int argc, char *argv[])
     toolbar->addWidget(metricsLabel);
     rootLayout->addLayout(toolbar);
 
+    auto *focusRow = new QHBoxLayout;
+    auto *beforeFocusEdit = new QLineEdit(&window);
+    beforeFocusEdit->setPlaceholderText(QStringLiteral("QWidget before QML (Tab →)"));
+    auto *afterFocusEdit = new QLineEdit(&window);
+    afterFocusEdit->setPlaceholderText(QStringLiteral("QWidget after QML (Shift+Tab ←)"));
+    auto *scannerIsolation = new QCheckBox(QStringLiteral("Scanner focus isolation"), &window);
+    focusRow->addWidget(beforeFocusEdit);
+    focusRow->addWidget(new QLabel(QStringLiteral("→ QML TextField →"), &window));
+    focusRow->addWidget(afterFocusEdit);
+    focusRow->addWidget(scannerIsolation);
+    rootLayout->addLayout(focusRow);
+
     auto *stack = new QStackedWidget(&window);
     rootLayout->addWidget(stack, 1);
 
     QQmlEngine engine;
     auto *quickSurface = new QuickSurface(&engine, stack);
     stack->addWidget(quickSurface);
+    WidgetFocusBridge focusBridge(quickSurface, &window);
+    focusBridge.setBoundaryWidgets(beforeFocusEdit, afterFocusEdit);
+
+    QObject::connect(scannerIsolation, &QCheckBox::toggled,
+                     &focusBridge, &WidgetFocusBridge::setScannerIsolation);
 
     QuickRuntime runtime(&engine);
-    runtime.setQuickActivationCallback([stack, quickSurface] {
+    runtime.setQuickActivationCallback([stack, quickSurface, &focusBridge] {
+        focusBridge.rememberFocus();
         stack->setCurrentWidget(quickSurface);
+        focusBridge.restoreFocus();
     });
 
     QVariantMap quickPageParameters;
@@ -167,6 +189,9 @@ int main(int argc, char *argv[])
         legacyButton->setEnabled(true);
         fallbackButton->setEnabled(true);
         runtime.push(QStringLiteral("/quick"), quickPageParameters);
+
+        if (auto *focusItem = hostItem->findChild<QQuickItem *>(QStringLiteral("hybridFocusField")))
+            focusBridge.setQuickBoundaryItems(focusItem, focusItem);
     };
 
     QObject::connect(quickSurface, &QuickSurface::readyChanged,
@@ -181,6 +206,10 @@ int main(int argc, char *argv[])
     QObject::connect(quickSurface, &QuickSurface::loadFailed,
                      &window, [metricsLabel](const QString &message) {
         metricsLabel->setText(QStringLiteral("QuickSurface error: %1").arg(message));
+    });
+    QObject::connect(&focusBridge, &WidgetFocusBridge::focusTransferred,
+                     &window, [metricsLabel](const QString &direction) {
+        metricsLabel->setText(QStringLiteral("Focus bridge: %1").arg(direction));
     });
     QObject::connect(&runtime, &QuickRuntime::pageFallbackActivated,
                      &window, [metricsLabel](const QString &route,
@@ -202,18 +231,24 @@ int main(int argc, char *argv[])
         runtime.push(QStringLiteral("/quick"), quickPageParameters);
     });
     QObject::connect(legacyButton, &QPushButton::clicked,
-                     &window, [&runtime] {
+                     &window, [&runtime, &focusBridge] {
+        focusBridge.rememberFocus();
         runtime.push(QStringLiteral("/legacy/results"),
                      {{QStringLiteral("title"), QStringLiteral("Legacy Biochemistry Results")}});
     });
     QObject::connect(fallbackButton, &QPushButton::clicked,
-                     &window, [&runtime] {
+                     &window, [&runtime, &focusBridge] {
+        focusBridge.rememberFocus();
         runtime.push(QStringLiteral("/quick/fallback"),
                      {{QStringLiteral("title"),
                        QStringLiteral("Legacy fallback after QML creation failure")}});
     });
     QObject::connect(backButton, &QPushButton::clicked,
-                     &window, [&runtime] { runtime.back(); });
+                     &window, [&runtime, &focusBridge] {
+        focusBridge.rememberFocus();
+        if (runtime.back())
+            focusBridge.restoreFocus();
+    });
 
     const auto updateNavigationUi = [&] {
         routeLabel->setText(QStringLiteral("Route: %1").arg(runtime.currentRoute()));

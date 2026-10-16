@@ -30,10 +30,18 @@ LfPage {
 
             Label {
                 Layout.fillWidth: true
-                text: qsTr("Quick and legacy pages share one PageRouter. Use the controls below, then navigate with the QWidget toolbar to verify guarded cross-stack navigation.")
+                text: qsTr("Tab order demo: QWidget QLineEdit → this QML TextField → QWidget QLineEdit. Backtab reverses the bridge.")
                 wrapMode: Text.WordWrap
                 color: Tokens.textSecondary
                 horizontalAlignment: Text.AlignHCenter
+            }
+
+            TextField {
+                id: hybridFocusField
+                objectName: "hybridFocusField"
+                Layout.fillWidth: true
+                placeholderText: qsTr("QML focus bridge field")
+                activeFocusOnTab: false
             }
 
             Rectangle {
@@ -91,31 +99,6 @@ LfPage {
                               ? qsTr("Pending route: %1").arg(root.navigationGuard.pendingRoute)
                               : qsTr("No pending navigation")
                         color: Tokens.textSecondary
-                    }
-                }
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 96
-                radius: Tokens.radiusMedium
-                color: Tokens.surfaceSecondary
-                border.color: Tokens.border
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: Tokens.spacingMedium
-
-                    Label {
-                        text: qsTr("Theme token")
-                        color: Tokens.textPrimary
-                    }
-                    Item { Layout.fillWidth: true }
-                    Rectangle {
-                        width: 120
-                        height: 40
-                        radius: Tokens.radiusSmall
-                        color: Tokens.accent
                     }
                 }
             }
