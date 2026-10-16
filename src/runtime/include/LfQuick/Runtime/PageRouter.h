@@ -47,8 +47,9 @@ private:
     struct Entry;
 
     RouteResult createEntry(const RouteRequest &request, Entry &entry);
+    bool ensureInstance(Entry &entry);
     void deactivateCurrent(bool suspend);
-    void activate(Entry &entry);
+    bool activate(Entry &entry);
     void destroy(Entry &entry);
     void notifyRouteChange();
 
