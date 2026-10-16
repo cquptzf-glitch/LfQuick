@@ -34,8 +34,10 @@ WindowRouter::~WindowRouter()
 {
     const auto records = m_instances.values();
     for (const auto &record : records) {
-        if (record && record->instance)
+        if (record && record->instance) {
+            record->instance->setCloseRequestHandler({});
             record->instance->close();
+        }
     }
 }
 
@@ -179,6 +181,7 @@ WindowResult WindowRouter::open(const WindowOpenRequest &request)
 
     const auto instanceId = instance->instanceId().trimmed();
     if (instanceId.isEmpty() || m_instances.contains(instanceId)) {
+        instance->setCloseRequestHandler({});
         instance->close();
         auto result = WindowResult::failure(request.windowId,
                                             instanceId,
@@ -188,6 +191,7 @@ WindowResult WindowRouter::open(const WindowOpenRequest &request)
     }
 
     if (!request.restoreState.isEmpty() && !instance->restoreState(request.restoreState)) {
+        instance->setCloseRequestHandler({});
         instance->close();
         auto result = WindowResult::failure(request.windowId,
                                             instanceId,
@@ -200,6 +204,10 @@ WindowResult WindowRouter::open(const WindowOpenRequest &request)
     record->descriptor = descriptorValue;
     record->request = request;
     record->instance = std::move(instance);
+    record->instance->setCloseRequestHandler([this, instanceId] {
+        if (m_instances.contains(instanceId))
+            close(instanceId);
+    });
     m_instances.insert(instanceId, record);
 
     setActive(record);
@@ -255,8 +263,10 @@ WindowResult WindowRouter::closeAll()
         if (!record)
             continue;
         record->state = WindowState::Closing;
-        if (record->instance)
+        if (record->instance) {
+            record->instance->setCloseRequestHandler({});
             record->instance->close();
+        }
         record->state = WindowState::Closed;
         emit windowClosed(record->descriptor.id, id);
     }
@@ -365,6 +375,7 @@ WindowResult WindowRouter::closeRecords(const QList<std::shared_ptr<Record>> &re
         const QString id = record->instance->instanceId();
         record->state = WindowState::Closing;
         clearActiveIf(id);
+        record->instance->setCloseRequestHandler({});
         record->instance->close();
         record->state = WindowState::Closed;
         m_instances.remove(id);
