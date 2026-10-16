@@ -1,5 +1,6 @@
 #pragma once
 
+#include <LfQuick/Runtime/LfQuickRuntimeGlobal.h>
 #include <LfQuick/Runtime/PageDescriptor.h>
 
 #include <memory>
@@ -8,7 +9,7 @@ namespace LfQuick {
 
 class IPageInstance;
 
-class IPageProvider
+class LFQUICKRUNTIME_EXPORT IPageProvider
 {
 public:
     virtual ~IPageProvider() = default;

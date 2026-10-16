@@ -12,6 +12,12 @@ qt_add_executable(tst_runtime
 target_link_libraries(tst_runtime PRIVATE LfQuick::Runtime Qt6::Test)
 add_test(NAME tst_runtime COMMAND tst_runtime)
 
+qt_add_executable(tst_runtime_abi
+    unit/tst_runtime_abi.cpp
+)
+target_link_libraries(tst_runtime_abi PRIVATE LfQuick::Runtime Qt6::Test)
+add_test(NAME tst_runtime_abi COMMAND tst_runtime_abi)
+
 if(LFQUICK_BUILD_DATAVIEW)
     qt_add_executable(tst_dataview
         unit/tst_dataview.cpp
