@@ -1,32 +1,17 @@
 find_package(Qt6 6.8.3 REQUIRED COMPONENTS Test)
 
 function(lfquick_configure_test_runtime test_name)
-    if(WIN32 AND BUILD_SHARED_LIBS)
-        set(_runtime_targets
-            Qt6::Core
-            LfQuickCore
-            LfQuickRuntime
-        )
-
-        foreach(_optional_target IN ITEMS
-                LfQuickUi
-                LfQuickDataView
-                LfQuickPlatform
-                LfQuickWidgetBridge)
-            if(TARGET ${_optional_target})
-                list(APPEND _runtime_targets ${_optional_target})
-            endif()
-        endforeach()
-
-        set(_runtime_environment)
-        foreach(_runtime_target IN LISTS _runtime_targets)
-            list(APPEND _runtime_environment
-                "PATH=path_list_prepend:$<TARGET_FILE_DIR:${_runtime_target}>")
-        endforeach()
-
-        set_tests_properties(${test_name}
-            PROPERTIES
-                ENVIRONMENT_MODIFICATION "${_runtime_environment}"
+    if(WIN32)
+        # Make every test directly runnable from its build output directory.
+        # TARGET_RUNTIME_DLLS follows the target's transitive shared-library
+        # dependencies (LfQuick modules and Qt) and avoids relying on a CI-only
+        # PATH mutation.
+        add_custom_command(TARGET ${test_name} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:${test_name}>
+                $<TARGET_FILE_DIR:${test_name}>
+            COMMAND_EXPAND_LISTS
+            VERBATIM
         )
     endif()
 endfunction()
