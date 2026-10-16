@@ -1,6 +1,8 @@
 qt_add_library(LfQuickDataView
     src/DataTableModel.cpp
     src/DataFilterProxyModel.cpp
+    src/ColumnStateModel.cpp
+    src/ColumnConfigStore.cpp
 )
 add_library(LfQuick::DataView ALIAS LfQuickDataView)
 
@@ -27,6 +29,8 @@ target_sources(LfQuickDataView PUBLIC
         include/LfQuick/DataView/LfQuickDataViewGlobal.h
         include/LfQuick/DataView/DataTableModel.h
         include/LfQuick/DataView/DataFilterProxyModel.h
+        include/LfQuick/DataView/ColumnStateModel.h
+        include/LfQuick/DataView/ColumnConfigStore.h
 )
 
 target_link_libraries(LfQuickDataView

@@ -11,6 +11,7 @@ Control {
     property int headerHeight: Tokens.controlHeight
     property int minimumColumnWidth: 80
     property var columnWidths: []
+    property var columnState: null
     property bool movableColumns: true
     property bool resizableColumns: true
     property bool alternatingRows: true
@@ -20,9 +21,63 @@ Control {
 
     readonly property alias tableView: table
     readonly property alias selectionModel: selectionModel
+    property bool _restoringColumnState: false
+    property var _visualOrder: []
 
     implicitWidth: 640
     implicitHeight: 360
+
+    function defaultColumnWidth(logicalColumn) {
+        if (logicalColumn >= 0 && logicalColumn < root.columnWidths.length)
+            return Math.max(root.minimumColumnWidth, root.columnWidths[logicalColumn])
+        return Math.max(root.minimumColumnWidth, 140)
+    }
+
+    function logicalColumnAtVisual(visualColumn) {
+        if (visualColumn >= 0 && visualColumn < root._visualOrder.length)
+            return root._visualOrder[visualColumn]
+        return visualColumn
+    }
+
+    function applyColumnState() {
+        if (!root.columnState || table.columns <= 0)
+            return
+
+        root._restoringColumnState = true
+        table.clearColumnReordering()
+        table.clearColumnWidths()
+
+        var current = []
+        for (var i = 0; i < table.columns; ++i)
+            current.push(i)
+
+        for (var target = 0; target < root.columnState.count; ++target) {
+            var logical = root.columnState.modelColumnAt(target)
+            var from = current.indexOf(logical)
+            if (from < 0 || from === target)
+                continue
+            table.moveColumn(from, target)
+            current.splice(target, 0, current.splice(from, 1)[0])
+        }
+
+        root._visualOrder = current
+        table.forceLayout()
+        root._restoringColumnState = false
+    }
+
+    function captureExplicitWidths() {
+        if (!root.columnState || root._restoringColumnState)
+            return
+        for (var visual = 0; visual < table.columns; ++visual) {
+            var width = table.explicitColumnWidth(visual)
+            if (width >= 0) {
+                var logical = root.logicalColumnAtVisual(visual)
+                root.columnState.setWidthByModelColumn(logical, width)
+            }
+        }
+    }
+
+    onColumnStateChanged: Qt.callLater(applyColumnState)
 
     ItemSelectionModel {
         id: selectionModel
@@ -49,11 +104,30 @@ Control {
         rowSpacing: 1
         boundsBehavior: Flickable.StopAtBounds
         rowHeightProvider: function(row) { return root.rowHeight }
-        columnWidthProvider: function(column) {
-            if (column >= 0 && column < root.columnWidths.length)
-                return Math.max(root.minimumColumnWidth, root.columnWidths[column])
-            return Math.max(root.minimumColumnWidth, 140)
+        columnWidthProvider: function(visualColumn) {
+            var explicitWidth = table.explicitColumnWidth(visualColumn)
+            if (explicitWidth >= 0)
+                return explicitWidth
+            var logicalColumn = root.logicalColumnAtVisual(visualColumn)
+            if (root.columnState) {
+                if (!root.columnState.isModelColumnVisible(logicalColumn))
+                    return 0
+                return Math.max(root.minimumColumnWidth,
+                                root.columnState.widthForModelColumn(logicalColumn,
+                                                                    root.defaultColumnWidth(logicalColumn)))
+            }
+            return root.defaultColumnWidth(logicalColumn)
         }
+
+        onColumnMoved: function(logicalIndex, oldVisualIndex, newVisualIndex) {
+            if (root._restoringColumnState)
+                return
+            var moved = root._visualOrder.splice(oldVisualIndex, 1)[0]
+            root._visualOrder.splice(newVisualIndex, 0, moved)
+            if (root.columnState)
+                root.columnState.moveModelColumn(logicalIndex, newVisualIndex)
+        }
+        onLayoutChanged: root.captureExplicitWidths()
 
         delegate: Rectangle {
             required property bool selected
@@ -61,7 +135,7 @@ Control {
             required property int row
             required property int column
 
-            implicitWidth: root.columnWidthProvider(column)
+            implicitWidth: table.columnWidth(column)
             implicitHeight: root.rowHeight
             color: selected
                 ? Tokens.accent
@@ -85,6 +159,13 @@ Control {
                 color: selected ? Tokens.onScrim : Tokens.textPrimary
                 text: model.display
             }
+        }
+
+        Component.onCompleted: {
+            root._visualOrder = []
+            for (var i = 0; i < table.columns; ++i)
+                root._visualOrder.push(i)
+            Qt.callLater(root.applyColumnState)
         }
     }
 
