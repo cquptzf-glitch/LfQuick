@@ -5,10 +5,9 @@
 #include <QMetaObject>
 #include <QObject>
 #include <QPointer>
+#include <QQuickItem>
 #include <QStringList>
 #include <QtQmlIntegration/qqmlintegration.h>
-
-class QQuickItem;
 
 namespace LfQuick {
 

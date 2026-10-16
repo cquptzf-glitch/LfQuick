@@ -2,11 +2,13 @@
 
 #include <LfQuick/Ui/LfQuickUiGlobal.h>
 #include <LfQuick/Ui/NavigationGuardController.h>
+#include <LfQuick/Ui/QmlErrorCollector.h>
 
 #include <LfQuick/Runtime/PageDescriptor.h>
 
 #include <QObject>
 #include <QPointer>
+#include <QQuickItem>
 #include <QUrl>
 #include <QVariantMap>
 
@@ -14,7 +16,6 @@
 #include <memory>
 
 class QQmlEngine;
-class QQuickItem;
 
 namespace LfQuick {
 
@@ -23,7 +24,6 @@ class IPageProvider;
 class PageRouter;
 class PageRegistry;
 class PageProviderRegistry;
-class QmlErrorCollector;
 class QuickPageProvider;
 
 class LFQUICKUI_EXPORT QuickRuntime : public QObject
