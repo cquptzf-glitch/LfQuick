@@ -40,7 +40,7 @@ private slots:
         QCOMPARE(model.data(model.index(0, 1), Qt::DisplayRole).toString(), QStringLiteral("Completed"));
     }
 
-    void proxyFiltersAcrossColumns()
+    void proxyFiltersAcrossColumnsAndMapsRows()
     {
         DataTableModel model;
         model.setColumnKeys({QStringLiteral("sampleId"), QStringLiteral("status")});
@@ -55,10 +55,16 @@ private slots:
 
         QCOMPARE(proxy.rowCount(), 1);
         QCOMPARE(proxy.data(proxy.index(0, 0), Qt::DisplayRole).toString(), QStringLiteral("S-002"));
+        QCOMPARE(proxy.mapRowToSource(0), 1);
+        QCOMPARE(proxy.mapRowFromSource(1), 0);
+        QCOMPARE(proxy.mapRowFromSource(0), -1);
+        QCOMPARE(proxy.mapRowToSource(10), -1);
 
         proxy.setFilterKey(QStringLiteral("sampleId"));
         proxy.setFilterText(QStringLiteral("001"));
         QCOMPARE(proxy.rowCount(), 1);
+        QCOMPARE(proxy.mapRowToSource(0), 0);
+        QCOMPARE(proxy.mapRowFromSource(0), 0);
     }
 
     void columnStateRestoresByStableIdNotOldIndex()

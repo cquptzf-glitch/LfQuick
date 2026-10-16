@@ -27,6 +27,9 @@ public:
     bool caseSensitive() const;
     void setCaseSensitive(bool value);
 
+    Q_INVOKABLE int mapRowToSource(int proxyRow) const;
+    Q_INVOKABLE int mapRowFromSource(int sourceRow) const;
+
 signals:
     void filterTextChanged();
     void filterKeyChanged();

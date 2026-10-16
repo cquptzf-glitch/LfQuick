@@ -52,6 +52,23 @@ void DataFilterProxyModel::setCaseSensitive(bool value)
     emit caseSensitiveChanged();
 }
 
+int DataFilterProxyModel::mapRowToSource(int proxyRow) const
+{
+    if (proxyRow < 0 || proxyRow >= rowCount() || columnCount() <= 0)
+        return -1;
+    const QModelIndex sourceIndex = mapToSource(index(proxyRow, 0));
+    return sourceIndex.isValid() ? sourceIndex.row() : -1;
+}
+
+int DataFilterProxyModel::mapRowFromSource(int sourceRow) const
+{
+    const auto *source = sourceModel();
+    if (!source || sourceRow < 0 || sourceRow >= source->rowCount() || source->columnCount() <= 0)
+        return -1;
+    const QModelIndex proxyIndex = mapFromSource(source->index(sourceRow, 0));
+    return proxyIndex.isValid() ? proxyIndex.row() : -1;
+}
+
 bool DataFilterProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
 {
     if (m_filterText.isEmpty())
