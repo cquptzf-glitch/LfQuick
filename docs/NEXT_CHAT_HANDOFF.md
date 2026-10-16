@@ -8,22 +8,32 @@
 
 不要重新做需求分析。直接：
 
-1. 读取 `main` 最新 HEAD；
-2. 读取本文件、`docs/IMPLEMENTATION_STATUS.md`、详细开发计划、V2.1 架构审查和 `REFERENCE_POLICY.md`；
+1. 读取 main 最新 HEAD；
+2. 读取本文件、`docs/IMPLEMENTATION_STATUS.md`、`docs/CI_CD.md`、详细开发计划、V2.1 架构审查和 `REFERENCE_POLICY.md`；
 3. 检查最新 GitHub Actions；
-4. 如果出现真实 Configure / Build / Test steps，先修 Qt 6.8.3 + MSVC2022；
-5. 如果仍然 `steps = null`，明确为 runner/infrastructure issue，继续下面开发顺序。
+4. 如果出现真实 Configure / Build / Test steps，第一优先级修 Qt 6.8.3 + MSVC2022 编译/测试/部署问题；
+5. 如果仍然 `steps = null`，记录为 runner/infrastructure issue，继续下面开发顺序。
 
 ## 2. 当前功能基线
 
 最新功能 HEAD：
 
 ```text
-9cdbdd2a156bd9231037d01bf3ea6e089873649d
-feat(demo): add complete results review workflow
+073b6de442fb5afdb90247045092ba280480d294
+fix(demo): isolate scanner consumers and expose proxy count
 ```
 
 本批提交：
+
+```text
+a138413 ci: build package and release Windows demos
+2248dd8 feat(validation): add reusable Core and QML validation pipeline
+0600237 feat(demo): add sample register and rack workflows
+00a3acd fix(ci): harden release demo asset paths
+073b6de fix(demo): isolate scanner consumers and expose proxy count
+```
+
+上一批仍有效：
 
 ```text
 67508a8 feat(dataview): add typed delegates and selection navigation
@@ -31,14 +41,8 @@ feat(demo): add complete results review workflow
 dd83729 feat(ui): add QML permission evaluator
 2420b4f feat(dataview): expose proxy row mapping
 9cdbdd2 feat(demo): add complete results review workflow
-```
-
-上一批：
-
-```text
 1b835b0 feat(dataview): persist stable DataGrid column state
 19129fd feat(dataview): add validated edit transactions
-7c54f74 feat(demo): exercise DataGrid state and edit validation
 013053b feat(runtime): add cross-provider page fallback
 703cbc1 feat(ui): add QML-friendly navigation guard controller
 7bc28f7 feat(widgetbridge): add QWidget QML focus bridge
@@ -48,12 +52,26 @@ dd83729 feat(ui): add QML permission evaluator
 
 ### Git
 
-- 直接在 main 开发。
+- 只在 `main` 开发。
 - 不创建普通 feature branch。
-- 每批使用语义清晰小提交。
-- 临时 WIP 不要留在 main 历史；如需整理必须使用 lease-safe ref 更新。
+- 每批保持语义清晰小提交。
 
-### 架构
+### 完成标准
+
+不能因为“有 API / 有 QML 文件”就记为完成。至少要求：
+
+```text
+contract/API
++ actual implementation
++ edge/failure handling
++ unit/integration test where practical
++ demo/vertical integration for UI
++ architecture boundary review
+```
+
+Runner 没有真实 steps 时，只能写“源码链路完成/待实编”，不能写 CI Green。
+
+### 架构边界
 
 ```text
 LfQuickCore      -> QtCore only
@@ -67,64 +85,48 @@ Integration.*    -> legacy/product-specific adapters
 
 不要把 EventFunc / LfWidget.dll / WindowManager / QXlsx / LimeReport / HookProc / ScanerHook / Patient-Sample-Reagent domain / medical Permission IDs / QC-Calibration 算法写进 Core/DataGrid。
 
-### 完成标准
-
-不要把空类、只有 QML 外壳、只有 API 声明记为完成。至少要求：
-
-```text
-contract/API
-+ actual implementation
-+ failure/edge handling
-+ unit/integration tests where practical
-+ UI capability has demo/vertical integration
-+ architecture boundary review
-```
-
-CI runner 没实际执行时只能写“源码链路完成/待实编”，不能写 CI Green。
-
 ## 4. 当前关键能力
 
 ### Runtime / Migration
-
-已具备：
 
 - PageRouter / Lifecycle / History
 - None / KeepAlive / Lru
 - INavigationGuard
 - Router-level cross-provider fallback
-- QML create failure -> another provider -> WidgetPageProvider -> legacy QWidget
+- QML create failure -> alternate provider -> WidgetPageProvider -> legacy QWidget
 - provider diagnostics
 - final provider-native ErrorPage
 
-Runtime 不感知具体 UI 技术栈。
-
 ### Quick/UI
-
-已具备：
 
 - QuickRuntime / QuickPageProvider
 - QmlErrorCollector / PageLoadError
 - Overlay / Busy
 - FocusNavigator
 - NavigationGuardState / NavigationGuardController
-- retry-once confirm workflow
-- **PermissionEvaluator**
+- PermissionEvaluator
+- ValidationEvaluator
 
-PermissionEvaluator 是 `IPermissionProvider` 的 QML adapter，支持：
+### Validation
 
-```text
-evaluate
-allows
-isVisible
-isEnabled
-isEditable
+Core 已有真正执行器：
+
+```cpp
+validateValue(value, ValidationRule)
 ```
 
-框架不保存业务 permission id。
+支持 required / length / regex / min/max / precision。
+
+QML：
+
+```text
+ValidationEvaluator.validate(value, ruleMap)
+ValidationEvaluator.isValid(value, ruleMap)
+```
+
+下一步不是重复实现 validator，而是考虑 RuleTable / reusable field feedback。
 
 ### WidgetBridge
-
-已具备：
 
 - QuickSurface
 - WidgetPageProvider
@@ -136,87 +138,29 @@ isEditable
 
 ### DataView
 
-#### Columns / editing
-
 已具备：
 
 - stable column id
-- ColumnStateModel
-- ColumnConfigStore
+- ColumnStateModel / ColumnConfigStore
 - width/order/visibility persistence
-- schemaVersion/tableId/modelSchema
 - DataEditTransaction
-- Temporary -> Validate -> Commit/Rollback
+- typed Text/Check/Combo/Progress/Icon delegates
+- DataGridSelectionController
+- batch/context actions
+- keyboard + cross-grid navigation
+- proxy/source mapping
+- `DataTableModel.findFirst`
+- `DataFilterProxyModel.exactMatch`
+- `DataFilterProxyModel.count`
+- opt-in 20k/50k benchmark
 
-#### Typed delegates
-
-已新增：
-
-```text
-DataGridEditorDelegate
-DataGridCheckDelegate
-DataGridCheckEditorDelegate
-DataGridComboDelegate
-DataGridComboEditorDelegate
-DataGridProgressDelegate
-DataGridIconDelegate
-```
-
-DataGrid resolver contract：
-
-```text
-cellDelegateResolver(columnId, logicalColumn)
-editorDelegateResolver(columnId, logicalColumn)
-editorOptionsResolver(columnId, logicalColumn)
-```
-
-Text/Check/Combo editor 配置 transaction 后都走 transaction，不能绕过 validator 直接修改 model。
-
-#### Selection / context / keyboard
-
-新增 `DataGridSelectionController` 和：
-
-- selectedRowsList / selectedRowCount
-- selectRow / selectRowsList / selectAllRows / clear
-- current row/column
-- batchActionRequested
-- contextMenuRequested
-- Home/End/Ctrl+Home/Ctrl+End
-- PageUp/PageDown
-- Left/Right skip hidden
-- Tab/Backtab cell/row traversal
-- nextGrid/previousGrid cross-table traversal
-
-#### Proxy mapping
-
-`DataFilterProxyModel`：
-
-```text
-mapRowToSource
-mapRowFromSource
-```
-
-用于过滤/排序后批量动作。批量修改前应先 snapshot source rows，再改数据，避免 dynamic filter 改变 proxy row 排列。
-
-#### Benchmark
-
-Opt-in：
-
-```cmake
--DLFQUICK_BUILD_BENCHMARKS=ON
-```
-
-目标：`lfquick_dataview_benchmark`
-
-矩阵：20k/50k rows × 8/20/40 columns；更新 batch 1/10/100。输出 population/filter/sort/update latency CSV，不做硬件相关绝对阈值。
-
-## 5. Medical Demo 当前实战
-
-页面：
+## 5. Medical Demo 当前页面
 
 ```text
 Dashboard
 Samples
+Sample Register
+Sample Rack
 Results
 Results Review
 Instrument
@@ -224,86 +168,111 @@ Alarms
 Developer
 ```
 
-### Results Review 已完成纵向链路
+### Sample Register — 已完成源码纵向链路
 
 验证：
 
 ```text
-DataGrid typed delegates
-+ extended/batch selection
-+ right-click context actions
-+ proxy -> source row mapping
-+ DataEditTransaction
-+ Validation
-+ PermissionEvaluator
-+ NavigationGuard
-+ Busy Overlay
-+ column persistence
+Scanner / InputRouter
++ active-focus scanner isolation
++ ValidationEvaluator / Core Validation
++ duplicate lookup
++ FocusNavigator
++ dirty NavigationGuard
++ submit busy hard-block
++ Overlay Busy
++ DataTableModel append
 ```
 
-Synthetic roles：
+重要边界：
 
-- Reviewer -> Allow / editable
-- Operator -> ReadOnly
-- Guest -> Denied
+- scanner signal target 必须是 `scanner.session`；
+- cached inactive page 必须通过 `pageActive` 忽略 scanner signals；
+- scanner.enabled 只在目标 field activeFocus 时打开；
+- dirty page 离开需要 confirm；
+- submit 进行中 hard block；
+- submit 成功 reset form。
 
-Demo-specific id：
+### Sample Rack — 已完成源码纵向链路
+
+验证：
 
 ```text
-demo.results.review
+Scanner
++ exact rack filtering
++ DataGrid stable columns/persistence
++ Progress delegate
++ extended selection
++ proxy->source mapping
++ batch actions
++ context menu
++ keyboard focus
 ```
 
-该 ID 只在 examples/product 侧，未进入 LfQuick framework。
+重要边界：
 
-Guard workflow：
+- Rack `R1` 必须 exactMatch，不能匹配 `R10`；
+- Rack 页面把 ScannerSession minimumLength 临时调为 2，离开恢复原值；
+- batch mutation 前先 snapshot source rows。
+
+### Results Review — 已完成源码纵向链路
+
+仍验证：DataGrid typed editor + Permission + Validation + Guard + Overlay + batch/context + persistence。
+
+## 6. CI/CD
+
+### CI
+
+`.github/workflows/build.yml`
+
+触发：main push / PR / manual。
+
+流程：
 
 ```text
-review note dirty
-  -> route request blocked
-  -> Application-level Dialog
-  -> cancel stay / confirm retry once
-
-saving review note
-  -> busy hard block
-  -> OverlayCoordinator busy token
-  -> finish -> unblock
+checkout
+Qt 6.8.3 MSVC2022
+architecture check
+Configure
+Build
+CTest
+cmake --install
+Qt QML deploy
+package layout validation
+upload artifact
 ```
 
-## 6. Tests
-
-本批新增/扩展：
-
-### tst_dataview
-
-- typed DataGrid supporting infrastructure
-- selection controller batch rows/current cell
-- proxy visible row mapping
-- filtered-out row -> -1
-- invalid proxy row -> -1
-- prior column persistence/edit transaction tests retained
-
-### tst_ui
-
-- PermissionEvaluator default Denied
-- Allow
-- ReadOnly
-- Hidden
-- Disabled
-- unknown permission Denied
-- prior Guard/Overlay/QmlError tests retained
-
-### benchmark
-
-- 20k/50k model-side benchmark source complete
-- 尚未取得真实 Windows benchmark 数值，因为 Actions 未执行 Build。
-
-## 7. CI 状态
-
-最新功能 run：
+成功 artifact：
 
 ```text
-run: 38896094449
-head: 9cdbdd2a156bd9231037d01bf3ea6e089873649d
+LfQuick-Demos-Windows-x64-<sha>
+```
+
+### Release
+
+`.github/workflows/release.yml`
+
+- `v*` tag：完整 Build/Test/Deploy 后 zip + GitHub Release；
+- manual：zip artifact，不发布正式 Release。
+
+zip：
+
+```text
+LfQuick-Demos-Windows-x64-<tag>.zip
+```
+
+Medical / Hybrid Demo 使用 `qt_generate_deploy_qml_app_script()`，不要退回手写 Qt DLL 列表。
+
+详见 `docs/CI_CD.md`。
+
+## 7. CI 当前真实状态
+
+最新 run：
+
+```text
+run: 38898266602
+head: 073b6de442fb5afdb90247045092ba280480d294
+workflow: ci
 job: windows-qt683
 status: completed
 conclusion: failure
@@ -311,122 +280,87 @@ steps: null
 logs_url: null
 ```
 
-仍为基础设施异常：没有 checkout / Install Qt / Configure / Build / Test。
+依旧属于 runner/infrastructure issue。
 
-必须继续使用：
+必须继续表述：
 
 ```text
-GitHub Actions runner/infrastructure abnormal
-Real Qt 6.8.3 + MSVC2022 compile has NOT executed
-Do not claim CI green
-Do not claim source compile failure without compiler output
+CI/CD workflow configured: YES
+Real Qt 6.8.3 + MSVC2022 compile: NOT EXECUTED
+CTest: NOT EXECUTED
+Demo artifact verified: NO
+GitHub Release verified: NO
+CI Green: NO CLAIM
+Source compile failure: NO COMPILER EVIDENCE
 ```
 
-Runner 恢复后重点检查：
+Runner 一恢复，第一批重点检查：
 
-- DataGrid QML typed resolver/editDelegate/TapHandler
-- Check/Combo editor commit
-- DataGridSelectionController QML registrar
-- Qt 6.8 TableView keyboard/position APIs
-- PermissionEvaluator moc/QML registrar
-- ResultsReview Menu/Timer/Dialogs
-- QSortFilterProxyModel setData + row mapping
-- benchmark MSVC compile
-- prior fallback/guard/focus bridge
+- `qt_generate_deploy_qml_app_script()` + 两个 Demo 共用 install prefix；
+- QML module/plugin deployment；
+- ValidationEvaluator moc/QML registration；
+- DataFilterProxyModel exactMatch/count signal；
+- `DataTableModel.findFirst` QML enum parameter；
+- SampleRegister SpinBox `valueModified` / lifecycle handlers；
+- SampleRack Menu / Progress delegate / scanner minimum-length restore；
+- prior typed DataGrid / WidgetFocusBridge / Router fallback。
 
 ## 8. 下一开发批次
 
 ### Step 0 — Build Gate
 
-每次先查 Actions。有实际 steps 就先修全部 Configure / Build / CTest。
+每次先查 Actions。如果出现 actual steps，立即暂停新大功能并修 Configure / Build / CTest / package。
 
-### Step 1 — Sample Register（当前最高功能优先级）
+### Step 1 — Permission attached API
 
-必须做完整纵向页，不是 UI mock：
-
-```text
-Scanner
-+ InputRouter
-+ Validation
-+ NavigationGuard
-+ Overlay
-+ form focus
-```
-
-建议：
-
-- barcode/manual input conflict handling
-- required field validation
-- dirty guard
-- submit busy state
-- scanner exclusive session
-- submit success clear/reset
-
-医疗领域数据留在 Demo/Product，不进入 Core。
-
-### Step 2 — Sample Rack
-
-验证：
-
-```text
-DataGrid
-+ scanner
-+ focus/keyboard
-+ batch selection/action
-+ rack/position synthetic model
-```
-
-优先复用现有 DataGrid contract，不新增业务专用 DataGrid API。
-
-### Step 3 — Permission attached API
-
-现在已经有 `PermissionEvaluator`，下一步再封：
+基于已完成的 `PermissionEvaluator`，继续设计：
 
 ```qml
 Lf.permission
 ```
 
-但 attached API 只管理 UI experience；真正 Command/Domain 仍二次校验。
+要求：
 
-### Step 4 — Validation RuleTable
+- 只做 UI experience mapping；
+- Command/Domain 层仍做权威权限校验；
+- 不把医疗权限 ID 写入框架。
 
-做通用 RuleTable / field feedback，避免每页手写一套重复 validation plumbing。
+### Step 2 — Validation RuleTable / Form feedback
 
-### Step 5 — UI consistency / stress
+已有 `validateValue` + `ValidationEvaluator`，下一步做：
 
-- Toast/Dialog Widget/QML dual stack
-- DataGrid QML FPS/scroll/first-population benchmark
-- Focus Bridge route-back/GUI stress
-- QuickSurface DPI/resize/z-order stress
+- rule table provider；
+- field state / error message binding；
+- form aggregate validity；
+- 不重复造 validator。
 
-### Step 6 — 之后
+### Step 3 — Toast/Dialog dual-stack
 
-- WindowRouter
-- NavigationView（继续不要先做巨大版本）
-- Charts abstraction
-- Diagnostics HUD
-- Hot Reload
-- Qt 6.12 adapter
+建立 QWidget/QML 一致 backend / behavior，不让各页面自己管理一套提示机制。
 
-## 9. 已知债务
+### Step 4 — GUI performance / stress
 
-- Singleton 不是 route-global singleton。
-- LRU 无 memory weight。
-- NavigationGuardController 单 pending request。
-- Focus Bridge boundary MVP，缺真实 GUI stress。
-- ColumnConfigStore storage backend 尚未抽 interface。
-- Permission attached property 未完成，但 evaluator 已完成。
-- Validation RuleTable 未完成。
-- QML render benchmark 未完成。
-- Sample Register / Sample Rack 未完成。
-- CI 尚未给出真实编译结果。
+- DataGrid FPS / scroll / first population / memory telemetry；
+- WidgetFocusBridge route-back/modal/scanner stress；
+- QuickSurface DPI/resize/z-order stress。
 
-## 10. External Reference
+### Step 5 — Runtime debts
+
+- route-global Singleton；
+- LRU memory weight；
+- NavigationGuard multi-request queue/drop policy；
+- provider structured error contract refinement。
+
+### Step 6 — 后续
+
+WindowRouter / NavigationView（仍不优先巨大版本）/ Charts / Diagnostics HUD / Hot Reload / Qt 6.12 adapter。
+
+## 9. External Reference
 
 继续遵守 `docs/REFERENCE_POLICY.md`：
 
-- FluentUI MIT 公开源码允许研究；实际复制/实质衍生必须保留 MIT 记录；
-- FluentUI2/Pro 只允许 public API/qmltypes/demo/behavior clean-room；
+- FluentUI MIT 公开源码允许研究；复制/实质衍生保留 MIT 记录；
+- FluentUI2/Pro 仅 public API/qmltypes/demo/behavior clean-room；
 - 不逆向 DLL；
-- 不还原私有 Pro 实现；
-- LfQuick 自身架构优先于模仿 FluentUI。
+- 不还原私有实现；
+- LfQuick 架构边界优先。
