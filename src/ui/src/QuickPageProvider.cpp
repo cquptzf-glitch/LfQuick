@@ -77,6 +77,20 @@ public:
             QMetaObject::invokeMethod(m_item, "onPageResumed", Qt::DirectConnection);
     }
 
+    bool updateParameters(const QVariantMap &parameters) override
+    {
+        if (!m_item)
+            return false;
+
+        bool accepted = true;
+        for (auto it = parameters.cbegin(); it != parameters.cend(); ++it) {
+            const QByteArray name = it.key().toUtf8();
+            if (!m_item->setProperty(name.constData(), it.value()))
+                accepted = false;
+        }
+        return accepted;
+    }
+
     void destroy() override
     {
         if (!m_item)
