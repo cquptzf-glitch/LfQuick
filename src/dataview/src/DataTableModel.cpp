@@ -65,11 +65,11 @@ void DataTableModel::setColumnKeys(const QStringList &keys)
 
     beginResetModel();
     m_columnKeys = std::move(normalized);
-    if (m_columnTitles.size() != m_columnKeys.size())
-        m_columnTitles = m_columnKeys;
+    m_columnTitles = m_columnKeys;
     rebuildRoles();
     endResetModel();
     emit columnKeysChanged();
+    emit columnTitlesChanged();
 }
 
 int DataTableModel::rowCount(const QModelIndex &parent) const
