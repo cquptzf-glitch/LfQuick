@@ -6,8 +6,6 @@
 #include <QString>
 #include <QVariantMap>
 
-#include <utility>
-
 namespace LfQuick {
 
 struct LFQUICKCORE_EXPORT RouteRequest
@@ -19,25 +17,19 @@ struct LFQUICKCORE_EXPORT RouteRequest
 
 struct LFQUICKCORE_EXPORT RouteResult
 {
+    RouteResult();
+    ~RouteResult();
+    RouteResult(const RouteResult &other);
+    RouteResult(RouteResult &&other) noexcept;
+    RouteResult &operator=(const RouteResult &other);
+    RouteResult &operator=(RouteResult &&other) noexcept;
+
     bool accepted = false;
     QString route;
     Error error;
 
-    static RouteResult success(QString routeValue)
-    {
-        RouteResult result;
-        result.accepted = true;
-        result.route = std::move(routeValue);
-        return result;
-    }
-
-    static RouteResult failure(QString routeValue, Error routeError)
-    {
-        RouteResult result;
-        result.route = std::move(routeValue);
-        result.error = std::move(routeError);
-        return result;
-    }
+    static RouteResult success(QString routeValue);
+    static RouteResult failure(QString routeValue, Error routeError);
 };
 
 } // namespace LfQuick

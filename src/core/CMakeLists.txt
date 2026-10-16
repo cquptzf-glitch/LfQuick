@@ -1,8 +1,10 @@
+
 add_library(LfQuickCore
     src/Error.cpp
     src/OperationHandle.cpp
     src/Event.cpp
     src/Validation.cpp
+    src/Route.cpp
 )
 add_library(LfQuick::Core ALIAS LfQuickCore)
 
