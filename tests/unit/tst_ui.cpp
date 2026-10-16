@@ -1,9 +1,11 @@
 #include <LfQuick/Ui/NavigationGuardController.h>
 #include <LfQuick/Ui/OverlayCoordinator.h>
+#include <LfQuick/Ui/PermissionEvaluator.h>
 #include <LfQuick/Ui/QmlErrorCollector.h>
 #include <LfQuick/Ui/QuickRuntime.h>
 
 #include <LfQuick/Core/OperationHandle.h>
+#include <LfQuick/Core/Permission.h>
 #include <LfQuick/Runtime/IPageInstance.h>
 #include <LfQuick/Runtime/IPageProvider.h>
 
@@ -50,6 +52,28 @@ public:
     QVariantMap lastParameters;
 };
 
+class TestPermissionProvider final : public IPermissionProvider
+{
+public:
+    PermissionState evaluate(QStringView permissionId,
+                             const QVariantMap &context) const override
+    {
+        if (permissionId != QStringView(u"test.permission"))
+            return PermissionState::Denied;
+
+        const QString role = context.value(QStringLiteral("role")).toString();
+        if (role == QStringLiteral("reviewer"))
+            return PermissionState::Allow;
+        if (role == QStringLiteral("operator"))
+            return PermissionState::ReadOnly;
+        if (role == QStringLiteral("hidden"))
+            return PermissionState::Hidden;
+        if (role == QStringLiteral("disabled"))
+            return PermissionState::Disabled;
+        return PermissionState::Denied;
+    }
+};
+
 PageDescriptor guardTestPage(const QString &route)
 {
     PageDescriptor descriptor;
@@ -88,6 +112,40 @@ private slots:
 
         operation.setState(OperationHandle::State::Succeeded);
         QVERIFY(!coordinator.busy());
+    }
+
+    void permissionEvaluatorMapsCoreStatesForQml()
+    {
+        PermissionEvaluator evaluator;
+        const QVariantMap reviewer{{QStringLiteral("role"), QStringLiteral("reviewer")}};
+        const QVariantMap operatorContext{{QStringLiteral("role"), QStringLiteral("operator")}};
+        const QVariantMap hidden{{QStringLiteral("role"), QStringLiteral("hidden")}};
+        const QVariantMap disabled{{QStringLiteral("role"), QStringLiteral("disabled")}};
+
+        QCOMPARE(evaluator.evaluate(QStringLiteral("test.permission"), reviewer),
+                 PermissionEvaluator::State::Denied);
+        QVERIFY(!evaluator.hasProvider());
+
+        evaluator.setProvider(std::make_shared<TestPermissionProvider>());
+        QVERIFY(evaluator.hasProvider());
+        QCOMPARE(evaluator.evaluate(QStringLiteral("test.permission"), reviewer),
+                 PermissionEvaluator::State::Allow);
+        QVERIFY(evaluator.allows(QStringLiteral("test.permission"), reviewer));
+        QVERIFY(evaluator.isEditable(QStringLiteral("test.permission"), reviewer));
+        QVERIFY(evaluator.isEnabled(QStringLiteral("test.permission"), reviewer));
+        QVERIFY(evaluator.isVisible(QStringLiteral("test.permission"), reviewer));
+
+        QCOMPARE(evaluator.evaluate(QStringLiteral("test.permission"), operatorContext),
+                 PermissionEvaluator::State::ReadOnly);
+        QVERIFY(!evaluator.allows(QStringLiteral("test.permission"), operatorContext));
+        QVERIFY(!evaluator.isEditable(QStringLiteral("test.permission"), operatorContext));
+        QVERIFY(evaluator.isEnabled(QStringLiteral("test.permission"), operatorContext));
+        QVERIFY(evaluator.isVisible(QStringLiteral("test.permission"), operatorContext));
+
+        QVERIFY(!evaluator.isVisible(QStringLiteral("test.permission"), hidden));
+        QVERIFY(!evaluator.isEnabled(QStringLiteral("test.permission"), hidden));
+        QVERIFY(!evaluator.isEnabled(QStringLiteral("test.permission"), disabled));
+        QVERIFY(!evaluator.allows(QStringLiteral("unknown"), reviewer));
     }
 
     void qmlErrorCollectorKeepsStructuredDiagnostics()
@@ -158,7 +216,7 @@ private slots:
         QCOMPARE(runtime.currentRoute(), QStringLiteral("/b"));
         QCOMPARE(provider->lastParameters, parameters);
         QVERIFY(!guard->hasPending());
-        QCOMPARE(confirmation.count(), 1); // retry bypasses this guard once
+        QCOMPARE(confirmation.count(), 1);
     }
 
     void navigationGuardCancelKeepsCurrentRoute()
