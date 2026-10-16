@@ -23,9 +23,11 @@ QuickRuntime::QuickRuntime(QQmlEngine *engine, QObject *parent)
     , m_errorCollector(std::make_unique<QmlErrorCollector>())
     , m_provider(std::make_shared<QuickPageProvider>(engine))
     , m_router(std::make_unique<PageRouter>(m_pages.get(), m_providers.get(), this))
+    , m_navigationGuardController(std::make_unique<NavigationGuardController>(m_router.get()))
 {
     m_provider->setErrorCollector(m_errorCollector.get());
     m_providers->registerProvider(m_provider);
+    m_router->addGuard(m_navigationGuardController->guardHandle());
 
     connect(m_router.get(), &PageRouter::currentRouteChanged, this, [this] {
         emit currentRouteChanged();
@@ -90,6 +92,11 @@ QmlErrorCollector *QuickRuntime::errorCollector() const
     return m_errorCollector.get();
 }
 
+NavigationGuardController *QuickRuntime::navigationGuard() const
+{
+    return m_navigationGuardController.get();
+}
+
 int QuickRuntime::maxRetainedLruPages() const
 {
     return m_router ? m_router->maxRetainedLruPages() : 0;
@@ -118,8 +125,11 @@ bool QuickRuntime::addNavigationGuard(std::shared_ptr<INavigationGuard> guard)
 
 void QuickRuntime::clearNavigationGuards()
 {
-    if (m_router)
-        m_router->clearGuards();
+    if (!m_router)
+        return;
+    m_router->clearGuards();
+    if (m_navigationGuardController)
+        m_router->addGuard(m_navigationGuardController->guardHandle());
 }
 
 void QuickRuntime::setQuickActivationCallback(std::function<void()> callback)

@@ -1,0 +1,70 @@
+#pragma once
+
+#include <LfQuick/Runtime/INavigationGuard.h>
+#include <LfQuick/Ui/LfQuickUiGlobal.h>
+#include <LfQuick/Ui/NavigationGuardState.h>
+
+#include <QObject>
+#include <QVariantMap>
+
+#include <memory>
+#include <optional>
+
+namespace LfQuick {
+
+class PageRouter;
+
+class LFQUICKUI_EXPORT NavigationGuardController : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(NavigationGuardState* state READ state CONSTANT FINAL)
+    Q_PROPERTY(bool hasPending READ hasPending NOTIFY pendingChanged FINAL)
+    Q_PROPERTY(QString pendingFromRoute READ pendingFromRoute NOTIFY pendingChanged FINAL)
+    Q_PROPERTY(QString pendingRoute READ pendingRoute NOTIFY pendingChanged FINAL)
+    Q_PROPERTY(int pendingAction READ pendingAction NOTIFY pendingChanged FINAL)
+    Q_PROPERTY(QVariantMap pendingParameters READ pendingParameters NOTIFY pendingChanged FINAL)
+
+public:
+    explicit NavigationGuardController(PageRouter *router, QObject *parent = nullptr);
+    ~NavigationGuardController() override;
+
+    NavigationGuardState *state() noexcept { return &m_state; }
+    const NavigationGuardState *state() const noexcept { return &m_state; }
+
+    bool hasPending() const noexcept { return m_pending.has_value(); }
+    QString pendingFromRoute() const;
+    QString pendingRoute() const;
+    int pendingAction() const noexcept;
+    QVariantMap pendingParameters() const;
+
+    std::shared_ptr<INavigationGuard> guardHandle() const { return m_guard; }
+    NavigationDecision evaluate(const NavigationContext &context);
+
+    Q_INVOKABLE void cancelPending();
+    Q_INVOKABLE bool confirmPending();
+
+signals:
+    void pendingChanged();
+    void confirmationRequested(const QString &fromRoute,
+                               const QString &toRoute,
+                               const QString &reason);
+    void hardBlocked(const QString &fromRoute,
+                     const QString &toRoute,
+                     const QString &reason);
+
+private:
+    QString effectiveReason() const;
+    bool sameNavigation(const NavigationContext &left,
+                        const NavigationContext &right) const;
+    void setPending(const NavigationContext &context);
+    void clearPending();
+
+    PageRouter *m_router = nullptr;
+    NavigationGuardState m_state;
+    std::shared_ptr<INavigationGuard> m_guard;
+    std::optional<NavigationContext> m_pending;
+    std::optional<NavigationContext> m_bypassOnce;
+    bool m_retryInProgress = false;
+};
+
+} // namespace LfQuick

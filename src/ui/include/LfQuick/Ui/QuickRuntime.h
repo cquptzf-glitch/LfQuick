@@ -1,6 +1,7 @@
 #pragma once
 
 #include <LfQuick/Ui/LfQuickUiGlobal.h>
+#include <LfQuick/Ui/NavigationGuardController.h>
 
 #include <LfQuick/Runtime/PageDescriptor.h>
 
@@ -33,6 +34,7 @@ class LFQUICKUI_EXPORT QuickRuntime : public QObject
     Q_PROPERTY(int depth READ depth NOTIFY navigationChanged FINAL)
     Q_PROPERTY(QQuickItem* host READ host WRITE setHost NOTIFY hostChanged FINAL)
     Q_PROPERTY(QmlErrorCollector* errorCollector READ errorCollector CONSTANT FINAL)
+    Q_PROPERTY(NavigationGuardController* navigationGuard READ navigationGuard CONSTANT FINAL)
     Q_PROPERTY(int maxRetainedLruPages READ maxRetainedLruPages WRITE setMaxRetainedLruPages NOTIFY cachePolicyChanged FINAL)
 
 public:
@@ -47,6 +49,7 @@ public:
     void setHost(QQuickItem *host);
 
     QmlErrorCollector *errorCollector() const;
+    NavigationGuardController *navigationGuard() const;
 
     int maxRetainedLruPages() const;
     void setMaxRetainedLruPages(int value);
@@ -102,6 +105,7 @@ private:
     std::unique_ptr<QmlErrorCollector> m_errorCollector;
     std::shared_ptr<QuickPageProvider> m_provider;
     std::unique_ptr<PageRouter> m_router;
+    std::unique_ptr<NavigationGuardController> m_navigationGuardController;
 };
 
 } // namespace LfQuick

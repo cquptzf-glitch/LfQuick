@@ -12,6 +12,7 @@
 #include <QQuickItem>
 #include <QStackedWidget>
 #include <QTableWidget>
+#include <QVariant>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -107,6 +108,11 @@ int main(int argc, char *argv[])
         stack->setCurrentWidget(quickSurface);
     });
 
+    QVariantMap quickPageParameters;
+    quickPageParameters.insert(
+        QStringLiteral("navigationGuard"),
+        QVariant::fromValue(static_cast<QObject *>(runtime.navigationGuard())));
+
     auto widgetProvider = std::make_shared<WidgetPageProvider>(stack);
     widgetProvider->registerFactory(QStringLiteral("legacy-results"), createLegacyResultsPage);
     runtime.registerProvider(widgetProvider);
@@ -160,7 +166,7 @@ int main(int argc, char *argv[])
         quickButton->setEnabled(true);
         legacyButton->setEnabled(true);
         fallbackButton->setEnabled(true);
-        runtime.push(QStringLiteral("/quick"));
+        runtime.push(QStringLiteral("/quick"), quickPageParameters);
     };
 
     QObject::connect(quickSurface, &QuickSurface::readyChanged,
@@ -192,7 +198,9 @@ int main(int argc, char *argv[])
     });
 
     QObject::connect(quickButton, &QPushButton::clicked,
-                     &window, [&runtime] { runtime.push(QStringLiteral("/quick")); });
+                     &window, [&runtime, quickPageParameters] {
+        runtime.push(QStringLiteral("/quick"), quickPageParameters);
+    });
     QObject::connect(legacyButton, &QPushButton::clicked,
                      &window, [&runtime] {
         runtime.push(QStringLiteral("/legacy/results"),
