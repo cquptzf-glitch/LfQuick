@@ -9,6 +9,7 @@
 #include <QUrl>
 #include <QVariantMap>
 
+#include <functional>
 #include <memory>
 
 class QQmlEngine;
@@ -16,6 +17,7 @@ class QQuickItem;
 
 namespace LfQuick {
 
+class IPageProvider;
 class PageRouter;
 class PageRegistry;
 class PageProviderRegistry;
@@ -47,6 +49,10 @@ public:
 
     int maxRetainedLruPages() const;
     void setMaxRetainedLruPages(int value);
+
+    bool registerProvider(std::shared_ptr<IPageProvider> provider);
+    bool registerDescriptor(PageDescriptor descriptor);
+    void setQuickActivationCallback(std::function<void()> callback);
 
     Q_INVOKABLE bool registerPage(const QString &route,
                                   const QUrl &source,

@@ -35,3 +35,11 @@ if(LFQUICK_BUILD_UI)
     target_link_libraries(tst_ui PRIVATE LfQuick::Ui Qt6::Test)
     add_test(NAME tst_ui COMMAND tst_ui)
 endif()
+
+if(LFQUICK_BUILD_WIDGET_BRIDGE)
+    qt_add_executable(tst_widgetbridge
+        unit/tst_widgetbridge.cpp
+    )
+    target_link_libraries(tst_widgetbridge PRIVATE LfQuick::WidgetBridge Qt6::Test)
+    add_test(NAME tst_widgetbridge COMMAND tst_widgetbridge)
+endif()

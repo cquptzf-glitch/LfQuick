@@ -1,5 +1,6 @@
 #include <LfQuick/Ui/QuickRuntime.h>
 
+#include <LfQuick/Runtime/IPageProvider.h>
 #include <LfQuick/Runtime/PageProviderRegistry.h>
 #include <LfQuick/Runtime/PageRegistry.h>
 #include <LfQuick/Runtime/PageRouter.h>
@@ -91,6 +92,21 @@ void QuickRuntime::setMaxRetainedLruPages(int value)
         m_router->setMaxRetainedLruPages(value);
 }
 
+bool QuickRuntime::registerProvider(std::shared_ptr<IPageProvider> provider)
+{
+    return m_providers && m_providers->registerProvider(std::move(provider));
+}
+
+bool QuickRuntime::registerDescriptor(PageDescriptor descriptor)
+{
+    return m_pages && m_pages->registerPage(std::move(descriptor));
+}
+
+void QuickRuntime::setQuickActivationCallback(std::function<void()> callback)
+{
+    m_provider->setActivationCallback(std::move(callback));
+}
+
 bool QuickRuntime::registerPage(const QString &route,
                                 const QUrl &source,
                                 int cachePolicy,
@@ -99,7 +115,7 @@ bool QuickRuntime::registerPage(const QString &route,
     if (route.isEmpty() || !source.isValid() || source.isEmpty())
         return false;
 
-    return m_pages->registerPage(
+    return registerDescriptor(
         descriptorFor(route, source, cachePolicy, useErrorFallback));
 }
 

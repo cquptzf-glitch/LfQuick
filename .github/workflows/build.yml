@@ -1,4 +1,3 @@
-
 name: build
 
 on:
@@ -20,7 +19,7 @@ jobs:
       - name: Architecture boundaries
         run: python tools/check_architecture.py
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLFQUICK_BUILD_WIDGET_BRIDGE=ON
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLFQUICK_BUILD_WIDGET_BRIDGE=ON -DLFQUICK_BUILD_HYBRID_DEMO=ON
       - name: Build
         run: cmake --build build --parallel
       - name: Test

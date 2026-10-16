@@ -1,9 +1,9 @@
-
 option(BUILD_SHARED_LIBS "Build LfQuick libraries as shared libraries" ON)
 option(LFQUICK_BUILD_PLATFORM "Build platform/input adapters" ON)
 option(LFQUICK_BUILD_UI "Build Qt Quick UI module" ON)
 option(LFQUICK_BUILD_DATAVIEW "Build DataView module" ON)
 option(LFQUICK_BUILD_WIDGET_BRIDGE "Build QWidget/Quick migration bridge" OFF)
+option(LFQUICK_BUILD_HYBRID_DEMO "Build QWidget + QML shared-router migration demo" OFF)
 option(LFQUICK_BUILD_CHARTS "Build Charts module" OFF)
 option(LFQUICK_BUILD_DIAGNOSTICS "Build development diagnostics" ON)
 option(LFQUICK_BUILD_MEDICAL_DEMO "Build LfQuick Medical Demo" ON)

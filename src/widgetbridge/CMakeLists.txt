@@ -1,12 +1,15 @@
-
 add_library(LfQuickWidgetBridge
     src/QuickSurface.cpp
+    src/WidgetPageProvider.cpp
 )
 add_library(LfQuick::WidgetBridge ALIAS LfQuickWidgetBridge)
+
+target_compile_definitions(LfQuickWidgetBridge PRIVATE LFQUICKWIDGETBRIDGE_LIBRARY)
 
 target_include_directories(LfQuickWidgetBridge
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 target_link_libraries(LfQuickWidgetBridge
@@ -20,5 +23,8 @@ target_link_libraries(LfQuickWidgetBridge
 target_sources(LfQuickWidgetBridge PUBLIC
     FILE_SET HEADERS
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
-    FILES include/LfQuick/WidgetBridge/QuickSurface.h
+    FILES
+        include/LfQuick/WidgetBridge/LfQuickWidgetBridgeGlobal.h
+        include/LfQuick/WidgetBridge/QuickSurface.h
+        include/LfQuick/WidgetBridge/WidgetPageProvider.h
 )

@@ -4,6 +4,8 @@
 
 #include <QPointer>
 
+#include <functional>
+
 class QQmlEngine;
 class QQuickItem;
 
@@ -14,6 +16,8 @@ class QmlErrorCollector;
 class QuickPageProvider final : public IPageProvider
 {
 public:
+    using ActivationCallback = std::function<void()>;
+
     explicit QuickPageProvider(QQmlEngine *engine, QQuickItem *host = nullptr);
 
     QString id() const override;
@@ -23,12 +27,14 @@ public:
 
     void setHost(QQuickItem *host);
     void setErrorCollector(QmlErrorCollector *collector);
+    void setActivationCallback(ActivationCallback callback);
     QString lastError() const { return m_lastError; }
 
 private:
     QPointer<QQmlEngine> m_engine;
     QPointer<QQuickItem> m_host;
     QPointer<QmlErrorCollector> m_errorCollector;
+    ActivationCallback m_activationCallback;
     QString m_lastError;
 };
 

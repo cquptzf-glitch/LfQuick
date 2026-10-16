@@ -14,10 +14,14 @@ namespace {
 class QuickPageInstance final : public IPageInstance
 {
 public:
-    QuickPageInstance(QString pageId, QQuickItem *item, QQuickItem *host)
+    QuickPageInstance(QString pageId,
+                      QQuickItem *item,
+                      QQuickItem *host,
+                      QuickPageProvider::ActivationCallback activationCallback)
         : m_pageId(std::move(pageId))
         , m_item(item)
         , m_host(host)
+        , m_activationCallback(std::move(activationCallback))
     {
         if (m_item && m_host) {
             m_item->setSize(m_host->size());
@@ -45,6 +49,8 @@ public:
     {
         if (!m_item)
             return;
+        if (m_activationCallback)
+            m_activationCallback();
         m_item->setVisible(true);
         QMetaObject::invokeMethod(m_item, "onPageActivated", Qt::DirectConnection);
     }
@@ -82,6 +88,7 @@ private:
     QString m_pageId;
     QPointer<QQuickItem> m_item;
     QPointer<QQuickItem> m_host;
+    QuickPageProvider::ActivationCallback m_activationCallback;
 };
 
 QUrl sourceUrl(const PageDescriptor &descriptor)
@@ -200,7 +207,10 @@ std::unique_ptr<IPageInstance> QuickPageProvider::create(const PageDescriptor &d
     }
     item->setVisible(false);
 
-    return std::make_unique<QuickPageInstance>(descriptor.route, item, m_host);
+    return std::make_unique<QuickPageInstance>(descriptor.route,
+                                                item,
+                                                m_host,
+                                                m_activationCallback);
 }
 
 void QuickPageProvider::setHost(QQuickItem *host)
@@ -211,6 +221,11 @@ void QuickPageProvider::setHost(QQuickItem *host)
 void QuickPageProvider::setErrorCollector(QmlErrorCollector *collector)
 {
     m_errorCollector = collector;
+}
+
+void QuickPageProvider::setActivationCallback(ActivationCallback callback)
+{
+    m_activationCallback = std::move(callback);
 }
 
 } // namespace LfQuick

@@ -1,0 +1,11 @@
+#pragma once
+
+#include <QtCore/qglobal.h>
+
+#if defined(LFQUICK_STATIC)
+#  define LFQUICKWIDGETBRIDGE_EXPORT
+#elif defined(LFQUICKWIDGETBRIDGE_LIBRARY)
+#  define LFQUICKWIDGETBRIDGE_EXPORT Q_DECL_EXPORT
+#else
+#  define LFQUICKWIDGETBRIDGE_EXPORT Q_DECL_IMPORT
+#endif
