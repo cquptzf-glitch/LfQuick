@@ -1,6 +1,7 @@
 #pragma once
 
 #include <LfQuick/Ui/LfQuickUiGlobal.h>
+#include <LfQuick/Ui/ValidationRuleTable.h>
 
 #include <QHash>
 #include <QObject>
@@ -12,7 +13,6 @@
 
 namespace LfQuick {
 
-class ValidationRuleTable;
 class ValidationFormState;
 
 class LFQUICKUI_EXPORT ValidationFieldState : public QObject
