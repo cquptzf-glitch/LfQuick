@@ -3,6 +3,8 @@
 #include <LfQuick/Runtime/IWindowInstance.h>
 
 #include <QByteArray>
+#include <QEvent>
+#include <QObject>
 #include <QPointer>
 #include <QUuid>
 #include <QWidget>
@@ -36,7 +38,7 @@ struct WidgetWindowProviderState
 
 namespace {
 
-class WidgetWindowInstance final : public IWindowInstance
+class WidgetWindowInstance final : public QObject, public IWindowInstance
 {
 public:
     WidgetWindowInstance(WindowInstanceId id,
@@ -44,10 +46,14 @@ public:
                          std::shared_ptr<WidgetWindowProviderState> state)
         : m_id(std::move(id)), m_widget(widget), m_state(std::move(state))
     {
+        if (m_widget)
+            m_widget->installEventFilter(this);
     }
 
     ~WidgetWindowInstance() override
     {
+        if (m_widget)
+            m_widget->removeEventFilter(this);
         if (m_state)
             m_state->widgets.remove(m_id);
     }
@@ -93,6 +99,11 @@ public:
             return false;
         }
         return true;
+    }
+
+    void setCloseRequestHandler(CloseRequestHandler handler) override
+    {
+        m_closeRequestHandler = std::move(handler);
     }
 
     bool updateParameters(const QVariantMap &parameters) override
@@ -146,18 +157,36 @@ public:
     {
         if (!m_widget)
             return;
+
         invokeOptional(m_widget, "onWindowClosing");
+        m_closingFromRouter = true;
         m_widget->close();
+        m_widget->removeEventFilter(this);
         m_widget->deleteLater();
         m_widget = nullptr;
+        m_closingFromRouter = false;
         if (m_state)
             m_state->widgets.remove(m_id);
+    }
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (watched == m_widget && event && event->type() == QEvent::Close
+            && !m_closingFromRouter && m_closeRequestHandler) {
+            event->ignore();
+            m_closeRequestHandler();
+            return true;
+        }
+        return QObject::eventFilter(watched, event);
     }
 
 private:
     WindowInstanceId m_id;
     QPointer<QWidget> m_widget;
     std::shared_ptr<WidgetWindowProviderState> m_state;
+    CloseRequestHandler m_closeRequestHandler;
+    bool m_closingFromRouter = false;
 };
 
 } // namespace
