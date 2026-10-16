@@ -2,18 +2,26 @@
 
 #include <LfQuick/Charts/LfQuickChartsGlobal.h>
 
-#include <QAbstractListModel>
+#include <QAbstractTableModel>
+#include <QPointF>
 #include <QVariantList>
 #include <QVariantMap>
 
 namespace LfQuick {
 
-class LFQUICKCHARTS_EXPORT ChartDataModel final : public QAbstractListModel
+class LFQUICKCHARTS_EXPORT ChartDataModel final : public QAbstractTableModel
 {
     Q_OBJECT
     Q_PROPERTY(int count READ count NOTIFY countChanged FINAL)
 
 public:
+    enum Column {
+        XColumn = 0,
+        YColumn = 1,
+        ColumnCount = 2
+    };
+    Q_ENUM(Column)
+
     enum Role {
         XRole = Qt::UserRole + 1,
         YRole,
@@ -24,9 +32,17 @@ public:
     explicit ChartDataModel(QObject *parent = nullptr);
 
     int rowCount(const QModelIndex &parent = {}) const override;
+    int columnCount(const QModelIndex &parent = {}) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+    bool setData(const QModelIndex &index, const QVariant &value,
+                 int role = Qt::EditRole) override;
+    Qt::ItemFlags flags(const QModelIndex &index) const override;
+    QVariant headerData(int section, Qt::Orientation orientation,
+                        int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
     int count() const noexcept { return m_points.size(); }
+
+    QList<QPointF> points() const;
 
     Q_INVOKABLE void setPoints(const QVariantList &points);
     Q_INVOKABLE void appendPoint(double x, double y, const QVariantMap &metadata = {});
