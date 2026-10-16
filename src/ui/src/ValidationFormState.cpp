@@ -2,6 +2,8 @@
 
 #include <LfQuick/Ui/ValidationRuleTable.h>
 
+#include <utility>
+
 namespace LfQuick {
 
 ValidationFieldState::ValidationFieldState(QString fieldId, QString ruleId, QObject *parent)
