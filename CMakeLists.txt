@@ -43,7 +43,7 @@ if(LFQUICK_BUILD_QT_GRAPHS_ADAPTER)
     if(NOT LFQUICK_BUILD_CHARTS)
         message(FATAL_ERROR "LFQUICK_BUILD_QT_GRAPHS_ADAPTER requires LFQUICK_BUILD_CHARTS=ON")
     endif()
-    find_package(Qt6 6.8.3 REQUIRED COMPONENTS Graphs)
+    find_package(Qt6 6.8.3 REQUIRED COMPONENTS Graphs Qml QmlIntegration Quick)
 endif()
 
 add_subdirectory(src/core)
