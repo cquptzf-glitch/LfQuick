@@ -22,6 +22,8 @@ LfPage {
         scope: root
     }
 
+    onDeactivated: scanner.enabled = false
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Tokens.spacingLarge
@@ -121,7 +123,7 @@ LfPage {
     }
 
     Connections {
-        target: scanner
+        target: scanner.session
         function onScanAccepted(value) {
             barcodeField.text = value
             root.scanMode = false
@@ -141,8 +143,8 @@ LfPage {
             barcodeField.forceActiveFocus()
         }
 
-        function onScanRejected(value, reason) {
-            console.warn("Scanner rejected:", value, reason)
+        function onScanRejected(rawValue, reason) {
+            console.warn("Scanner rejected:", rawValue, reason)
         }
     }
 

@@ -14,12 +14,12 @@ ApplicationWindow {
     property int currentPage: 0
     property string guardReason: ""
     readonly property var routes: [
-        "/dashboard", "/samples", "/results", "/results-review",
-        "/instrument", "/alarms", "/developer"
+        "/dashboard", "/samples", "/sample-register", "/sample-rack",
+        "/results", "/results-review", "/instrument", "/alarms", "/developer"
     ]
     readonly property var pageFiles: [
-        "DashboardPage.qml", "SamplesPage.qml", "ResultsPage.qml", "ResultsReviewPage.qml",
-        "InstrumentPage.qml", "AlarmsPage.qml", "DeveloperPage.qml"
+        "DashboardPage.qml", "SamplesPage.qml", "SampleRegisterPage.qml", "SampleRackPage.qml",
+        "ResultsPage.qml", "ResultsReviewPage.qml", "InstrumentPage.qml", "AlarmsPage.qml", "DeveloperPage.qml"
     ]
 
     header: ToolBar {
@@ -65,7 +65,7 @@ ApplicationWindow {
         spacing: 0
 
         NavigationRail {
-            Layout.preferredWidth: 190
+            Layout.preferredWidth: 210
             Layout.fillHeight: true
             currentIndex: window.currentPage
             onActivated: quickRuntime.push(window.routes[index])

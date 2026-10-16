@@ -44,6 +44,8 @@ public:
     Q_INVOKABLE void insertRow(int row, const QVariantMap &value);
     Q_INVOKABLE void removeRow(int row);
     Q_INVOKABLE QVariantMap rowAt(int row) const;
+    Q_INVOKABLE int findFirst(const QString &key, const QVariant &value,
+                              Qt::CaseSensitivity caseSensitivity = Qt::CaseSensitive) const;
     Q_INVOKABLE bool setCell(int row, const QString &key, const QVariant &value);
     Q_INVOKABLE void sortByKey(const QString &key, Qt::SortOrder order = Qt::AscendingOrder);
 

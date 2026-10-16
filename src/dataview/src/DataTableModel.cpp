@@ -212,6 +212,23 @@ QVariantMap DataTableModel::rowAt(int row) const
     return m_rows.at(row);
 }
 
+int DataTableModel::findFirst(const QString &key, const QVariant &value,
+                              Qt::CaseSensitivity caseSensitivity) const
+{
+    if (!m_columnKeys.contains(key))
+        return -1;
+
+    const QString needle = value.toString();
+    for (int row = 0; row < m_rows.size(); ++row) {
+        const QVariant candidate = m_rows.at(row).value(key);
+        if (candidate == value)
+            return row;
+        if (candidate.toString().compare(needle, caseSensitivity) == 0)
+            return row;
+    }
+    return -1;
+}
+
 bool DataTableModel::setCell(int row, const QString &key, const QVariant &value)
 {
     const int role = roleForKey(key);

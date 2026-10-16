@@ -17,7 +17,7 @@ class DataViewTest : public QObject
     Q_OBJECT
 
 private slots:
-    void tableModelSupportsRolesAndEditing()
+    void tableModelSupportsRolesEditingAndLookup()
     {
         DataTableModel model;
         model.setColumnKeys({QStringLiteral("sampleId"), QStringLiteral("status"), QStringLiteral("result")});
@@ -38,6 +38,11 @@ private slots:
         QVERIFY(roles.values().contains(QByteArrayLiteral("status")));
         QVERIFY(model.setCell(0, QStringLiteral("status"), QStringLiteral("Completed")));
         QCOMPARE(model.data(model.index(0, 1), Qt::DisplayRole).toString(), QStringLiteral("Completed"));
+
+        QCOMPARE(model.findFirst(QStringLiteral("sampleId"), QStringLiteral("S-001")), 0);
+        QCOMPARE(model.findFirst(QStringLiteral("sampleId"), QStringLiteral("s-001")), -1);
+        QCOMPARE(model.findFirst(QStringLiteral("sampleId"), QStringLiteral("s-001"), Qt::CaseInsensitive), 0);
+        QCOMPARE(model.findFirst(QStringLiteral("missing"), QStringLiteral("S-001")), -1);
     }
 
     void proxyFiltersAcrossColumnsAndMapsRows()
@@ -65,6 +70,14 @@ private slots:
         QCOMPARE(proxy.rowCount(), 1);
         QCOMPARE(proxy.mapRowToSource(0), 0);
         QCOMPARE(proxy.mapRowFromSource(0), 0);
+
+        proxy.setFilterKey(QStringLiteral("status"));
+        proxy.setExactMatch(true);
+        proxy.setFilterText(QStringLiteral("Completed"));
+        QCOMPARE(proxy.rowCount(), 1);
+        QCOMPARE(proxy.mapRowToSource(0), 1);
+        proxy.setFilterText(QStringLiteral("Complete"));
+        QCOMPARE(proxy.rowCount(), 0);
     }
 
     void columnStateRestoresByStableIdNotOldIndex()

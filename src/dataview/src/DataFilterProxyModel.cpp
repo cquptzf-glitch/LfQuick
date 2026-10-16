@@ -52,21 +52,42 @@ void DataFilterProxyModel::setCaseSensitive(bool value)
     emit caseSensitiveChanged();
 }
 
+bool DataFilterProxyModel::exactMatch() const
+{
+    return m_exactMatch;
+}
+
+void DataFilterProxyModel::setExactMatch(bool value)
+{
+    if (m_exactMatch == value)
+        return;
+    m_exactMatch = value;
+    invalidateFilter();
+    emit exactMatchChanged();
+}
+
 int DataFilterProxyModel::mapRowToSource(int proxyRow) const
 {
-    if (proxyRow < 0 || proxyRow >= rowCount() || columnCount() <= 0)
+    if (proxyRow < 0 || proxyRow >= rowCount())
         return -1;
-    const QModelIndex sourceIndex = mapToSource(index(proxyRow, 0));
-    return sourceIndex.isValid() ? sourceIndex.row() : -1;
+    const QModelIndex source = mapToSource(index(proxyRow, 0));
+    return source.isValid() ? source.row() : -1;
 }
 
 int DataFilterProxyModel::mapRowFromSource(int sourceRow) const
 {
-    const auto *source = sourceModel();
-    if (!source || sourceRow < 0 || sourceRow >= source->rowCount() || source->columnCount() <= 0)
+    if (!sourceModel() || sourceRow < 0 || sourceRow >= sourceModel()->rowCount())
         return -1;
-    const QModelIndex proxyIndex = mapFromSource(source->index(sourceRow, 0));
-    return proxyIndex.isValid() ? proxyIndex.row() : -1;
+    const QModelIndex proxy = mapFromSource(sourceModel()->index(sourceRow, 0));
+    return proxy.isValid() ? proxy.row() : -1;
+}
+
+bool DataFilterProxyModel::matches(const QString &value) const
+{
+    const auto sensitivity = m_caseSensitive ? Qt::CaseSensitive : Qt::CaseInsensitive;
+    return m_exactMatch
+        ? value.compare(m_filterText, sensitivity) == 0
+        : value.contains(m_filterText, sensitivity);
 }
 
 bool DataFilterProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
@@ -78,22 +99,20 @@ bool DataFilterProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex &so
     if (!model)
         return false;
 
-    const auto flags = m_caseSensitive ? Qt::CaseSensitive : Qt::CaseInsensitive;
-
     if (!m_filterKey.isEmpty()) {
         const auto roles = model->roleNames();
         for (auto it = roles.cbegin(); it != roles.cend(); ++it) {
             if (QString::fromUtf8(it.value()) != m_filterKey)
                 continue;
             const auto value = model->data(model->index(sourceRow, 0, sourceParent), it.key());
-            return value.toString().contains(m_filterText, flags);
+            return matches(value.toString());
         }
         return false;
     }
 
     for (int column = 0; column < model->columnCount(sourceParent); ++column) {
         const auto value = model->data(model->index(sourceRow, column, sourceParent), Qt::DisplayRole);
-        if (value.toString().contains(m_filterText, flags))
+        if (matches(value.toString()))
             return true;
     }
 

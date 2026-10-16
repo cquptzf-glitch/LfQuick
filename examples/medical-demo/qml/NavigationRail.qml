@@ -15,9 +15,9 @@ Pane {
 
         Repeater {
             model: [
-                qsTr("Dashboard"), qsTr("Samples"), qsTr("Results"),
-                qsTr("Results Review"), qsTr("Instrument"), qsTr("Alarms"),
-                qsTr("Developer")
+                qsTr("Dashboard"), qsTr("Samples"), qsTr("Sample Register"),
+                qsTr("Sample Rack"), qsTr("Results"), qsTr("Results Review"),
+                qsTr("Instrument"), qsTr("Alarms"), qsTr("Developer")
             ]
 
             Button {

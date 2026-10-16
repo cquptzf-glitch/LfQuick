@@ -24,6 +24,8 @@ qt_add_qml_module(LfQuickMedicalDemo
         qml/NavigationRail.qml
         qml/DashboardPage.qml
         qml/SamplesPage.qml
+        qml/SampleRegisterPage.qml
+        qml/SampleRackPage.qml
         qml/ResultsPage.qml
         qml/ResultsReviewPage.qml
         qml/InstrumentPage.qml
