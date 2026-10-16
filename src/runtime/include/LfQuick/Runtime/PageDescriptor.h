@@ -22,6 +22,7 @@ struct PageDescriptor
     QString provider;
     QVariantMap source;
     PageCachePolicy cachePolicy = PageCachePolicy::None;
+    qint64 cacheWeight = 1;
     FallbackPolicy fallbackPolicy = FallbackPolicy::ErrorPage;
     std::optional<PageFallbackDescriptor> fallback;
     QVariantMap metadata;
