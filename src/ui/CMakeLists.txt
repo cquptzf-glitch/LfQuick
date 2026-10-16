@@ -32,6 +32,8 @@ qt_add_qml_module(LfQuickUi
         src/FocusNavigator.cpp
         include/LfQuick/Ui/PermissionEvaluator.h
         src/PermissionEvaluator.cpp
+        include/LfQuick/Ui/LfAttached.h
+        src/LfAttached.cpp
         include/LfQuick/Ui/ValidationEvaluator.h
         src/ValidationEvaluator.cpp
     QML_FILES
@@ -57,6 +59,7 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/NavigationGuardState.h
         include/LfQuick/Ui/NavigationGuardController.h
         include/LfQuick/Ui/PermissionEvaluator.h
+        include/LfQuick/Ui/LfAttached.h
         include/LfQuick/Ui/ValidationEvaluator.h
         include/LfQuick/Ui/QuickRuntime.h
 )
