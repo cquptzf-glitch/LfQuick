@@ -135,17 +135,27 @@ std::unique_ptr<IPageInstance> WidgetPageProvider::create(
     const PageDescriptor &descriptor,
     const QVariantMap &parameters)
 {
-    m_lastError.clear();
+    m_lastErrorInfo = {};
     const QString key = factoryId(descriptor);
     const auto it = m_factories.constFind(key);
     if (it == m_factories.cend()) {
-        m_lastError = QStringLiteral("No widget factory registered for '%1'").arg(key);
+        m_lastErrorInfo.code = QStringLiteral("widget.factory-not-found");
+        m_lastErrorInfo.message = QStringLiteral("No widget factory registered for '%1'").arg(key);
+        m_lastErrorInfo.details = {
+            {QStringLiteral("route"), descriptor.route},
+            {QStringLiteral("factory"), key}
+        };
         return {};
     }
 
     QWidget *widget = it.value()(m_host, parameters);
     if (!widget) {
-        m_lastError = QStringLiteral("Widget factory '%1' returned null").arg(key);
+        m_lastErrorInfo.code = QStringLiteral("widget.factory-returned-null");
+        m_lastErrorInfo.message = QStringLiteral("Widget factory '%1' returned null").arg(key);
+        m_lastErrorInfo.details = {
+            {QStringLiteral("route"), descriptor.route},
+            {QStringLiteral("factory"), key}
+        };
         return {};
     }
 
