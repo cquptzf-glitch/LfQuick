@@ -106,8 +106,10 @@ private slots:
         QVERIFY(router.canGoBack());
         QVERIFY(router.back().accepted);
         QCOMPARE(router.currentRoute(), QStringLiteral("/dashboard"));
-        QVERIFY(provider->counters->activated >= 3);
-        QVERIFY(provider->counters->destroyed >= 1);
+        QCOMPARE(provider->counters->activated, 3);
+        QCOMPARE(provider->counters->resumed, 1);
+        QCOMPARE(provider->counters->suspended, 1);
+        QCOMPARE(provider->counters->destroyed, 1);
     }
 };
 

@@ -13,6 +13,7 @@ struct PageRouter::Entry
     PageDescriptor descriptor;
     QVariantMap parameters;
     std::unique_ptr<IPageInstance> instance;
+    bool suspended = false;
 };
 
 PageRouter::PageRouter(PageRegistry *pages,
@@ -157,15 +158,20 @@ void PageRouter::deactivateCurrent(bool suspend)
     if (m_history.empty() || !m_history.back().instance)
         return;
     m_history.back().instance->deactivate();
-    if (suspend)
+    if (suspend) {
         m_history.back().instance->suspend();
+        m_history.back().suspended = true;
+    }
 }
 
 void PageRouter::activate(Entry &entry)
 {
     if (!entry.instance)
         return;
-    entry.instance->resume();
+    if (entry.suspended) {
+        entry.instance->resume();
+        entry.suspended = false;
+    }
     entry.instance->activate();
 }
 
