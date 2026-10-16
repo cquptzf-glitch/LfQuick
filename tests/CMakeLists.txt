@@ -45,6 +45,12 @@ qt_add_executable(tst_runtime_cache
 target_link_libraries(tst_runtime_cache PRIVATE LfQuick::Runtime Qt6::Test)
 lfquick_register_test(tst_runtime_cache)
 
+qt_add_executable(tst_window_router
+    unit/tst_window_router.cpp
+)
+target_link_libraries(tst_window_router PRIVATE LfQuick::Runtime Qt6::Test)
+lfquick_register_test(tst_window_router)
+
 if(LFQUICK_BUILD_DATAVIEW)
     qt_add_executable(tst_dataview
         unit/tst_dataview.cpp
