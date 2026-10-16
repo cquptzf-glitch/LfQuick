@@ -14,15 +14,18 @@ The project focuses on large desktop/device applications that need:
 
 ## Current status
 
-Development has entered the first runtime implementation stage:
+Development is proceeding directly on `main` using a main-only workflow.
 
-- repository and CMake baseline
-- `LfQuickCore` (QtCore-only) with Result/Error, Command, Event, Route, Operation and validation/permission contracts
-- `LfQuickRuntime` with PageRegistry, PageProviderRegistry, PageLifecycle and PageRouter foundations
-- `LfQuickUi` with QuickPageProvider, Theme/Tokens, LfPage lifecycle hooks and Overlay primitives
-- optional `LfQuickWidgetBridge` with shared-engine capable QuickSurface
-- unit test coverage for Core event lifetime and Runtime navigation/lifecycle
-- Medical Demo wired to LfQuick page/theme/overlay primitives
+Implemented foundations now include:
+
+- `LfQuickCore`: Result/Error, Command, Event, Route, Operation and validation/permission contracts
+- `LfQuickRuntime`: PageRegistry, PageProviderRegistry, PageLifecycle, PageRouter, NavigationGuard and cache policies
+- `LfQuickUi`: QuickRuntime, QuickPageProvider, Theme/Tokens, LfPage, Overlay, Focus, QML error collection and ErrorPage fallback
+- `LfQuickPlatform`: scanner session, keyboard-wedge scanner and input router
+- `LfQuickDataView`: DataTableModel, DataFilterProxyModel and DataGrid MVP
+- optional `LfQuickWidgetBridge`: QuickSurface telemetry and WidgetPageProvider
+- Medical Demo with synthetic 10k/5k row DataGrid scenarios
+- Hybrid Demo with QML and legacy QWidget pages sharing one PageRouter/history
 
 ## Architecture rules
 
@@ -30,6 +33,8 @@ Development has entered the first runtime implementation stage:
 LfQuickCore      -> QtCore only
 LfQuickRuntime   -> Core, no QWidget/QQuickItem
 LfQuickUi        -> Core + Runtime + Qt Quick
+LfQuickDataView  -> Ui + Qt Model/View/Quick
+LfQuickPlatform  -> platform/input adapters
 WidgetBridge     -> optional Qt Widgets / QuickWidgets
 Product adapters -> legacy/product dependencies
 ```
@@ -38,7 +43,7 @@ Product adapters -> legacy/product dependencies
 
 `examples/medical-demo` is the official reference application for biochemistry/immunoassay analyzer UI scenarios. It uses synthetic data only and is **not medical diagnostic software**.
 
-Initial page groups:
+Current page groups:
 
 - Dashboard
 - Samples
@@ -46,6 +51,24 @@ Initial page groups:
 - Instrument
 - Alarms
 - Developer
+
+## Hybrid Demo
+
+`examples/hybrid-demo` validates the gradual migration path where a QWidget application can route between:
+
+```text
+QML Page <-> QuickRuntime/PageRouter <-> Legacy QWidget Page
+```
+
+Build it with:
+
+```bash
+cmake -S . -B build \
+  -DLFQUICK_BUILD_WIDGET_BRIDGE=ON \
+  -DLFQUICK_BUILD_HYBRID_DEMO=ON
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+```
 
 ## External reference policy
 
@@ -64,6 +87,8 @@ See [External Reference & Clean-room Policy](docs/REFERENCE_POLICY.md).
 - [Development Plan](docs/LfQuick_详细开发计划.md)
 - [Medical Demo Design](docs/LfQuick_Medical_Demo_详细设计方案.md)
 - [Implementation Status](docs/IMPLEMENTATION_STATUS.md)
+- [Next Chat Handoff](docs/NEXT_CHAT_HANDOFF.md)
+- [Hybrid Demo](examples/hybrid-demo/README.md)
 - [External Reference & Clean-room Policy](docs/REFERENCE_POLICY.md)
 - [Third-party Notices](THIRD_PARTY_NOTICES.md)
 
@@ -76,3 +101,5 @@ ctest --test-dir build --output-on-failure
 ```
 
 Requires Qt 6.8.3 or newer.
+
+> CI note: recent GitHub Actions jobs have been ending before any workflow steps are assigned/executed. Until a real Configure/Build/Test run is observed, the project does **not** claim CI-green status for the newest commits.
