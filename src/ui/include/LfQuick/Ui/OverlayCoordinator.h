@@ -34,7 +34,7 @@ public:
 
     Q_INVOKABLE QString beginBusy(const QString &message = {}, bool cancelable = false);
     Q_INVOKABLE bool endBusy(const QString &token);
-    Q_INVOKABLE QString bindOperation(OperationHandle *operation);
+    Q_INVOKABLE QString bindOperation(QObject *operation);
     Q_INVOKABLE void cancelTopBusy();
 
 signals:
