@@ -6,6 +6,8 @@
 #include <QString>
 #include <QVariantMap>
 
+#include <utility>
+
 namespace LfQuick {
 
 using WindowId = QString;
