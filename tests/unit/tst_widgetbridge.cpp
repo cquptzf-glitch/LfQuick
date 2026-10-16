@@ -4,6 +4,7 @@
 #include <LfQuick/WidgetBridge/WidgetPageProvider.h>
 
 #include <QApplication>
+#include <QDeadlineTimer>
 #include <QLabel>
 #include <QLineEdit>
 #include <QQuickItem>
@@ -85,7 +86,7 @@ private slots:
 
         window.show();
         window.activateWindow();
-        if (!QTest::qWaitForWindowFocused(&window, 500))
+        if (!QTest::qWaitForWindowFocused(&window, QDeadlineTimer(500)))
             QSKIP("Interactive window focus is unavailable on this test runner");
 
         entry.setParentItem(surface.quickWindow()->contentItem());
@@ -118,7 +119,7 @@ private slots:
 
         window.show();
         window.activateWindow();
-        if (!QTest::qWaitForWindowFocused(&window, 500))
+        if (!QTest::qWaitForWindowFocused(&window, QDeadlineTimer(500)))
             QSKIP("Interactive window focus is unavailable on this test runner");
 
         entry.setParentItem(surface.quickWindow()->contentItem());
