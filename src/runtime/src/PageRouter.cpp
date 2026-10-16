@@ -132,10 +132,27 @@ RouteResult PageRouter::back()
         return result;
     }
 
+    Entry &target = m_history[m_history.size() - 2];
+    if (!ensureInstance(target)) {
+        const auto route = target.descriptor.route;
+        const auto result = RouteResult::failure(
+            route,
+            Error(QStringLiteral("routing"), 5, QStringLiteral("Failed to recreate cached page")));
+        emit navigationFailed(route, result.error.message());
+        return result;
+    }
+
     deactivateCurrent(false);
     destroy(m_history.back());
     m_history.pop_back();
-    activate(m_history.back());
+    if (!activate(m_history.back())) {
+        const auto route = currentRoute();
+        const auto result = RouteResult::failure(
+            route,
+            Error(QStringLiteral("routing"), 6, QStringLiteral("Failed to activate page")));
+        emit navigationFailed(route, result.error.message());
+        return result;
+    }
     notifyRouteChange();
     return RouteResult::success(currentRoute());
 }
@@ -153,26 +170,53 @@ void PageRouter::reset()
         notifyRouteChange();
 }
 
+bool PageRouter::ensureInstance(Entry &entry)
+{
+    if (entry.instance)
+        return true;
+
+    if (!m_providers)
+        return false;
+
+    const auto provider = m_providers->find(entry.descriptor.provider);
+    if (!provider || !provider->canCreate(entry.descriptor))
+        return false;
+
+    entry.instance = provider->create(entry.descriptor, entry.parameters);
+    if (!entry.instance)
+        return false;
+
+    entry.suspended = false;
+    return true;
+}
+
 void PageRouter::deactivateCurrent(bool suspend)
 {
     if (m_history.empty() || !m_history.back().instance)
         return;
+
     m_history.back().instance->deactivate();
-    if (suspend) {
+
+    // None means the page instance is not retained in the navigation history.
+    // Singleton/KeepAlive/Lru currently share the retained-instance behavior;
+    // a dedicated cache manager will implement true LRU eviction later.
+    if (suspend && m_history.back().descriptor.cachePolicy != PageCachePolicy::None) {
         m_history.back().instance->suspend();
         m_history.back().suspended = true;
     }
 }
 
-void PageRouter::activate(Entry &entry)
+bool PageRouter::activate(Entry &entry)
 {
-    if (!entry.instance)
-        return;
+    if (!ensureInstance(entry))
+        return false;
+
     if (entry.suspended) {
         entry.instance->resume();
         entry.suspended = false;
     }
     entry.instance->activate();
+    return true;
 }
 
 void PageRouter::destroy(Entry &entry)
