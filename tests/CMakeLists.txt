@@ -68,6 +68,12 @@ if(LFQUICK_BUILD_UI)
     )
     target_link_libraries(tst_ui PRIVATE LfQuick::Ui Qt6::Test)
     lfquick_register_test(tst_ui)
+
+    qt_add_executable(tst_ui_state
+        unit/tst_ui_state.cpp
+    )
+    target_link_libraries(tst_ui_state PRIVATE LfQuick::Ui Qt6::Test)
+    lfquick_register_test(tst_ui_state)
 endif()
 
 if(LFQUICK_BUILD_WIDGET_BRIDGE)
