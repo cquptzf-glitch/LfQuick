@@ -54,6 +54,7 @@ jobs:
         if: failure()
         shell: pwsh
         run: |
+          $PSNativeCommandUseErrorActionPreference = $false
           $testDir = Join-Path $env:BUILD_DIR 'tests/Release'
           Write-Host '=== Test runtime directory ==='
           if (Test-Path $testDir) {
@@ -69,13 +70,35 @@ jobs:
           }
 
           $dataViewTest = Join-Path $testDir 'tst_dataview.exe'
-          Write-Host '=== Direct tst_dataview -v2 ==='
-          if (Test-Path $dataViewTest) {
-            & $dataViewTest -v2
-            Write-Host "tst_dataview direct exit code: $LASTEXITCODE"
-          } else {
+          if (-not (Test-Path $dataViewTest)) {
             Write-Host "Missing $dataViewTest"
+            exit 0
           }
+
+          $testFunctions = @(
+            'tableModelSupportsRolesEditingAndLookup',
+            'proxyFiltersAcrossColumnsAndMapsRows',
+            'columnStateRestoresByStableIdNotOldIndex',
+            'columnConfigStoreRoundTripsAndRejectsSchemaMismatch',
+            'editTransactionCommitsOnlyAfterValidation',
+            'editTransactionRollbackAndValidationFailureLeaveModelUntouched',
+            'selectionControllerSupportsBatchRowsAndCurrentCell'
+          )
+
+          Write-Host '=== Isolated tst_dataview slots ==='
+          foreach ($testFunction in $testFunctions) {
+            $outputFile = Join-Path $env:RUNNER_TEMP "tst_dataview-$testFunction.txt"
+            Remove-Item $outputFile -ErrorAction SilentlyContinue
+            & $dataViewTest $testFunction -v2 -o "$outputFile,txt"
+            $exitCode = $LASTEXITCODE
+            Write-Host "--- $testFunction : exit $exitCode ---"
+            if (Test-Path $outputFile) {
+              Get-Content $outputFile
+            } else {
+              Write-Host 'QtTest output file was not created'
+            }
+          }
+          exit 0
 
       - name: Install deployable demos
         run: cmake --install $env:BUILD_DIR --config Release --prefix $env:STAGE_DIR
