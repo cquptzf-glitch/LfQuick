@@ -1,8 +1,11 @@
 #include <LfQuick/Ui/OverlayCoordinator.h>
+#include <LfQuick/Ui/QuickRuntime.h>
 
 #include <LfQuick/Core/OperationHandle.h>
 
 #include <QTest>
+#include <QQmlEngine>
+#include <QUrl>
 
 using namespace LfQuick;
 
@@ -32,6 +35,18 @@ private slots:
 
         operation.setState(OperationHandle::State::Succeeded);
         QVERIFY(!coordinator.busy());
+    }
+
+    void quickRuntimeRejectsUnknownRoute()
+    {
+        QQmlEngine engine;
+        QuickRuntime runtime(&engine);
+
+        QVERIFY(runtime.registerPage(QStringLiteral("/missing-source"),
+                                     QUrl(QStringLiteral("file:///definitely/not/a/page.qml"))));
+        QVERIFY(!runtime.push(QStringLiteral("/unknown")));
+        QVERIFY(!runtime.push(QStringLiteral("/missing-source")));
+        QCOMPARE(runtime.currentRoute(), QString{});
     }
 };
 QTEST_MAIN(UiTest)
