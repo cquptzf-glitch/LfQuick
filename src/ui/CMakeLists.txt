@@ -110,6 +110,7 @@ qt_add_qml_module(LfQuickUi
         qml/LfWindowDefinition.qml
         qml/LfButton.qml
         qml/LfToolButton.qml
+        qml/LfMenuButton.qml
         qml/LfTextField.qml
         qml/LfCheckBox.qml
         qml/LfRadioButton.qml
@@ -135,6 +136,7 @@ qt_add_qml_module(LfQuickUi
         qml/LfAvatar.qml
         qml/LfTag.qml
         qml/LfCommandBar.qml
+        qml/LfSplitView.qml
         qml/LfNumberInput.qml
         qml/LfRangeInput.qml
         qml/LfProgressRing.qml
