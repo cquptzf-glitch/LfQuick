@@ -423,17 +423,18 @@ void ObjectRepeater::refresh()
         record.modelData = modelData;
         record.identity = instance;
         record.instance = instance;
-        next.push_back(record);
-
-        connect(instance, &QObject::destroyed, this, [this] {
+        record.destroyedConnection = connect(instance, &QObject::destroyed, this, [this] {
             if (!m_complete)
                 return;
             QMetaObject::invokeMethod(this, &ObjectRepeater::refresh, Qt::QueuedConnection);
         });
+        next.push_back(std::move(record));
         emit instanceCreated(instance, next.size() - 1, modelData);
     }
 
     for (Record &record : remaining) {
+        QObject::disconnect(record.destroyedConnection);
+        record.destroyedConnection = {};
         const int previousIndex = previousInstances.indexOf(record.identity);
         if (record.instance)
             emit instanceRemoved(record.instance, previousIndex);
@@ -512,6 +513,8 @@ void ObjectRepeater::destroyRecords(QList<Record> &records)
 {
     for (int i = 0; i < records.size(); ++i) {
         Record &record = records[i];
+        QObject::disconnect(record.destroyedConnection);
+        record.destroyedConnection = {};
         if (record.instance) {
             emit instanceRemoved(record.instance, i);
             record.instance->deleteLater();
