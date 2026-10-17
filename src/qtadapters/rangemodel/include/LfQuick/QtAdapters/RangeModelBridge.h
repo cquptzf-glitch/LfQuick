@@ -2,14 +2,13 @@
 
 #include <LfQuick/QtAdapters/LfQuickRangeModelAdapterGlobal.h>
 
+#include <QAbstractItemModel>
 #include <QObject>
 #include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
 
 #include <memory>
-
-class QAbstractItemModel;
 
 namespace LfQuick {
 
