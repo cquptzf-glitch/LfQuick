@@ -1,0 +1,54 @@
+name: Runtime Phase 1
+
+on:
+  push:
+    branches:
+      - feature/quickshell-runtime-phase1
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  qt68-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      QT_QPA_PLATFORM: offscreen
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Install Qt 6.8.3
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          cache: true
+
+      - name: Configure focused runtime build
+        run: >-
+          cmake -S . -B build -G Ninja
+          -DBUILD_SHARED_LIBS=OFF
+          -DBUILD_TESTING=ON
+          -DLFQUICK_BUILD_PLATFORM=OFF
+          -DLFQUICK_BUILD_PLATFORM_QML=OFF
+          -DLFQUICK_BUILD_UI=ON
+          -DLFQUICK_BUILD_INTEGRATION=OFF
+          -DLFQUICK_BUILD_DATAVIEW=OFF
+          -DLFQUICK_BUILD_WIDGET_BRIDGE=OFF
+          -DLFQUICK_BUILD_CHARTS=OFF
+          -DLFQUICK_BUILD_DIAGNOSTICS=OFF
+          -DLFQUICK_BUILD_MEDICAL_DEMO=OFF
+          -DLFQUICK_BUILD_SCREENSHOT_TOOL=OFF
+          -DLFQUICK_ENABLE_HOT_RELOAD=ON
+          -DLFQUICK_ENABLE_QMLTC=OFF
+
+      - name: Build
+        run: cmake --build build --parallel 2
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
