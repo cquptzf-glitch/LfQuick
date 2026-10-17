@@ -234,10 +234,13 @@ QRectF PopupAnchor::anchorRect() const
         return QRectF(m_anchorItem->x(), m_anchorItem->y(),
                       m_anchorItem->width(), m_anchorItem->height());
 
-    const QPointF topLeft = m_anchorItem->mapToItem(parent, QPointF(0.0, 0.0));
-    const QPointF bottomRight = m_anchorItem->mapToItem(
-        parent, QPointF(m_anchorItem->width(), m_anchorItem->height()));
-    return QRectF(topLeft, bottomRight).normalized();
+    // mapRectToItem() returns the axis-aligned bounding rectangle after the
+    // complete Quick transform chain has been applied. Mapping only two
+    // diagonal points is insufficient for rotated/sheared/custom transforms:
+    // either of the other two corners can become the actual visual extent.
+    return m_anchorItem->mapRectToItem(
+        parent,
+        QRectF(0.0, 0.0, m_anchorItem->width(), m_anchorItem->height()));
 }
 
 PopupAnchor::Placement PopupAnchor::calculate(const QSizeF &rawSize) const
