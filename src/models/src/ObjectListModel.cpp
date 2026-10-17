@@ -3,6 +3,7 @@
 #include <QSet>
 
 #include <algorithm>
+#include <utility>
 
 namespace LfQuick {
 
@@ -58,16 +59,16 @@ QList<QObject *> ObjectListModel::normalize(const QList<QObject *> &values)
 void ObjectListModel::setValues(const QList<QObject *> &rawValues)
 {
     const QList<QObject *> target = normalize(rawValues);
+    bool changed = false;
 
-    // Remove values that no longer exist. This also makes every later move
-    // operate on a list whose members are a subset of the target list.
     for (int i = m_entries.size() - 1; i >= 0; --i) {
         QObject *object = m_entries.at(i).object;
-        if (!object || !target.contains(object))
+        if (!object || !target.contains(object)) {
             removeAtInternal(i, false);
+            changed = true;
+        }
     }
 
-    // Reorder existing entries and insert new entries with minimal model ops.
     for (int targetIndex = 0; targetIndex < target.size(); ++targetIndex) {
         QObject *wanted = target.at(targetIndex);
         if (targetIndex < m_entries.size()
@@ -77,13 +78,21 @@ void ObjectListModel::setValues(const QList<QObject *> &rawValues)
 
         const int oldIndex = indexOf(wanted);
         if (oldIndex >= 0) {
-            move(oldIndex, targetIndex);
-        } else {
-            insertInternal(targetIndex, wanted, false);
+            QObject *object = m_entries.at(oldIndex).object;
+            const int destination = oldIndex < targetIndex ? targetIndex + 1 : targetIndex;
+            if (beginMoveRows({}, oldIndex, oldIndex, {}, destination)) {
+                m_entries.move(oldIndex, targetIndex);
+                endMoveRows();
+                emit objectMoved(object, oldIndex, targetIndex);
+                changed = true;
+            }
+        } else if (insertInternal(targetIndex, wanted, false)) {
+            changed = true;
         }
     }
 
-    emit valuesChanged();
+    if (changed)
+        emit valuesChanged();
 }
 
 QObject *ObjectListModel::get(int index) const
@@ -95,8 +104,13 @@ QObject *ObjectListModel::get(int index) const
 
 int ObjectListModel::indexOf(QObject *object) const
 {
+    return indexOfIdentity(object);
+}
+
+int ObjectListModel::indexOfIdentity(const QObject *object) const
+{
     for (int i = 0; i < m_entries.size(); ++i) {
-        if (m_entries.at(i).object == object)
+        if (m_entries.at(i).identity == object)
             return i;
     }
     return -1;
@@ -150,6 +164,7 @@ bool ObjectListModel::removeAtInternal(int index, bool notifyValues)
         return false;
 
     QObject *object = m_entries.at(index).object;
+    QObject *identity = m_entries.at(index).identity;
     beginRemoveRows({}, index, index);
     QObject::disconnect(m_entries.at(index).destroyedConnection);
     m_entries.removeAt(index);
@@ -158,7 +173,9 @@ bool ObjectListModel::removeAtInternal(int index, bool notifyValues)
     if (notifyValues)
         emit valuesChanged();
     emit countChanged();
-    emit objectRemoved(object, index);
+    // During QObject::destroyed, QPointer has already cleared. Preserve the
+    // identity address for observers, but never dereference it here.
+    emit objectRemoved(object ? object : identity, index);
     return true;
 }
 
@@ -187,7 +204,6 @@ void ObjectListModel::clear()
     if (m_entries.isEmpty())
         return;
 
-    const int oldCount = m_entries.size();
     beginResetModel();
     for (const Entry &entry : std::as_const(m_entries))
         QObject::disconnect(entry.destroyedConnection);
@@ -195,15 +211,15 @@ void ObjectListModel::clear()
     endResetModel();
 
     emit valuesChanged();
-    if (oldCount != 0)
-        emit countChanged();
+    emit countChanged();
 }
 
 void ObjectListModel::connectEntry(Entry &entry, QObject *object)
 {
+    entry.identity = object;
     entry.object = object;
     entry.destroyedConnection = connect(object, &QObject::destroyed, this, [this, object] {
-        const int index = indexOf(object);
+        const int index = indexOfIdentity(object);
         if (index >= 0)
             removeAtInternal(index, true);
     });
