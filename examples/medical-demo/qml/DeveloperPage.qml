@@ -8,6 +8,7 @@ LfPage {
     title: qsTr("Developer")
 
     property int demoProgress: 42
+    property int demoPage: 3
     property date demoDateTime: new Date(2026, 9, 17, 10, 30)
 
     FocusNavigator {
@@ -268,6 +269,138 @@ LfPage {
                         LfButton {
                             text: qsTr("Disabled")
                             enabled: false
+                        }
+                    }
+                }
+            }
+
+            LfCard {
+                Layout.fillWidth: true
+                Layout.leftMargin: Tokens.spacingLarge
+                Layout.rightMargin: Tokens.spacingLarge
+                title: qsTr("Reusable composition controls")
+                subtitle: qsTr("Breadcrumb, paging, disclosure, empty/loading states, identity, tags and command surfaces.")
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Tokens.spacingMedium
+
+                    LfBreadcrumb {
+                        Layout.fillWidth: true
+                        model: [qsTr("Home"), qsTr("Samples"), qsTr("Result review")]
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Tokens.spacingSmall
+
+                        LfAvatar {
+                            name: "Lf Quick"
+                        }
+
+                        LfBadge {
+                            tone: LfBadge.Success
+                            text: qsTr("Online")
+                        }
+
+                        LfTag {
+                            text: qsTr("STAT")
+                            tone: LfBadge.Warning
+                            selected: true
+                        }
+
+                        LfTag {
+                            text: qsTr("QC passed")
+                            tone: LfBadge.Success
+                            closable: true
+                            onCloseRequested: visible = false
+                        }
+
+                        Item { Layout.fillWidth: true }
+                    }
+
+                    LfCommandBar {
+                        Layout.fillWidth: true
+
+                        LfToolButton {
+                            text: qsTr("Refresh")
+                        }
+
+                        LfToolButton {
+                            text: qsTr("Export")
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        LfButton {
+                            text: qsTr("Run")
+                            highlighted: true
+                        }
+                    }
+
+                    LfPagination {
+                        Layout.alignment: Qt.AlignHCenter
+                        pageCount: 18
+                        currentPage: root.demoPage
+                        maxVisiblePages: 5
+                        onPageRequested: function(page) { root.demoPage = page }
+                    }
+
+                    LfExpander {
+                        Layout.fillWidth: true
+                        title: qsTr("Advanced details")
+                        description: qsTr("Expandable content keeps secondary information out of the primary workflow.")
+                        expanded: true
+
+                        LfInfoBar {
+                            Layout.fillWidth: true
+                            severity: LfInfoBar.Info
+                            title: qsTr("Runtime note")
+                            message: qsTr("This section exercises nested reusable components and animated layout changes.")
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Tokens.spacingLarge
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: Tokens.spacingSmall
+
+                            Label {
+                                text: qsTr("Skeleton loading")
+                                color: Tokens.textPrimary
+                                font.bold: true
+                            }
+
+                            LfSkeleton {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 18
+                            }
+
+                            LfSkeleton {
+                                Layout.fillWidth: true
+                                Layout.preferredWidth: 260
+                                Layout.preferredHeight: 18
+                            }
+
+                            LfSkeleton {
+                                Layout.preferredWidth: 160
+                                Layout.preferredHeight: 18
+                            }
+                        }
+
+                        LfDivider {
+                            orientation: LfDivider.Vertical
+                            Layout.fillHeight: true
+                        }
+
+                        LfEmptyState {
+                            Layout.fillWidth: true
+                            title: qsTr("No pending review")
+                            message: qsTr("All synthetic demo results have been reviewed.")
+                            actionText: qsTr("Refresh")
                         }
                     }
                 }
