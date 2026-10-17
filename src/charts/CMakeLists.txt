@@ -45,7 +45,10 @@ if(LFQUICK_BUILD_QT_GRAPHS_ADAPTER)
         URI LfQuick.Charts
         VERSION 1.0
         RESOURCE_PREFIX /qt/qml
+        OUTPUT_TARGETS _lfquick_charts_qml_output_targets
         QML_FILES
             qml/ChartView.qml
     )
+    lfquick_register_qml_output_targets(
+        LfQuickCharts ${_lfquick_charts_qml_output_targets})
 endif()
