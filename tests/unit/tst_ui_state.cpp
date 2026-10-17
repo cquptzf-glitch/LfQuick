@@ -1,6 +1,8 @@
 #include <LfQuick/Core/Permission.h>
 #include <LfQuick/Core/Validation.h>
+#include <LfQuick/Ui/HelpContextRegistry.h>
 #include <LfQuick/Ui/LfAttached.h>
+#include <LfQuick/Ui/LfValidationBinding.h>
 #include <LfQuick/Ui/OverlayBackend.h>
 #include <LfQuick/Ui/OverlayCoordinator.h>
 #include <LfQuick/Ui/PermissionEvaluator.h>
@@ -9,6 +11,7 @@
 
 #include <QSignalSpy>
 #include <QTest>
+#include <QtQml/qqml.h>
 
 #include <memory>
 
@@ -170,6 +173,72 @@ private slots:
         evaluator.setProvider(std::make_shared<TestPermissionProvider>());
         QVERIFY(changed.count() >= 1);
         QCOMPARE(permission->state(), PermissionEvaluator::State::Allow);
+    }
+
+    void attachedValidationBindingTracksRuleAndTargetLifetime()
+    {
+        auto *target = new QObject;
+        auto *attached = qmlAttachedPropertiesObject<Lf>(target, true);
+        QVERIFY(attached);
+        attached->setValidationRule({
+            {QStringLiteral("id"), QStringLiteral("sample.code")},
+            {QStringLiteral("required"), true},
+            {QStringLiteral("minLength"), 2},
+            {QStringLiteral("maxLength"), 4}
+        });
+
+        LfValidationBinding binding;
+        binding.setTarget(target);
+        binding.setValue(QStringLiteral("A"));
+        QVERIFY(!binding.valid());
+        QCOMPARE(binding.rule().value(QStringLiteral("id")).toString(), QStringLiteral("sample.code"));
+
+        binding.setValue(QStringLiteral("AB"));
+        QVERIFY(binding.valid());
+
+        attached->setValidationRule({
+            {QStringLiteral("id"), QStringLiteral("sample.code")},
+            {QStringLiteral("required"), true},
+            {QStringLiteral("maxLength"), 1}
+        });
+        QVERIFY(!binding.valid());
+        QCOMPARE(binding.rule().value(QStringLiteral("maxLength")).toInt(), 1);
+
+        QSignalSpy targetChanged(&binding, &LfValidationBinding::targetChanged);
+        delete target;
+
+        QCOMPARE(binding.target(), nullptr);
+        QVERIFY(binding.rule().isEmpty());
+        QVERIFY(binding.valid());
+        QCOMPARE(targetChanged.count(), 1);
+    }
+
+    void helpRegistryResolvesAttachedContext()
+    {
+        QObject target;
+        auto *attached = qmlAttachedPropertiesObject<Lf>(&target, true);
+        QVERIFY(attached);
+        attached->setHelpContext(QStringLiteral("sample.register"));
+
+        HelpContextRegistry registry;
+        QVERIFY(registry.registerContext(
+            QStringLiteral("sample.register"),
+            {{QStringLiteral("title"), QStringLiteral("Register sample")},
+             {QStringLiteral("text"), QStringLiteral("Synthetic help text")},
+             {QStringLiteral("url"), QStringLiteral("help://sample/register")}}));
+
+        QCOMPARE(registry.contextIdFor(&target), QStringLiteral("sample.register"));
+        QCOMPARE(registry.resolveFor(&target).value(QStringLiteral("title")).toString(),
+                 QStringLiteral("Register sample"));
+
+        QSignalSpy requested(&registry, &HelpContextRegistry::helpRequested);
+        QVERIFY(registry.requestHelpFor(&target));
+        QCOMPARE(requested.count(), 1);
+        QCOMPARE(requested.at(0).at(0).toString(), QStringLiteral("sample.register"));
+
+        attached->setHelpContext(QStringLiteral("missing"));
+        QVERIFY(!registry.requestHelpFor(&target));
+        QCOMPARE(requested.count(), 1);
     }
 
     void ruleTableSupportsLocalRulesAndProviderFallback()
