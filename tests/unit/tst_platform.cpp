@@ -49,7 +49,7 @@ private slots:
 
         QSignalSpy accepted(scanner.session(), &ScannerSession::scanAccepted);
 
-        const QString text = QStringLiteral("S001"));
+        const QString text = QStringLiteral("S001");
         for (const auto ch : text) {
             QKeyEvent event(QEvent::KeyPress, ch.unicode(), Qt::NoModifier, QString(ch));
             QVERIFY(scanner.handleKeyEvent(&event));
