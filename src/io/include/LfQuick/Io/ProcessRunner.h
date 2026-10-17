@@ -1,5 +1,6 @@
 #pragma once
 
+#include <LfQuick/Io/DataStream.h>
 #include <LfQuick/Io/LfQuickIoGlobal.h>
 
 #include <QByteArray>
@@ -12,8 +13,6 @@
 class QProcess;
 
 namespace LfQuick {
-
-class DataStreamParser;
 
 class LFQUICKIO_EXPORT ProcessRunner final : public QObject
 {
