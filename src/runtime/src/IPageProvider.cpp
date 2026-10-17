@@ -4,6 +4,15 @@
 
 namespace LfQuick {
 
+bool IPageProvider::prewarm(const PageDescriptor &, const QVariantMap &)
+{
+    return false;
+}
+
+void IPageProvider::cancelPrewarm(QStringView)
+{
+}
+
 PageProviderError IPageProvider::lastErrorInfo() const
 {
     const QString message = lastError().trimmed();
