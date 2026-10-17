@@ -290,8 +290,15 @@ void QmlHotReloadHost::setLastError(const QString &error)
 
 QUrl QmlHotReloadHost::effectiveSource() const
 {
-    if (m_controller)
-        return m_controller->resolveSource(m_source);
+    if (m_controller) {
+        // Disabling the controller must disable both file watching/reload
+        // requests and source overrides. Otherwise a host can appear to have
+        // hot reload off while freshly-created content still comes from the
+        // development file.
+        return m_controller->isEnabled()
+            ? m_controller->resolveSource(m_source)
+            : m_source;
+    }
     return m_developmentSource.isEmpty() ? m_source : m_developmentSource;
 }
 
