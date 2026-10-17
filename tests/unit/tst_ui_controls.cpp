@@ -479,6 +479,101 @@ LfSearchableComboBox {
         delete combo;
     }
 
+    void propertyGridRejectsInvalidAndUnchangedValues()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"QML(
+import QtQuick
+import LfQuick
+
+LfPropertyGrid {
+    objectName: "grid"
+    model: [
+        {key: "range", label: "Range", value: 5, type: "int", from: 0, to: 10},
+        {key: "enabled", label: "Enabled", value: false, type: "bool"},
+        {key: "name", label: "Name", value: "A", type: "text"}
+    ]
+    property int changes: 0
+    property int rejected: 0
+    property int lastIndex: -1
+    property string lastKey: ""
+    property var lastValue: undefined
+    onValueEdited: function(index, key, value) {
+        ++changes
+        lastIndex = index
+        lastKey = key
+        lastValue = value
+    }
+    function checkContract() {
+        if (!editValue(0, 5)) ++rejected
+        if (!editValue(0, 11)) ++rejected
+        if (!editValue(0, -1)) ++rejected
+        if (!editValue(0, 5.5)) ++rejected
+        if (!editValue(0, "6")) ++rejected
+        if (!editValue(1, "true")) ++rejected
+        if (!editValue(1, false)) ++rejected
+        if (!editValue(2, "A")) ++rejected
+        if (!editValue(99, "bad")) ++rejected
+        editValue(0, 6)
+        editValue(1, true)
+        editValue(2, "B")
+        readOnly = true
+        if (!editValue(0, 7)) ++rejected
+    }
+}
+)QML", QUrl(QStringLiteral("qrc:/tests/LfQuickPropertyGridContract.qml")));
+
+        QObject *grid = component.create();
+        QVERIFY2(grid, qPrintable(component.errorString()));
+        QVERIFY(QMetaObject::invokeMethod(grid, "checkContract", Qt::DirectConnection));
+        QCOMPARE(grid->property("changes").toInt(), 3);
+        QCOMPARE(grid->property("rejected").toInt(), 10);
+        QCOMPARE(grid->property("lastIndex").toInt(), 2);
+        QCOMPARE(grid->property("lastKey").toString(), QStringLiteral("name"));
+        QCOMPARE(grid->property("lastValue").toString(), QStringLiteral("B"));
+        delete grid;
+    }
+
+    void searchableComboKeyboardSelectionPreservesSourceIndices()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"QML(
+import QtQuick
+import LfQuick
+
+LfSearchableComboBox {
+    objectName: "combo"
+    model: ["Alpha", "Beta", "Gamma"]
+    property int observedIndex: -1
+    property int highlightSource: -1
+    property bool emptyRejected: false
+    onActivated: function(index) { observedIndex = index }
+
+    function checkContract() {
+        searchText = "a"
+        resetHighlight()
+        highlightSource = moveHighlight(1)
+        searchText = "et"
+        activateFiltered(0)
+        searchText = "no-match"
+        emptyRejected = !activateFiltered(0)
+    }
+}
+)QML", QUrl(QStringLiteral("qrc:/tests/LfQuickSearchableComboKeyboard.qml")));
+
+        QObject *combo = component.create();
+        QVERIFY2(combo, qPrintable(component.errorString()));
+        QVERIFY(QMetaObject::invokeMethod(combo, "checkContract", Qt::DirectConnection));
+        QCOMPARE(combo->property("highlightSource").toInt(), 1);
+        QCOMPARE(combo->property("observedIndex").toInt(), 1);
+        QCOMPARE(combo->property("currentIndex").toInt(), 1);
+        QVERIFY(combo->property("emptyRejected").toBool());
+        QCOMPARE(combo->property("highlightedFilteredIndex").toInt(), -1);
+        delete combo;
+    }
+
     void lazyLoaderCanForceBackgroundLoadAndUnload()
     {
         QTemporaryDir temporary;

@@ -40,3 +40,7 @@ The API is not a generic reflective QObject editor or a replacement for C++ mode
 ## Verification
 
 tst_ui_controls.cpp includes a smoke instantiation and a behavior test for emitted edits and read-only rejection. Actual Qt 6.8.3 Build/CTest remains pending.
+
+## Programmatic edit enforcement
+
+The public editValue(index,value) method enforces widget-level type/range/readOnly constraints, even if called outside the visual editor. For integer entries it accepts finite integer numbers only; for bool entries it accepts booleans; for text entries it accepts strings. Unchanged values are rejected to avoid duplicate edit events. The method returns false for rejected edits and true only after emitting valueEdited. This is not application authorization or validation.

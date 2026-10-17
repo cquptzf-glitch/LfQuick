@@ -32,11 +32,45 @@ Controls.Control {
         return entry && entry.key !== undefined ? String(entry.key) : String(index)
     }
 
+    // Validate at the public API boundary as well as in the visual editors.
+    // Business authorization/audit remain the caller's responsibility.
     function editValue(index, value) {
         const entry = entryAt(index)
         if (!entry || readOnly || entry.readOnly === true)
             return false
-        valueEdited(index, keyAt(index), value)
+
+        const kind = entry.type ? String(entry.type) : "text"
+        let normalized
+        if (kind === "int") {
+            if (typeof value !== "number" || !Number.isFinite(value)
+                    || !Number.isInteger(value))
+                return false
+            const minimum = entry.from !== undefined ? Number(entry.from) : -1000000
+            const maximum = entry.to !== undefined ? Number(entry.to) : 1000000
+            if (!Number.isFinite(minimum) || !Number.isFinite(maximum)
+                    || value < Math.min(minimum, maximum)
+                    || value > Math.max(minimum, maximum))
+                return false
+            normalized = value
+        } else if (kind === "bool") {
+            if (typeof value !== "boolean")
+                return false
+            normalized = value
+        } else {
+            if (typeof value !== "string")
+                return false
+            normalized = value
+        }
+
+        if (entry.value !== undefined) {
+            const previous = kind === "int" ? Number(entry.value)
+                           : kind === "bool" ? Boolean(entry.value)
+                           : String(entry.value)
+            if (previous === normalized)
+                return false
+        }
+
+        valueEdited(index, keyAt(index), normalized)
         return true
     }
 

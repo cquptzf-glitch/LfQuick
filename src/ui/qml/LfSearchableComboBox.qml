@@ -9,7 +9,12 @@ LfComboBox {
     property string searchText: ""
     property int maxPopupHeight: 340
     property bool _componentReady: false
-    Component.onCompleted: _componentReady = true
+    property int highlightedFilteredIndex: -1
+
+    Component.onCompleted: {
+        _componentReady = true
+        resetHighlight()
+    }
     readonly property var filteredIndices: {
         if (!_componentReady)
             return []
@@ -20,6 +25,42 @@ LfComboBox {
                 indices.push(i)
         }
         return indices
+    }
+
+    onSearchTextChanged: resetHighlight()
+
+    function resetHighlight() {
+        const selected = filteredIndices.indexOf(currentIndex)
+        highlightedFilteredIndex = selected >= 0 ? selected
+                                 : (filteredIndices.length > 0 ? 0 : -1)
+    }
+
+    // Returns the original source-model index (not a filtered visual row).
+    function moveHighlight(direction) {
+        const count = filteredIndices.length
+        if (count === 0) {
+            highlightedFilteredIndex = -1
+            return -1
+        }
+        let next = highlightedFilteredIndex
+        if (next < 0)
+            next = direction < 0 ? count - 1 : 0
+        else
+            next = Math.max(0, Math.min(count - 1, next + direction))
+        highlightedFilteredIndex = next
+        if (picker.visible && optionsView.count > next)
+            optionsView.positionViewAtIndex(next, ListView.Contain)
+        return filteredIndices[next]
+    }
+
+    function activateFiltered(index) {
+        if (!enabled || index < 0 || index >= filteredIndices.length)
+            return false
+        const sourceIndex = filteredIndices[index]
+        currentIndex = sourceIndex
+        activated(sourceIndex)
+        picker.close()
+        return true
     }
 
     popup: Controls.Popup {
@@ -38,6 +79,7 @@ LfComboBox {
         onOpened: {
             root.searchText = ""
             searchField.text = ""
+            root.resetHighlight()
             searchField.forceActiveFocus()
         }
 
@@ -49,6 +91,21 @@ LfComboBox {
                 Layout.fillWidth: true
                 placeholderText: qsTr("Filter options")
                 onTextChanged: root.searchText = text
+                Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Down) {
+                        root.moveHighlight(1)
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Up) {
+                        root.moveHighlight(-1)
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                        root.activateFiltered(root.highlightedFilteredIndex)
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Escape) {
+                        picker.close()
+                        event.accepted = true
+                    }
+                }
             }
 
             ListView {
@@ -57,7 +114,7 @@ LfComboBox {
                 Layout.preferredHeight: picker.listHeight
                 clip: true
                 model: root.filteredIndices
-                currentIndex: -1
+                currentIndex: root.highlightedFilteredIndex
                 boundsBehavior: Flickable.StopAtBounds
 
                 delegate: Controls.ItemDelegate {
@@ -66,12 +123,13 @@ LfComboBox {
                     width: ListView.view ? ListView.view.width : root.width
                     implicitHeight: Tokens.controlHeight
                     text: root.textAt(sourceIndex)
-                    highlighted: root.currentIndex === sourceIndex
-                    onClicked: {
-                        root.currentIndex = sourceIndex
-                        root.activated(sourceIndex)
-                        picker.close()
+                    highlighted: index === root.highlightedFilteredIndex
+                    hoverEnabled: true
+                    onHoveredChanged: {
+                        if (hovered)
+                            root.highlightedFilteredIndex = index
                     }
+                    onClicked: root.activateFiltered(index)
                     background: Rectangle {
                         radius: Tokens.radiusSmall
                         color: parent.hovered || parent.highlighted
