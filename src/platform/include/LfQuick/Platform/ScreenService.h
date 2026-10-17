@@ -3,6 +3,7 @@
 #include <LfQuick/Platform/LfQuickPlatformGlobal.h>
 
 #include <QObject>
+#include <QString>
 #include <QVariantList>
 #include <QVariantMap>
 
