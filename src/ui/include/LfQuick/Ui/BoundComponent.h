@@ -93,6 +93,7 @@ private:
     void cancelHandle();
     void reconnectComponent();
     void clearBindings();
+    void clearItemConnections();
     QUrl resolvedSource() const;
     void setErrorString(const QString &error);
 
@@ -100,6 +101,7 @@ private:
     QPointer<QmlObjectLoadHandle> m_handle;
     QPointer<QObject> m_item;
     QPointer<QQuickItem> m_quickItem;
+    QMetaObject::Connection m_itemDestroyedConnection;
     QPointer<QQmlComponent> m_component;
     QMetaObject::Connection m_componentDestroyedConnection;
     QList<QMetaObject::Connection> m_bindingConnections;
