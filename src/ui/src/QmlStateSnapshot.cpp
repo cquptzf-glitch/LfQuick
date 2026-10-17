@@ -4,8 +4,10 @@
 #include <LfQuick/Ui/PersistentState.h>
 
 #include <QHash>
+#include <QList>
 #include <QPointer>
 #include <QSet>
+#include <QVariant>
 #include <QtQml/qqml.h>
 
 namespace LfQuick {
@@ -172,8 +174,8 @@ QmlStateRestoreStats QmlStateSnapshot::restore(QObject *root,
         ambiguous.insert(key);
     stats.ambiguousKeys = sortedKeys(ambiguous);
 
-    const bool supported = snapshot.value(QString::fromLatin1(kVersionKey),
-                                          kSnapshotVersion).toInt() == kSnapshotVersion;
+    const bool supported = snapshot.value(
+        QString::fromLatin1(kVersionKey), QVariant(kSnapshotVersion)).toInt() == kSnapshotVersion;
     const QVariantMap objects = supported
         ? snapshot.value(QString::fromLatin1(kObjectsKey)).toMap()
         : QVariantMap{};
@@ -217,7 +219,7 @@ QmlStateRestoreStats QmlStateSnapshot::restore(QObject *root,
     // scopes cannot be restored, but must still complete their initial-load
     // lifecycle so QML code is never left waiting for a reload callback.
     for (const QPointer<PersistentState> &persistent : index.persistentStates) {
-        if (persistent && !completedPersistentStates.contains(persistent))
+        if (persistent && !completedPersistentStates.contains(persistent.data()))
             persistent->markLoaded();
     }
 
