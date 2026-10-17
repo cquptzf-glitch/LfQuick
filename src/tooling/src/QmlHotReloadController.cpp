@@ -86,15 +86,29 @@ bool QmlHotReloadController::watchSource(const QUrl &logicalSource,
 
     const QString logicalKey = logicalSource.toString(QUrl::FullyEncoded);
     const QFileInfo info(effectiveSource.toLocalFile());
-    const QString filePath = info.absoluteFilePath();
+    const QString filePath = QDir::cleanPath(info.absoluteFilePath());
     if (filePath.isEmpty()) {
         setLastError(QStringLiteral("Hot reload development source has no local path"));
         return false;
     }
 
-    m_logicalToFile.insert(logicalKey, QDir::cleanPath(filePath));
+    const auto existing = m_logicalToFile.constFind(logicalKey);
+    if (existing != m_logicalToFile.cend()) {
+        if (QDir::cleanPath(existing.value()) != filePath) {
+            setLastError(QStringLiteral("Hot reload source '%1' is already mapped to '%2'; "
+                                        "release all owners before remapping to '%3'")
+                             .arg(logicalSource.toString(), existing.value(), filePath));
+            return false;
+        }
+        m_watchRefCounts[logicalKey] = m_watchRefCounts.value(logicalKey, 1) + 1;
+        setLastError({});
+        return true;
+    }
+
+    m_logicalToFile.insert(logicalKey, filePath);
+    m_watchRefCounts.insert(logicalKey, 1);
     if (!developmentSource.isEmpty())
-        m_overrides.insert(logicalKey, QUrl::fromLocalFile(QDir::cleanPath(filePath)));
+        m_overrides.insert(logicalKey, QUrl::fromLocalFile(filePath));
     else
         m_overrides.remove(logicalKey);
 
@@ -107,6 +121,16 @@ bool QmlHotReloadController::watchSource(const QUrl &logicalSource,
 bool QmlHotReloadController::unwatchSource(const QUrl &logicalSource)
 {
     const QString logicalKey = logicalSource.toString(QUrl::FullyEncoded);
+    const auto refIt = m_watchRefCounts.find(logicalKey);
+    if (refIt == m_watchRefCounts.end())
+        return false;
+
+    if (refIt.value() > 1) {
+        --refIt.value();
+        return true;
+    }
+
+    m_watchRefCounts.erase(refIt);
     const bool removed = m_logicalToFile.remove(logicalKey) > 0;
     m_overrides.remove(logicalKey);
     m_pendingLogicalSources.remove(logicalKey);
@@ -119,11 +143,12 @@ bool QmlHotReloadController::unwatchSource(const QUrl &logicalSource)
 
 void QmlHotReloadController::clearWatches()
 {
-    if (m_logicalToFile.isEmpty() && m_overrides.isEmpty())
+    if (m_logicalToFile.isEmpty() && m_overrides.isEmpty() && m_watchRefCounts.isEmpty())
         return;
 
     m_logicalToFile.clear();
     m_overrides.clear();
+    m_watchRefCounts.clear();
     m_pendingLogicalSources.clear();
     m_debounceTimer->stop();
     rebuildWatcher();
