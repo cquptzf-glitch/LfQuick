@@ -59,7 +59,6 @@ private:
 
     void completeRestore(bool reloaded);
 
-    bool m_componentComplete = false;
     bool m_initialCompletionPending = false;
     bool m_completed = false;
     bool m_lastCompletionWasReload = false;
