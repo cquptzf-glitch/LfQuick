@@ -56,6 +56,7 @@ public:
     }
 
     QString pageId() const override { return m_pageId; }
+    bool isValid() const noexcept override { return !m_widget.isNull(); }
 
     void activate() override
     {
