@@ -17,6 +17,8 @@ namespace {
 struct Stats {
     int created = 0;
     int destroyed = 0;
+    int deactivated = 0;
+    int suspended = 0;
     int parameterUpdates = 0;
     QVariantMap lastParameters;
     QList<std::shared_ptr<bool>> validityFlags;
@@ -36,8 +38,8 @@ public:
 
     QString pageId() const override { return m_id; }
     void activate() override {}
-    void deactivate() override {}
-    void suspend() override {}
+    void deactivate() override { ++m_stats->deactivated; }
+    void suspend() override { ++m_stats->suspended; }
     void resume() override {}
     bool isValid() const noexcept override { return m_valid && *m_valid; }
     bool updateParameters(const QVariantMap &parameters) override
@@ -156,6 +158,29 @@ private slots:
         // Singleton is destroyed once by the global cache; the KeepAlive page
         // is destroyed independently.
         QCOMPARE(provider->stats->destroyed, 2);
+    }
+
+    void invalidCurrentPageIsCleanedWithoutInteractionLifecycle()
+    {
+        PageRegistry pages;
+        QVERIFY(pages.registerPage(page(QStringLiteral("/a"), PageCachePolicy::KeepAlive)));
+        QVERIFY(pages.registerPage(page(QStringLiteral("/b"), PageCachePolicy::KeepAlive)));
+
+        auto provider = std::make_shared<CacheProvider>();
+        PageProviderRegistry providers;
+        QVERIFY(providers.registerProvider(provider));
+        PageRouter router(&pages, &providers);
+
+        QVERIFY(router.push({QStringLiteral("/a"), {}, {}}).accepted);
+        QCOMPARE(provider->stats->created, 1);
+        *provider->stats->validityFlags.at(0) = false;
+
+        QVERIFY(router.push({QStringLiteral("/b"), {}, {}}).accepted);
+        QCOMPARE(provider->stats->created, 2);
+        QCOMPARE(provider->stats->destroyed, 1);
+        QCOMPARE(provider->stats->deactivated, 0);
+        QCOMPARE(provider->stats->suspended, 0);
+        QCOMPARE(router.currentRoute(), QStringLiteral("/b"));
     }
 
     void keepAliveRecreatesInvalidBackingInstanceOnBack()
