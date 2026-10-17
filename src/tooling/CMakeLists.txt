@@ -7,6 +7,8 @@ target_include_directories(LfQuickTooling
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/LfQuick/Tooling
 )
 
 qt_add_qml_module(LfQuickTooling
