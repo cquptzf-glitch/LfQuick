@@ -40,6 +40,20 @@ ApplicationWindow {
         return definitions
     }
 
+    SystemPalette {
+        id: systemPalette
+    }
+
+    Binding {
+        target: Theme
+        property: "systemDark"
+        value: {
+            const color = systemPalette.window
+            const luminance = color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722
+            return luminance < 0.5
+        }
+    }
+
     NavigationItemModel {
         id: navigationModel
     }
@@ -90,7 +104,7 @@ ApplicationWindow {
             Switch {
                 text: qsTr("Dark")
                 checked: Theme.dark
-                onToggled: Theme.dark = checked
+                onToggled: Theme.mode = checked ? Theme.Dark : Theme.Light
             }
         }
     }
