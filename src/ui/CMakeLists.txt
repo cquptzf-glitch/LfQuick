@@ -48,6 +48,8 @@ qt_add_qml_module(LfQuickUi
         src/LfAttached.cpp
         include/LfQuick/Ui/QmlObjectFactory.h
         src/QmlObjectFactory.cpp
+        include/LfQuick/Ui/QmlLazyLoader.h
+        src/QmlLazyLoader.cpp
         include/LfQuick/Ui/LifetimeLease.h
         src/LifetimeLease.cpp
         include/LfQuick/Ui/PersistentState.h
@@ -154,6 +156,7 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/PermissionEvaluator.h
         include/LfQuick/Ui/LfAttached.h
         include/LfQuick/Ui/QmlObjectFactory.h
+        include/LfQuick/Ui/QmlLazyLoader.h
         include/LfQuick/Ui/LifetimeLease.h
         include/LfQuick/Ui/PersistentState.h
         include/LfQuick/Ui/HelpContextRegistry.h
