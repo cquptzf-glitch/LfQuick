@@ -71,18 +71,34 @@ bool StyleKitBridge::applyToApplication()
         return false;
     }
 
-    auto *candidate = new QStyleKitStyle(m_stylePath);
+    const QString requestedPath = m_stylePath.trimmed();
+    auto *candidate = new QStyleKitStyle;
+    const QString previousCandidatePath = candidate->stylePath();
+    candidate->setStylePath(requestedPath);
+
+    // QStyleKitStyle keeps the previously loaded style when setStylePath()
+    // fails. A fresh candidate therefore retains its initial empty path on a
+    // syntax/root-type/load failure instead of silently accepting fallback
+    // rendering as a valid application style.
+    if (candidate->stylePath() == previousCandidatePath
+        || candidate->stylePath() != requestedPath) {
+        delete candidate;
+        setLastError(QStringLiteral("StyleKit style could not be loaded as a Style root: %1")
+                         .arg(requestedPath));
+        return false;
+    }
+
     const QStringList themes = candidate->availableThemeNames();
     if (themes.isEmpty()) {
         delete candidate;
-        setLastError(QStringLiteral("StyleKit style could not be loaded: %1").arg(m_stylePath));
+        setLastError(QStringLiteral("StyleKit style exposes no themes: %1").arg(requestedPath));
         return false;
     }
 
     if (m_themeName != QStringLiteral("System") && !themes.contains(m_themeName)) {
         delete candidate;
         setLastError(QStringLiteral("StyleKit theme '%1' is not available in %2")
-                         .arg(m_themeName, m_stylePath));
+                         .arg(m_themeName, requestedPath));
         return false;
     }
 
