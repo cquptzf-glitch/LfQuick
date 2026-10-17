@@ -8,9 +8,9 @@ import LfQuick
 TreeView {
     id: root
 
-    property int rowHeight: Tokens.controlHeight + Units.xs
+    property int treeRowHeight: Tokens.controlHeight + Units.xs
     property bool activateOnSingleClick: true
-    property bool alternatingRows: true
+    alternatingRows: true
 
     signal nodeActivated(var modelIndex, string label)
 
@@ -44,7 +44,7 @@ TreeView {
         text: model && model.display !== undefined ? String(model.display) : ""
 
         implicitWidth: Math.max(root.width, 240)
-        implicitHeight: root.rowHeight
+        implicitHeight: root.treeRowHeight
         indentation: Units.iconSize
         leftMargin: Units.sm
         rightMargin: Units.sm
