@@ -67,4 +67,26 @@ if(NOT _configure_result EQUAL 0)
         "stderr:\n${_configure_stderr}")
 endif()
 
+set(_build_command
+    "${CMAKE_COMMAND}"
+    --build "${LFQUICK_CONSUMER_BUILD_DIR}"
+    --target lfquick_package_smoke
+)
+if(DEFINED LFQUICK_CONFIG AND NOT "${LFQUICK_CONFIG}" STREQUAL "")
+    list(APPEND _build_command --config "${LFQUICK_CONFIG}")
+endif()
+
+execute_process(
+    COMMAND ${_build_command}
+    RESULT_VARIABLE _build_result
+    OUTPUT_VARIABLE _build_stdout
+    ERROR_VARIABLE _build_stderr
+)
+if(NOT _build_result EQUAL 0)
+    message(FATAL_ERROR
+        "LfQuick downstream package smoke build/link failed (${_build_result})\n"
+        "stdout:\n${_build_stdout}\n"
+        "stderr:\n${_build_stderr}")
+endif()
+
 message(STATUS "LfQuick installed-package downstream smoke test passed")
