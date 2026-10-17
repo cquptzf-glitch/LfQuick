@@ -3,6 +3,7 @@
 #include <LfQuick/Core/Telemetry.h>
 #include <LfQuick/Runtime/LfQuickRuntimeGlobal.h>
 
+#include <QList>
 #include <QObject>
 #include <QPointer>
 
