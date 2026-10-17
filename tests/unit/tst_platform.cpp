@@ -61,6 +61,20 @@ private slots:
         QCOMPARE(accepted.at(0).at(0).toString(), QStringLiteral("S001"));
     }
 
+    void inputTargetNotifiesWhenBoundObjectIsDestroyed()
+    {
+        InputTarget inputTarget;
+        auto *target = new QObject;
+        inputTarget.setTarget(target);
+        QCOMPARE(inputTarget.target(), target);
+
+        QSignalSpy changed(&inputTarget, &InputTarget::targetChanged);
+        delete target;
+
+        QCOMPARE(inputTarget.target(), nullptr);
+        QCOMPARE(changed.count(), 1);
+    }
+
     void inputRouterTracksScannerDestruction()
     {
         InputRouter router;
