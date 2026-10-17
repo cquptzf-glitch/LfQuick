@@ -102,6 +102,44 @@ private slots:
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     }
 
+    void widgetPageProviderRejectsMissingHostBeforeFactoryRuns()
+    {
+        auto provider = std::make_shared<WidgetPageProvider>();
+        bool factoryCalled = false;
+        QVERIFY(provider->registerFactory(
+            QStringLiteral("page"),
+            [&](QWidget *, const QVariantMap &) -> QWidget * {
+                factoryCalled = true;
+                return new QLabel(QStringLiteral("Detached"));
+            }));
+
+        PageDescriptor descriptor;
+        descriptor.route = QStringLiteral("/legacy");
+        descriptor.provider = QStringLiteral("widget");
+        descriptor.source.insert(QStringLiteral("factory"), QStringLiteral("page"));
+        descriptor.cachePolicy = PageCachePolicy::KeepAlive;
+        descriptor.fallbackPolicy = FallbackPolicy::None;
+
+        QVERIFY(provider->canCreate(descriptor));
+        QVERIFY(provider->create(descriptor, {}) == nullptr);
+        QVERIFY(!factoryCalled);
+        QCOMPARE(provider->lastErrorInfo().code, QStringLiteral("widget.host-missing"));
+
+        PageRegistry pages;
+        PageProviderRegistry providers;
+        QVERIFY(pages.registerPage(descriptor));
+        QVERIFY(providers.registerProvider(provider));
+        PageRouter router(&pages, &providers);
+
+        const RouteResult result = router.push({descriptor.route, {}, {}});
+        QVERIFY(!result.accepted);
+        const QVariantMap failure = result.error.details()
+                                        .value(QStringLiteral("primaryFailure")).toMap();
+        QCOMPARE(failure.value(QStringLiteral("code")).toString(),
+                 QStringLiteral("widget.host-missing"));
+        QVERIFY(!factoryCalled);
+    }
+
     void widgetPageRouterRebuildsIntoNewHostOnBack()
     {
         QStackedWidget firstHost;
