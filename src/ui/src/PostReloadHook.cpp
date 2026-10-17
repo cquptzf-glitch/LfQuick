@@ -11,12 +11,10 @@ PostReloadHook::PostReloadHook(QObject *parent)
 
 void PostReloadHook::classBegin()
 {
-    m_componentComplete = false;
 }
 
 void PostReloadHook::componentComplete()
 {
-    m_componentComplete = true;
     m_initialCompletionPending = true;
 
     // Managed page/window/hot-reload flows restore state synchronously after
