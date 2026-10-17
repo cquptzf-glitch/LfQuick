@@ -1,6 +1,7 @@
 add_library(LfQuickCharts
     src/ChartDataModel.cpp
     src/SeriesModel.cpp
+    src/ChartBackendRegistry.cpp
 )
 add_library(LfQuick::Charts ALIAS LfQuickCharts)
 
@@ -22,6 +23,7 @@ target_sources(LfQuickCharts PUBLIC
         include/LfQuick/Charts/ChartDescriptor.h
         include/LfQuick/Charts/ChartDataModel.h
         include/LfQuick/Charts/SeriesModel.h
+        include/LfQuick/Charts/ChartBackendRegistry.h
 )
 
 if(LFQUICK_BUILD_QT_GRAPHS_ADAPTER)
