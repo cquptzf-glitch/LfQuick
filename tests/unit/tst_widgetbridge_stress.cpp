@@ -4,6 +4,7 @@
 #include <QApplication>
 #include <QDeadlineTimer>
 #include <QDialog>
+#include <QEventLoop>
 #include <QKeyEvent>
 #include <QLineEdit>
 #include <QQmlEngine>
@@ -95,16 +96,19 @@ private slots:
 
         constexpr int cycles = 20;
         for (int i = 0; i < cycles; ++i) {
+            const int baseline = transfers.count();
+
             bridge.setScannerIsolation(true);
             before.setFocus();
             QTest::keyClick(&before, Qt::Key_Tab);
-            QCOMPARE(transfers.count(), i);
+            QCOMPARE(transfers.count(), baseline);
 
             bridge.setScannerIsolation(false);
             before.setFocus();
             QTest::keyClick(&before, Qt::Key_Tab);
-            QCOMPARE(transfers.count(), i + 1);
+            QCOMPARE(transfers.count(), baseline + 1);
             QTest::keyClick(&surface, Qt::Key_Backtab);
+            QCOMPARE(transfers.count(), baseline + 2);
         }
 
         QDialog modal(&window);
