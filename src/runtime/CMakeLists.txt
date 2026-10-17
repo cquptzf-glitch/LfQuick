@@ -9,6 +9,7 @@ add_library(LfQuickRuntime
     src/RuntimeTelemetryObserver.cpp
     src/WindowProviderRegistry.cpp
     src/WindowRouter.cpp
+    src/WindowRouterReload.cpp
 )
 add_library(LfQuick::Runtime ALIAS LfQuickRuntime)
 
@@ -39,6 +40,7 @@ target_sources(LfQuickRuntime PUBLIC
         include/LfQuick/Runtime/TelemetryPageProvider.h
         include/LfQuick/Runtime/RuntimeTelemetryObserver.h
         include/LfQuick/Runtime/WindowDescriptor.h
+        include/LfQuick/Runtime/IWindowBacking.h
         include/LfQuick/Runtime/IWindowInstance.h
         include/LfQuick/Runtime/IWindowProvider.h
         include/LfQuick/Runtime/WindowProviderRegistry.h
