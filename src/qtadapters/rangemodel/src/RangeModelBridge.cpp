@@ -86,6 +86,11 @@ void RangeModelBridge::setRows(const QVariantList &rowsValue)
     }
 
     const bool adoptKeys = d->roleKeys.isEmpty() && !discoveredKeys.isEmpty();
+
+    // QRangeModel constructed with a pointer expects the referenced range to
+    // be mutated through the model API while it is alive. Detach the old model
+    // before replacing the backing container wholesale.
+    d->model.reset();
     d->rows = std::move(converted);
     if (adoptKeys)
         d->roleKeys = discoveredKeys;
@@ -145,6 +150,8 @@ void RangeModelBridge::clear()
 {
     if (d->rows.isEmpty())
         return;
+
+    d->model.reset();
     d->rows.clear();
     rebuildModel();
     emit rowsChanged();
@@ -152,6 +159,7 @@ void RangeModelBridge::clear()
 
 void RangeModelBridge::rebuildModel()
 {
+    d->model.reset();
     auto model = std::make_unique<QRangeModel>(&d->rows);
 
     QHash<int, QByteArray> roleNames;
