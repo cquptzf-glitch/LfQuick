@@ -3,6 +3,8 @@
 #include <LfQuick/Io/LfQuickIoGlobal.h>
 
 #include <QByteArray>
+#include <QList>
+#include <QMetaObject>
 #include <QObject>
 #include <QPointer>
 #include <QString>
@@ -130,6 +132,7 @@ private:
     QPointer<QIODevice> m_device;
     QByteArray m_buffer;
     QList<QMetaObject::Connection> m_deviceConnections;
+    bool m_ended = false;
 };
 
 } // namespace LfQuick
