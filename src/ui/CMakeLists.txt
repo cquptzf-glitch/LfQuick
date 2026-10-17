@@ -43,6 +43,10 @@ qt_add_qml_module(LfQuickUi
         src/ValidationFormState.cpp
         include/LfQuick/Ui/NavigationItemModel.h
         src/NavigationItemModel.cpp
+        include/LfQuick/Ui/WindowController.h
+        src/WindowController.cpp
+        include/LfQuick/Ui/WindowCapabilities.h
+        src/WindowCapabilities.cpp
     QML_FILES
         qml/LfPage.qml
         qml/QuickHostRoot.qml
@@ -68,6 +72,19 @@ qt_add_qml_module(LfQuickUi
         qml/LfTimePicker.qml
         qml/LfDateTimePicker.qml
         qml/LfDateRangePicker.qml
+        qml/LfStateLayer.qml
+        qml/LfTooltip.qml
+        qml/LfPopup.qml
+        qml/LfAppBar.qml
+        qml/LfFramelessWindow.qml
+        qml/LfStateLight.qml
+        qml/LfLevelIndicator.qml
+        qml/LfGauge.qml
+        qml/LfBottleView.qml
+        qml/LfSlotView.qml
+        qml/LfRackView.qml
+        qml/LfProcessSteps.qml
+        qml/LfConnectionIndicator.qml
         qml/OverlayHost.qml
         qml/BusyOverlay.qml
         qml/ToastStack.qml
@@ -95,6 +112,8 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/ValidationRuleTable.h
         include/LfQuick/Ui/ValidationFormState.h
         include/LfQuick/Ui/NavigationItemModel.h
+        include/LfQuick/Ui/WindowController.h
+        include/LfQuick/Ui/WindowCapabilities.h
         include/LfQuick/Ui/QuickRuntime.h
 )
 
