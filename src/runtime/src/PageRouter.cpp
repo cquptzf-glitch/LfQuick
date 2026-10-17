@@ -89,9 +89,19 @@ bool PageRouter::canGoBack() const noexcept
     return m_history.size() > 1;
 }
 
+bool PageRouter::canGoForward() const noexcept
+{
+    return !m_forwardHistory.empty();
+}
+
 int PageRouter::depth() const noexcept
 {
     return static_cast<int>(m_history.size());
+}
+
+int PageRouter::forwardDepth() const noexcept
+{
+    return static_cast<int>(m_forwardHistory.size());
 }
 
 QStringList PageRouter::history() const
@@ -100,6 +110,15 @@ QStringList PageRouter::history() const
     routes.reserve(depth());
     for (const auto &entry : m_history)
         routes.push_back(entry.descriptor.route);
+    return routes;
+}
+
+QStringList PageRouter::forwardHistory() const
+{
+    QStringList routes;
+    routes.reserve(forwardDepth());
+    for (auto it = m_forwardHistory.rbegin(); it != m_forwardHistory.rend(); ++it)
+        routes.push_back(it->descriptor.route);
     return routes;
 }
 
@@ -236,6 +255,37 @@ std::unique_ptr<IPageInstance> PageRouter::createInstance(const PageDescriptor &
                                                            QVariantMap &diagnostics)
 {
     diagnostics.clear();
+
+    if (descriptor.featureSwitch == FeatureSwitch::Legacy) {
+        diagnostics.insert(QStringLiteral("featureSwitch"), QStringLiteral("legacy"));
+        if (!descriptor.fallback.has_value()) {
+            const PageProviderError error{
+                QStringLiteral("runtime.legacy-provider-missing"),
+                QStringLiteral("Legacy feature switch requires a fallback provider"),
+                {{QStringLiteral("route"), descriptor.route}}
+            };
+            insertProviderFailure(diagnostics, QStringLiteral("primaryError"),
+                                  QStringLiteral("primaryFailure"), error);
+            return {};
+        }
+
+        PageDescriptor legacyDescriptor = descriptor;
+        legacyDescriptor.provider = descriptor.fallback->provider;
+        legacyDescriptor.source = descriptor.fallback->source;
+        legacyDescriptor.featureSwitch = FeatureSwitch::Quick;
+        legacyDescriptor.fallbackPolicy = FallbackPolicy::None;
+        legacyDescriptor.fallback.reset();
+
+        auto instance = createInstance(legacyDescriptor, parameters, diagnostics);
+        diagnostics.insert(QStringLiteral("featureSwitch"), QStringLiteral("legacy"));
+        diagnostics.insert(QStringLiteral("selectedProvider"), legacyDescriptor.provider);
+        return instance;
+    }
+
+    diagnostics.insert(QStringLiteral("featureSwitch"),
+                       descriptor.featureSwitch == FeatureSwitch::Quick
+                           ? QStringLiteral("quick")
+                           : QStringLiteral("auto"));
     diagnostics.insert(QStringLiteral("primaryProvider"), descriptor.provider);
 
     if (!m_providers) {
@@ -287,7 +337,8 @@ std::unique_ptr<IPageInstance> PageRouter::createInstance(const PageDescriptor &
                           QStringLiteral("primaryFailure"), primaryFailure);
 
     const bool stateless = descriptor.metadata.value(QStringLiteral("stateless")).toBool();
-    const bool crossProviderAllowed = descriptor.fallback.has_value()
+    const bool crossProviderAllowed = descriptor.featureSwitch != FeatureSwitch::Quick
+        && descriptor.fallback.has_value()
         && (descriptor.fallbackPolicy == FallbackPolicy::LegacyBeforeActivate
             || (descriptor.fallbackPolicy == FallbackPolicy::LegacyIfStateless && stateless));
 
@@ -295,6 +346,7 @@ std::unique_ptr<IPageInstance> PageRouter::createInstance(const PageDescriptor &
         PageDescriptor fallbackDescriptor = descriptor;
         fallbackDescriptor.provider = descriptor.fallback->provider;
         fallbackDescriptor.source = descriptor.fallback->source;
+        fallbackDescriptor.featureSwitch = FeatureSwitch::Quick;
         fallbackDescriptor.fallbackPolicy = FallbackPolicy::None;
         fallbackDescriptor.fallback.reset();
 
@@ -410,6 +462,7 @@ RouteResult PageRouter::push(const RouteRequest &request)
         return failure;
     }
 
+    clearForwardHistory();
     enforceLruLimit();
     notifyRouteChange();
     return result;
@@ -445,6 +498,7 @@ RouteResult PageRouter::replace(const RouteRequest &request)
         return failure;
     }
 
+    clearForwardHistory();
     enforceLruLimit();
     notifyRouteChange();
     return result;
@@ -480,8 +534,10 @@ RouteResult PageRouter::back()
     }
 
     deactivateCurrent(false);
-    destroy(m_history.back());
+    Entry leaving = std::move(m_history.back());
+    destroy(leaving);
     m_history.pop_back();
+    m_forwardHistory.push_back(std::move(leaving));
 
     if (!activate(m_history.back())) {
         const auto route = currentRoute();
@@ -498,6 +554,60 @@ RouteResult PageRouter::back()
     return RouteResult::success(currentRoute());
 }
 
+RouteResult PageRouter::forward()
+{
+    if (!canGoForward()) {
+        const auto route = currentRoute();
+        auto result = RouteResult::failure(route,
+            Error(QStringLiteral("routing"), 8,
+                  QStringLiteral("No forward history")));
+        emit navigationFailed(route, result.error.message());
+        return result;
+    }
+
+    Entry &target = m_forwardHistory.back();
+    RouteResult guardFailure;
+    if (!passesGuards(NavigationAction::Forward, target.descriptor.route,
+                      target.parameters, guardFailure)) {
+        return guardFailure;
+    }
+
+    if (!ensureInstance(target)) {
+        const auto route = target.descriptor.route;
+        const auto result = RouteResult::failure(
+            route,
+            Error(QStringLiteral("routing"), 5,
+                  QStringLiteral("Failed to recreate forward page")));
+        emit navigationFailed(route, result.error.message());
+        return result;
+    }
+
+    deactivateCurrent(true);
+    Entry next = std::move(m_forwardHistory.back());
+    m_forwardHistory.pop_back();
+    m_history.push_back(std::move(next));
+
+    if (!activate(m_history.back())) {
+        Entry failed = std::move(m_history.back());
+        destroy(failed);
+        m_history.pop_back();
+        m_forwardHistory.push_back(std::move(failed));
+        if (!m_history.empty())
+            activate(m_history.back());
+
+        const auto result = RouteResult::failure(
+            m_forwardHistory.back().descriptor.route,
+            Error(QStringLiteral("routing"), 6,
+                  QStringLiteral("Failed to activate forward page")));
+        emit navigationFailed(result.route, result.error.message());
+        return result;
+    }
+
+    enforceLruLimit();
+    notifyRouteChange();
+    return RouteResult::success(currentRoute());
+}
+
 void PageRouter::reset()
 {
     for (auto it = m_history.rbegin(); it != m_history.rend(); ++it) {
@@ -506,8 +616,9 @@ void PageRouter::reset()
         destroy(*it);
     }
 
-    const bool hadEntries = !m_history.empty();
+    const bool hadEntries = !m_history.empty() || !m_forwardHistory.empty();
     m_history.clear();
+    clearForwardHistory();
     destroySingletonCache();
     if (hadEntries)
         notifyRouteChange();
@@ -614,6 +725,15 @@ void PageRouter::destroy(Entry &entry)
     entry.instance->destroy();
     entry.instance.reset();
     entry.suspended = false;
+}
+
+void PageRouter::clearForwardHistory()
+{
+    if (m_forwardHistory.empty())
+        return;
+    for (auto &entry : m_forwardHistory)
+        destroy(entry);
+    m_forwardHistory.clear();
 }
 
 void PageRouter::destroySingletonCache()
