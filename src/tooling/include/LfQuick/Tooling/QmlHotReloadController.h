@@ -42,6 +42,9 @@ public:
     QQmlEngine *engine() const noexcept { return m_engine; }
     void setEngine(QQmlEngine *engine);
 
+    // watchSource()/unwatchSource() form a shared ownership pair. Repeated
+    // acquisitions of the same logical -> development mapping are reference
+    // counted so multiple hot-reload hosts can safely share one source.
     Q_INVOKABLE bool watchSource(const QUrl &logicalSource,
                                  const QUrl &developmentSource = {});
     Q_INVOKABLE bool unwatchSource(const QUrl &logicalSource);
@@ -73,6 +76,7 @@ private:
     QTimer *m_debounceTimer = nullptr;
     QHash<QString, QUrl> m_overrides;
     QHash<QString, QString> m_logicalToFile;
+    QHash<QString, int> m_watchRefCounts;
     QSet<QString> m_pendingLogicalSources;
 };
 
