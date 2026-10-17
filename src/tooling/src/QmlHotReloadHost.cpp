@@ -15,22 +15,15 @@ QmlHotReloadHost::QmlHotReloadHost(QQuickItem *parent)
 {
 }
 
-QmlHotReloadHost::~QmlHotReloadHost()
-{
-    if (m_controller && !m_source.isEmpty())
-        m_controller->unwatchSource(m_source);
-}
+QmlHotReloadHost::~QmlHotReloadHost() = default;
 
 void QmlHotReloadHost::setController(QmlHotReloadController *controller)
 {
     if (m_controller == controller)
         return;
 
-    if (m_controller) {
+    if (m_controller)
         disconnect(m_controller, nullptr, this, nullptr);
-        if (!m_source.isEmpty())
-            m_controller->unwatchSource(m_source);
-    }
 
     m_controller = controller;
     if (m_controller) {
@@ -53,9 +46,6 @@ void QmlHotReloadHost::setSource(const QUrl &source)
     if (m_source == source)
         return;
 
-    if (m_controller && !m_source.isEmpty())
-        m_controller->unwatchSource(m_source);
-
     m_source = source;
     registerWatch();
     emit sourceChanged();
@@ -68,9 +58,6 @@ void QmlHotReloadHost::setDevelopmentSource(const QUrl &source)
 {
     if (m_developmentSource == source)
         return;
-
-    if (m_controller && !m_source.isEmpty())
-        m_controller->unwatchSource(m_source);
 
     m_developmentSource = source;
     registerWatch();
