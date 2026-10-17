@@ -37,8 +37,11 @@ bool QuickSurface::isReady() const noexcept
 
 QString QuickSurface::screenName() const
 {
-    if (const QWindow *window = windowHandle()) {
-        if (const QScreen *screen = window->screen())
+    const QWindow *windowObject = windowHandle();
+    if (!windowObject && window())
+        windowObject = window()->windowHandle();
+    if (windowObject) {
+        if (const QScreen *screen = windowObject->screen())
             return screen->name();
     }
     return {};
