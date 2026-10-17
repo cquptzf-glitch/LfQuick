@@ -34,6 +34,10 @@ if(LFQUICK_BUILD_PLATFORM OR LFQUICK_BUILD_UI OR LFQUICK_BUILD_MEDICAL_DEMO
     find_package(Qt6 6.8.3 REQUIRED COMPONENTS Gui)
 endif()
 
+if(LFQUICK_BUILD_PLATFORM_QML)
+    find_package(Qt6 6.8.3 REQUIRED COMPONENTS Qml QmlIntegration)
+endif()
+
 if(LFQUICK_BUILD_UI OR LFQUICK_BUILD_MEDICAL_DEMO OR LFQUICK_BUILD_DATAVIEW
    OR LFQUICK_BUILD_DIAGNOSTICS OR LFQUICK_ENABLE_HOT_RELOAD
    OR LFQUICK_EXPERIMENTAL_STYLEKIT OR LFQUICK_BUILD_SCREENSHOT_TOOL
@@ -90,11 +94,19 @@ if(LFQUICK_EXPERIMENTAL_STYLEKIT)
     find_package(Qt6 6.12 REQUIRED COMPONENTS LabsStyleKit)
 endif()
 
+if(LFQUICK_BUILD_PLATFORM_QML AND NOT LFQUICK_BUILD_PLATFORM)
+    message(FATAL_ERROR "LFQUICK_BUILD_PLATFORM_QML requires LFQUICK_BUILD_PLATFORM=ON")
+endif()
+
 add_subdirectory(src/core)
 add_subdirectory(src/runtime)
 
 if(LFQUICK_BUILD_PLATFORM)
     add_subdirectory(src/platform)
+endif()
+
+if(LFQUICK_BUILD_PLATFORM_QML)
+    add_subdirectory(src/platformqml)
 endif()
 
 if(LFQUICK_BUILD_DATAVIEW AND NOT LFQUICK_BUILD_UI)
@@ -177,6 +189,7 @@ endif()
 lfquick_install_target(LfQuickCore Core)
 lfquick_install_target(LfQuickRuntime Runtime)
 lfquick_install_target(LfQuickPlatform Platform)
+lfquick_install_target(LfQuickPlatformQml PlatformQml)
 lfquick_install_target(LfQuickUi Ui)
 lfquick_install_target(LfQuickDataView DataView)
 lfquick_install_target(LfQuickWidgetBridge WidgetBridge)
@@ -195,6 +208,9 @@ lfquick_install_target(LfQuickBrandTestStyle BrandTestStyle)
 set(LFQUICK_PACKAGE_QT_COMPONENTS Core)
 if(TARGET LfQuickPlatform)
     list(APPEND LFQUICK_PACKAGE_QT_COMPONENTS Gui)
+endif()
+if(TARGET LfQuickPlatformQml)
+    list(APPEND LFQUICK_PACKAGE_QT_COMPONENTS Qml QmlIntegration)
 endif()
 if(TARGET LfQuickUi OR TARGET LfQuickDataView OR TARGET LfQuickDiagnostics
    OR TARGET LfQuickTooling OR TARGET LfQuickSafeAreaAdapter
