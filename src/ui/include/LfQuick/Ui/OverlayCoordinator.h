@@ -105,6 +105,7 @@ private:
         QMetaObject::Connection messageConnection;
         QMetaObject::Connection cancelableConnection;
         QMetaObject::Connection stateConnection;
+        QMetaObject::Connection destroyedConnection;
     };
 
     struct ToastEntry {
