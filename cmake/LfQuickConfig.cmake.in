@@ -1,11 +1,12 @@
 @PACKAGE_INIT@
 
 include(CMakeFindDependencyMacro)
-find_dependency(Qt6 @LFQUICK_QT_MIN_VERSION@ COMPONENTS Core)
+find_dependency(Qt6 @LFQUICK_QT_MIN_VERSION@ COMPONENTS @LFQUICK_PACKAGE_QT_COMPONENTS@)
 
 include("${CMAKE_CURRENT_LIST_DIR}/LfQuickTargets.cmake")
 
 set(LfQuick_VERSION "@PROJECT_VERSION@")
 set(LfQuick_QT_MIN_VERSION "@LFQUICK_QT_MIN_VERSION@")
+set(LfQuick_QT_COMPONENTS "@LFQUICK_PACKAGE_QT_COMPONENTS@")
 
 check_required_components(LfQuick)
