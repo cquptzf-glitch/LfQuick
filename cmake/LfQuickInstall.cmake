@@ -9,6 +9,22 @@ set(LFQUICK_INSTALL_QMLDIR
     "${CMAKE_INSTALL_LIBDIR}/qt/qml"
     CACHE STRING "Install root for LfQuick QML modules")
 
+function(lfquick_effective_qt_min_version out_var)
+    set(_version "${LFQUICK_QT_MIN_VERSION}")
+
+    if(TARGET LfQuickSafeAreaAdapter)
+        set(_version "6.9.0")
+    endif()
+    if(TARGET LfQuickRangeModelAdapter)
+        set(_version "6.10.0")
+    endif()
+    if(TARGET LfQuickCanvasPainterAdapter OR TARGET LfQuickStyleKit)
+        set(_version "6.12.0")
+    endif()
+
+    set(${out_var} "${_version}" PARENT_SCOPE)
+endfunction()
+
 function(lfquick_install_target target export_name)
     if(NOT TARGET ${target})
         return()
@@ -88,6 +104,8 @@ function(lfquick_install_package)
     set(_config_in "${PROJECT_SOURCE_DIR}/cmake/LfQuickConfig.cmake.in")
     set(_config_out "${PROJECT_BINARY_DIR}/LfQuickConfig.cmake")
     set(_version_out "${PROJECT_BINARY_DIR}/LfQuickConfigVersion.cmake")
+
+    lfquick_effective_qt_min_version(LFQUICK_PACKAGE_QT_MIN_VERSION)
 
     configure_package_config_file(
         "${_config_in}"
