@@ -1,7 +1,9 @@
 #include <LfQuick/Core/Permission.h>
+#include <LfQuick/Ui/NavigationController.h>
 #include <LfQuick/Ui/NavigationItemModel.h>
 #include <LfQuick/Ui/PermissionEvaluator.h>
 
+#include <QSignalSpy>
 #include <QtTest>
 
 #include <memory>
@@ -108,6 +110,20 @@ private slots:
         QCOMPARE(model.get(0).value(QStringLiteral("route")).toString(), QStringLiteral("/a"));
         QCOMPARE(model.get(1).value(QStringLiteral("route")).toString(), QStringLiteral("/b"));
         QVERIFY(model.selectedRoute().isEmpty());
+    }
+
+    void controllerNotifiesWhenModelIsDestroyed()
+    {
+        LfQuick::NavigationController controller;
+        auto *model = new LfQuick::NavigationItemModel;
+        controller.setModel(model);
+        QCOMPARE(controller.model(), model);
+
+        QSignalSpy changed(&controller, &LfQuick::NavigationController::modelChanged);
+        delete model;
+
+        QCOMPARE(controller.model(), nullptr);
+        QCOMPARE(changed.count(), 1);
     }
 };
 
