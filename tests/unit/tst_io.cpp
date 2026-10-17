@@ -6,6 +6,7 @@
 
 #include <QDebug>
 #include <QFile>
+#include <QList>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQmlError>
@@ -290,7 +291,20 @@ QtObject {
         QTest::qWait(50);
         QCOMPARE(serverMessages.count(), messagesBeforeInvalid);
 
-        client.abort();
+        QList<LocalIpcClient::State> disconnectStates;
+        connect(&client, &LocalIpcClient::stateChanged, &client, [&] {
+            disconnectStates.push_back(client.state());
+        });
+        QSignalSpy disconnected(&client, &LocalIpcClient::disconnectedFromServer);
+        client.disconnectFromServer();
+        QTRY_COMPARE_WITH_TIMEOUT(disconnected.count(), 1, 3000);
+        QCOMPARE(client.state(), LocalIpcClient::State::Disconnected);
+        QVERIFY(!client.connected());
+        QVERIFY(!disconnectStates.contains(LocalIpcClient::State::Connecting));
+        QVERIFY(disconnectStates.contains(LocalIpcClient::State::Disconnecting)
+                || disconnectStates == QList<LocalIpcClient::State>{
+                       LocalIpcClient::State::Disconnected});
+
         server.close();
         server.removeStaleServer(serverName);
     }
