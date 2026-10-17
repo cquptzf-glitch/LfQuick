@@ -20,6 +20,23 @@ foreach(_component IN LISTS _lfquick_components)
     target_link_libraries(lfquick_package_smoke PRIVATE "LfQuick::${_component}")
 endforeach()
 
+set(_expected_qt_min_version "@LFQUICK_QT_MIN_VERSION@")
+if("SafeAreaAdapter" IN_LIST _lfquick_components)
+    set(_expected_qt_min_version "6.9.0")
+endif()
+if("RangeModelAdapter" IN_LIST _lfquick_components)
+    set(_expected_qt_min_version "6.10.0")
+endif()
+if("CanvasPainterAdapter" IN_LIST _lfquick_components
+   OR "StyleKit" IN_LIST _lfquick_components)
+    set(_expected_qt_min_version "6.12.0")
+endif()
+if(NOT LfQuick_QT_MIN_VERSION VERSION_EQUAL _expected_qt_min_version)
+    message(FATAL_ERROR
+        "LfQuick_QT_MIN_VERSION='${LfQuick_QT_MIN_VERSION}' does not match "
+        "the built component floor '${_expected_qt_min_version}'")
+endif()
+
 if(NOT @BUILD_SHARED_LIBS@)
     get_target_property(_lfquick_core_definitions
         LfQuick::Core INTERFACE_COMPILE_DEFINITIONS)
