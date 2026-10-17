@@ -1,11 +1,17 @@
+#include <LfQuick/Diagnostics/AccessibilityAudit.h>
+#include <LfQuick/Diagnostics/DiagnosticsLogSink.h>
 #include <LfQuick/Diagnostics/DiagnosticsModel.h>
 
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QQuickItem>
+#include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
+
+#include <thread>
 
 using namespace LfQuick;
 
@@ -54,6 +60,68 @@ private slots:
 
         QVERIFY(model.removeMetric(QStringLiteral("runtime.route")));
         QVERIFY(!model.removeMetric(QStringLiteral("runtime.route")));
+    }
+
+    void telemetrySinkRecordsSameThreadAndWorkerThreadEvents()
+    {
+        DiagnosticsModel model;
+        DiagnosticsLogSink sink(&model);
+
+        TelemetryEvent direct;
+        direct.name = QStringLiteral("direct");
+        direct.category = QStringLiteral("runtime");
+        direct.level = TelemetryLevel::Warning;
+        direct.durationMs = 12;
+        direct.correlationId = QStringLiteral("corr-1");
+        direct.attributes.insert(QStringLiteral("route"), QStringLiteral("/samples"));
+        sink.write(direct);
+
+        QCOMPARE(model.count(), 1);
+        QVariantMap directEvent = model.eventAt(0);
+        QCOMPARE(directEvent.value(QStringLiteral("name")).toString(), QStringLiteral("direct"));
+        QCOMPARE(directEvent.value(QStringLiteral("severity")).toString(), QStringLiteral("warning"));
+        QCOMPARE(directEvent.value(QStringLiteral("details")).toMap()
+                     .value(QStringLiteral("durationMs")).toLongLong(), qint64(12));
+
+        TelemetryEvent workerEvent;
+        workerEvent.name = QStringLiteral("worker");
+        workerEvent.category = QStringLiteral("background");
+        workerEvent.attributes.insert(QStringLiteral("batch"), 7);
+
+        std::thread worker([&sink, workerEvent] {
+            sink.write(workerEvent);
+        });
+        worker.join();
+
+        QTRY_COMPARE_WITH_TIMEOUT(model.count(), 2, 1000);
+        QCOMPARE(model.eventAt(1).value(QStringLiteral("name")).toString(), QStringLiteral("worker"));
+        QCOMPARE(model.eventAt(1).value(QStringLiteral("details")).toMap()
+                     .value(QStringLiteral("batch")).toInt(), 7);
+    }
+
+    void accessibilityAuditClearsStateWhenRootDies()
+    {
+        AccessibilityAudit audit;
+        auto *root = new QQuickItem;
+        root->setObjectName(QStringLiteral("audit-root"));
+        root->setFocusPolicy(Qt::StrongFocus);
+        audit.setRoot(root);
+        QCOMPARE(audit.root(), root);
+
+        audit.scan();
+        for (const QVariant &entry : audit.issues()) {
+            const QVariantMap issue = entry.toMap();
+            QVERIFY(!issue.contains(QStringLiteral("item")));
+            QVERIFY(issue.contains(QStringLiteral("path")));
+            QVERIFY(issue.contains(QStringLiteral("className")));
+        }
+
+        QSignalSpy rootChanged(&audit, &AccessibilityAudit::rootChanged);
+        delete root;
+
+        QCOMPARE(audit.root(), nullptr);
+        QCOMPARE(audit.issueCount(), 0);
+        QCOMPARE(rootChanged.count(), 1);
     }
 
     void exportsJsonAtomicallyAndReportsFailures()
