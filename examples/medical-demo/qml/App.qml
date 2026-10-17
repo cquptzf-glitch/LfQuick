@@ -13,6 +13,7 @@ ApplicationWindow {
 
     property string guardDialogId: ""
     property bool compactNavigation: false
+    property bool diagnosticsHudVisible: false
 
     readonly property var navigationDefinitions: {
         const definitions = [
@@ -74,6 +75,13 @@ ApplicationWindow {
             }
 
             Switch {
+                visible: diagnosticsAvailable
+                text: qsTr("Diagnostics")
+                checked: window.diagnosticsHudVisible
+                onToggled: window.diagnosticsHudVisible = checked
+            }
+
+            Switch {
                 text: qsTr("Compact Nav")
                 checked: window.compactNavigation
                 onToggled: window.compactNavigation = checked
@@ -94,6 +102,19 @@ ApplicationWindow {
         runtime: quickRuntime
         overlayCoordinator: overlayCoordinator
         compactNavigation: window.compactNavigation
+    }
+
+    Loader {
+        id: diagnosticsHudLoader
+        anchors.fill: parent
+        z: 100000
+        active: diagnosticsAvailable && window.diagnosticsHudVisible
+        source: active ? "qrc:/qt/qml/LfQuick/Diagnostics/DiagnosticsHud.qml" : ""
+
+        onLoaded: {
+            if (item)
+                item.diagnosticsModel = diagnosticsModel
+        }
     }
 
     function requestGuardDialog(kind, title, reason, buttons, defaultButton) {
