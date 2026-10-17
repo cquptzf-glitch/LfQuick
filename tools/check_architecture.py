@@ -6,16 +6,19 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 
 # Module-specific technology boundaries. Keep the foundation graph monotonic:
-# Core -> Runtime -> UI/DataView, while Widgets/Quick/version-specific details
-# stay in leaf adapters.
+# Core is bottom-level; Runtime stays technology-neutral; Models and Io stay
+# lightweight/non-visual; UI owns Qt Quick; Widgets/QuickWidgets and optional
+# adapters stay in leaves.
 RULES = {
     "src/core": [
         r"#include\s*[<\"]QQuick",
         r"#include\s*[<\"]QWidget",
+        r"#include\s*[<\"]QWindow",
         r"Qt6::Quick",
         r"Qt6::Widgets",
-        r"LfQuick/(Runtime|Ui|DataView|Platform|WidgetBridge|Charts)/",
-        r"LfQuick::(Runtime|Ui|DataView|Platform|WidgetBridge|Charts)",
+        r"Qt6::QuickWidgets",
+        r"LfQuick/(Runtime|Models|Io|Ui|DataView|Platform|WidgetBridge|Charts)/",
+        r"LfQuick::(Runtime|Models|Io|Ui|DataView|Platform|WidgetBridge|Charts)",
     ],
     "src/runtime": [
         r"#include\s*[<\"]QQuick",
@@ -23,12 +26,35 @@ RULES = {
         r"#include\s*[<\"]QWindow",
         r"Qt6::Quick",
         r"Qt6::Widgets",
-        r"LfQuick/(Ui|DataView|Platform|WidgetBridge|Charts)/",
-        r"LfQuick::(Ui|DataView|Platform|WidgetBridge|Charts)",
+        r"Qt6::QuickWidgets",
+        r"LfQuick/(Models|Io|Ui|DataView|Platform|WidgetBridge|Charts)/",
+        r"LfQuick::(Models|Io|Ui|DataView|Platform|WidgetBridge|Charts)",
+    ],
+    "src/models": [
+        r"#include\s*[<\"]QQuick",
+        r"#include\s*[<\"]QWidget",
+        r"#include\s*[<\"]QWindow",
+        r"Qt6::Quick",
+        r"Qt6::Widgets",
+        r"Qt6::QuickWidgets",
+        r"LfQuick/(Runtime|Io|Ui|DataView|Platform|WidgetBridge|Charts)/",
+        r"LfQuick::(Runtime|Io|Ui|DataView|Platform|WidgetBridge|Charts)",
+    ],
+    "src/io": [
+        r"#include\s*[<\"]QQuick",
+        r"#include\s*[<\"]QWidget",
+        r"#include\s*[<\"]QWindow",
+        r"Qt6::Quick",
+        r"Qt6::Widgets",
+        r"Qt6::QuickWidgets",
+        r"LfQuick/(Runtime|Models|Ui|DataView|Platform|WidgetBridge|Charts)/",
+        r"LfQuick::(Runtime|Models|Ui|DataView|Platform|WidgetBridge|Charts)",
     ],
     "src/ui": [
-        r"LfQuick/(WidgetBridge)/",
-        r"LfQuick::WidgetBridge",
+        # Ui is the Qt Quick layer over Core + Runtime. Keep product/platform,
+        # table, IO/model helper and QWidget bridge dependencies out of it.
+        r"LfQuick/(Models|Io|DataView|Platform|WidgetBridge|Charts)/",
+        r"LfQuick::(Models|Io|DataView|Platform|WidgetBridge|Charts)",
     ],
 }
 
@@ -47,6 +73,8 @@ LEAF_QML_PATTERN = re.compile(
 FOUNDATION_MODULES = [
     "src/core",
     "src/runtime",
+    "src/models",
+    "src/io",
     "src/ui",
     "src/dataview",
     "src/platform",
