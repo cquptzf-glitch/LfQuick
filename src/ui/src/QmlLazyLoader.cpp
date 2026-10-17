@@ -164,7 +164,9 @@ void QmlLazyLoader::classBegin()
 void QmlLazyLoader::componentComplete()
 {
     m_complete = true;
-    m_factory->setEngine(qmlEngine(this));
+    QQmlContext *context = QQmlEngine::contextForObject(this);
+    m_factory->setCreationContext(context);
+    m_factory->setEngine(context ? context->engine() : qmlEngine(this));
 
     if (m_targetActive)
         startSync();
@@ -211,7 +213,8 @@ void QmlLazyLoader::startAsync()
     if (!m_complete || isActive() || m_handle || !hasLoadTarget())
         return;
 
-    QQmlEngine *loaderEngine = qmlEngine(this);
+    QQmlContext *context = QQmlEngine::contextForObject(this);
+    QQmlEngine *loaderEngine = context ? context->engine() : qmlEngine(this);
     QQmlEngine *engine = m_component ? m_component->engine() : loaderEngine;
     if (!engine)
         engine = loaderEngine;
@@ -228,6 +231,7 @@ void QmlLazyLoader::startAsync()
     }
 
     m_factory->setEngine(engine);
+    m_factory->setCreationContext(context);
     setErrorString({});
 
     QmlObjectLoadHandle *handle = m_component
@@ -261,29 +265,29 @@ void QmlLazyLoader::startSync()
         return;
     }
 
-    QQmlEngine *loaderEngine = qmlEngine(this);
+    QQmlContext *context = QQmlEngine::contextForObject(this);
+    QQmlEngine *loaderEngine = context ? context->engine() : qmlEngine(this);
+    QQmlEngine *engine = m_component ? m_component->engine() : loaderEngine;
+    if (!engine) {
+        setErrorString(QStringLiteral("LfLazyLoader requires a QQmlEngine"));
+        m_targetActive = false;
+        return;
+    }
     if (m_component && loaderEngine && m_component->engine() != loaderEngine) {
         setErrorString(QStringLiteral("LfLazyLoader component belongs to a different QQmlEngine"));
         m_targetActive = false;
         return;
     }
 
-    QString error;
-    QObject *created = nullptr;
-    if (m_component) {
-        created = QmlObjectFactory::createSync(m_component, m_initialProperties, &error);
-    } else {
-        if (!loaderEngine) {
-            setErrorString(QStringLiteral("LfLazyLoader requires a QQmlEngine"));
-            m_targetActive = false;
-            return;
-        }
-        created = QmlObjectFactory::createSync(
-            loaderEngine, resolvedSource(), m_initialProperties, &error);
-    }
+    m_factory->setEngine(engine);
+    m_factory->setCreationContext(context);
+
+    QObject *created = m_component
+        ? m_factory->createComponent(m_component, m_initialProperties)
+        : m_factory->create(resolvedSource(), m_initialProperties);
 
     if (!created) {
-        setErrorString(error);
+        setErrorString(m_factory->lastError());
         m_targetActive = false;
         return;
     }
