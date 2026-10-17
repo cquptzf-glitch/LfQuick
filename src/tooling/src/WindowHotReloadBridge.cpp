@@ -76,10 +76,11 @@ void WindowHotReloadBridge::setController(QmlHotReloadController *controller)
                 emit controllerChanged();
             });
         acquireControllerWatches();
+    } else {
+        setLastError({});
     }
 
     installSourceResolver();
-    setLastError({});
     emit controllerChanged();
 }
 
@@ -208,6 +209,8 @@ void WindowHotReloadBridge::acquireControllerWatches()
     if (!failures.isEmpty()) {
         setLastError(QStringLiteral("Failed to reacquire hot reload watches: %1")
                          .arg(failures.join(QStringLiteral(", "))));
+    } else {
+        setLastError({});
     }
 }
 
@@ -218,7 +221,10 @@ void WindowHotReloadBridge::handleReloadRequested(
     if (!m_enabled || !m_runtime || !m_runtime->router())
         return;
 
-    const QSet<QString> changed(logicalSources.cbegin(), logicalSources.cend());
+    QSet<QString> changed;
+    for (const QString &source : logicalSources)
+        changed.insert(source);
+
     int attempted = 0;
     int failed = 0;
 
