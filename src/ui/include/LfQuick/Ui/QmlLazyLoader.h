@@ -76,7 +76,9 @@ private:
     QUrl m_source;
     QVariantMap m_initialProperties;
     QString m_errorString;
-    bool m_complete = false;
+    // Direct C++ construction is immediately usable. QML creation flips this
+    // to false in classBegin() and completes after all initial bindings land.
+    bool m_complete = true;
     bool m_targetLoading = false;
     bool m_targetActive = false;
 };
