@@ -29,17 +29,23 @@ FocusScope {
         }
     }
 
-    onRowToleranceChanged: focusManager.walker.rowTolerance = rowTolerance
-
     FocusManager {
         id: focusManager
         scope: root
         mode: root.managerMode()
         wrap: root.wrap
-        Component.onCompleted: {
-            walker.rowTolerance = root.rowTolerance
-            walker.layoutDirection = Qt.application.layoutDirection
-        }
+    }
+
+    Binding {
+        target: focusManager.walker
+        property: "rowTolerance"
+        value: root.rowTolerance
+    }
+
+    Binding {
+        target: focusManager.walker
+        property: "layoutDirection"
+        value: Qt.application.layoutDirection
     }
 
     // Compatibility object for existing pages/diagnostics that still bind to
