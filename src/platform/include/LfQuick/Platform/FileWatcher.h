@@ -1,48 +1,6 @@
 #pragma once
 
-#include <LfQuick/Platform/LfQuickPlatformGlobal.h>
-
-#include <QObject>
-#include <QSet>
-#include <QStringList>
-
-class QFileSystemWatcher;
-
-namespace LfQuick {
-
-class LFQUICKPLATFORM_EXPORT FileWatcher : public QObject
-{
-    Q_OBJECT
-    Q_PROPERTY(QStringList watchedFiles READ watchedFiles NOTIFY watchesChanged FINAL)
-    Q_PROPERTY(QStringList watchedDirectories READ watchedDirectories NOTIFY watchesChanged FINAL)
-    Q_PROPERTY(int count READ count NOTIFY watchesChanged FINAL)
-
-public:
-    explicit FileWatcher(QObject *parent = nullptr);
-
-    QStringList watchedFiles() const;
-    QStringList watchedDirectories() const;
-    int count() const noexcept;
-
-    Q_INVOKABLE bool watchFile(const QString &path);
-    Q_INVOKABLE bool watchDirectory(const QString &path);
-    Q_INVOKABLE bool unwatch(const QString &path);
-    Q_INVOKABLE bool isWatching(const QString &path) const;
-    Q_INVOKABLE void clear();
-
-signals:
-    void watchesChanged();
-    void fileChanged(const QString &path);
-    void directoryChanged(const QString &path);
-
-private:
-    static QString normalizedPath(const QString &path);
-    void rebuildWatcher();
-    void scheduleRebuild();
-
-    QFileSystemWatcher *m_watcher = nullptr;
-    QSet<QString> m_files;
-    QSet<QString> m_directories;
-};
-
-} // namespace LfQuick
+// Compatibility header. FileWatcher moved to the technology-neutral Io module.
+// Existing source that includes <LfQuick/Platform/FileWatcher.h> keeps working,
+// while new code should include <LfQuick/Io/FileWatcher.h> and link LfQuick::Io.
+#include <LfQuick/Io/FileWatcher.h>
