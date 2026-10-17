@@ -2,6 +2,7 @@
 
 #include <LfQuick/Io/LfQuickIoGlobal.h>
 
+#include <QHash>
 #include <QObject>
 #include <QSet>
 #include <QStringList>
@@ -39,7 +40,19 @@ signals:
     void directoryChanged(const QString &path);
 
 private:
+    struct FileState {
+        bool exists = false;
+        bool file = false;
+        qint64 size = -1;
+        qint64 lastModifiedMs = -1;
+        qint64 metadataChangedMs = -1;
+
+        bool operator==(const FileState &) const = default;
+    };
+
     static QString normalizedPath(const QString &path);
+    static FileState snapshotFile(const QString &path);
+    bool updateFileState(const QString &path);
     void rebuildWatcher();
     void scheduleRebuild();
 
@@ -47,6 +60,7 @@ private:
     QTimer *m_rebuildTimer = nullptr;
     QSet<QString> m_files;
     QSet<QString> m_directories;
+    QHash<QString, FileState> m_fileStates;
 };
 
 } // namespace LfQuick
