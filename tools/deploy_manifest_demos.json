@@ -1,0 +1,18 @@
+{
+  "required": [
+    "bin/LfQuickMedicalDemo.exe",
+    "bin/LfQuickHybridDemo.exe",
+    "bin/Qt6Core.dll",
+    "bin/Qt6Gui.dll",
+    "bin/Qt6Qml.dll",
+    "bin/Qt6Quick.dll",
+    "README.md",
+    "THIRD_PARTY_NOTICES.md",
+    "BUILD_INFO.txt"
+  ],
+  "forbidden": [
+    "**/*.lib",
+    "**/*.exp"
+  ],
+  "rejectZeroByteFiles": true
+}
