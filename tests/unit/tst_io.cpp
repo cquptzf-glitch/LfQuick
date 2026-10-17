@@ -1,5 +1,6 @@
 #include <LfQuick/Io/DataStream.h>
 #include <LfQuick/Io/FileDocument.h>
+#include <LfQuick/Io/JsonDocument.h>
 #include <LfQuick/Io/LocalIpcClient.h>
 #include <LfQuick/Io/LocalIpcServer.h>
 #include <LfQuick/Io/ProcessRunner.h>
@@ -110,12 +111,66 @@ QtObject {
         QCOMPARE(document.text(), QStringLiteral("local-edit"));
         QVERIFY(document.dirty());
 
+        // A failed Save As is transactional: path/watch/dirty/conflict remain
+        // attached to the original document until the target is committed.
+        const QString originalPath = document.path();
+        const QString blocker = directory.filePath(QStringLiteral("not-a-directory"));
+        {
+            QFile file(blocker);
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            QCOMPARE(file.write("x"), qint64(1));
+        }
+        QSignalSpy pathChanged(&document, &FileDocument::pathChanged);
+        QVERIFY(!document.saveAs(blocker + QStringLiteral("/copy.json")));
+        QCOMPARE(document.path(), originalPath);
+        QCOMPARE(pathChanged.count(), 0);
+        QVERIFY(document.watch());
+        QVERIFY(document.dirty());
+        QVERIFY(document.externalConflict());
+        QVERIFY(!document.errorString().isEmpty());
+
         // Explicit reload is the user's conflict-resolution decision and may
         // replace dirty memory with the current disk state.
         QVERIFY(document.reload());
         QCOMPARE(document.text(), QStringLiteral("disk-v2"));
         QVERIFY(!document.dirty());
         QVERIFY(!document.externalConflict());
+    }
+
+    void jsonDocumentSaveAsFailurePreservesAssociation()
+    {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+
+        const QString path = directory.filePath(QStringLiteral("document.json"));
+        {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            const QByteArray initial = QByteArrayLiteral("{\"value\":1}");
+            QCOMPARE(file.write(initial), qint64(initial.size()));
+        }
+
+        JsonDocument document;
+        document.setPath(path);
+        QVERIFY2(document.load(), qPrintable(document.errorString()));
+        document.setValue(QVariantMap{{QStringLiteral("value"), 2}});
+        QVERIFY(document.dirty());
+
+        const QString originalPath = document.path();
+        const QString blocker = directory.filePath(QStringLiteral("json-not-a-directory"));
+        {
+            QFile file(blocker);
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            QCOMPARE(file.write("x"), qint64(1));
+        }
+
+        QSignalSpy pathChanged(&document, &JsonDocument::pathChanged);
+        QVERIFY(!document.saveAs(blocker + QStringLiteral("/copy.json")));
+        QCOMPARE(document.path(), originalPath);
+        QCOMPARE(pathChanged.count(), 0);
+        QVERIFY(document.dirty());
+        QCOMPARE(document.value().toMap().value(QStringLiteral("value")).toInt(), 2);
+        QVERIFY(!document.errorString().isEmpty());
     }
 
     void dataStreamTracksParserDestructionAndClearsPartialBuffer()
