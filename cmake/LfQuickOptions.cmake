@@ -9,6 +9,7 @@ option(LFQUICK_BUILD_QT_GRAPHS_ADAPTER "Build optional Qt Graphs adapter for Cha
 option(LFQUICK_BUILD_SAFEAREA_ADAPTER "Build optional Qt SafeArea adapter (Qt 6.9+)" OFF)
 option(LFQUICK_BUILD_QRANGE_MODEL_ADAPTER "Build optional QRangeModel compatibility adapter (Qt 6.10+)" OFF)
 option(LFQUICK_EXPERIMENTAL_CANVAS_PAINTER "Build experimental Qt Canvas2D adapter (Qt 6.12+, licensing review required)" OFF)
+option(LFQUICK_BUILD_BRAND_TEST_STYLE "Build independent brand/test QML style proof module" OFF)
 option(LFQUICK_BUILD_DIAGNOSTICS "Build development diagnostics" ON)
 option(LFQUICK_BUILD_MEDICAL_DEMO "Build LfQuick Medical Demo" ON)
 option(LFQUICK_BUILD_BENCHMARKS "Build opt-in performance benchmark executables" OFF)
