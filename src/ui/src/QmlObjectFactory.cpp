@@ -67,6 +67,8 @@ QmlObjectLoadHandle::~QmlObjectLoadHandle()
     if (m_status == Status::Loading && m_incubator)
         m_incubator->clear();
 
+    QObject::disconnect(m_engineDestroyedConnection);
+    m_engineDestroyedConnection = {};
     QObject::disconnect(m_componentDestroyedConnection);
     m_componentDestroyedConnection = {};
     if (m_component)
@@ -91,6 +93,11 @@ void QmlObjectLoadHandle::begin(QQmlEngine *engine)
         fail(QStringLiteral("QML object creation requires a QQmlEngine"));
         return;
     }
+
+    m_engineDestroyedConnection = connect(
+        m_engine, &QObject::destroyed,
+        this, &QmlObjectLoadHandle::onEngineDestroyed);
+
     if (!contextMatchesEngine(m_creationContext, m_engine)) {
         fail(QStringLiteral("QML creation context belongs to a different QQmlEngine"));
         return;
@@ -206,6 +213,22 @@ void QmlObjectLoadHandle::onIncubatorStatusChanged()
     }
 }
 
+void QmlObjectLoadHandle::onEngineDestroyed()
+{
+    m_engine = nullptr;
+    m_engineDestroyedConnection = {};
+
+    if (m_status != Status::Loading)
+        return;
+
+    // Incubation cannot make progress once the owning engine disappears. End
+    // the handle explicitly so callers waiting on finished() never remain in a
+    // permanent Loading state.
+    if (m_incubator)
+        m_incubator->clear();
+    fail(QStringLiteral("QQmlEngine was destroyed while the QML object was loading"));
+}
+
 void QmlObjectLoadHandle::cancel()
 {
     if (m_status != Status::Loading)
@@ -217,6 +240,9 @@ void QmlObjectLoadHandle::cancel()
         disconnect(m_component, nullptr, this, nullptr);
     QObject::disconnect(m_componentDestroyedConnection);
     m_componentDestroyedConnection = {};
+    QObject::disconnect(m_engineDestroyedConnection);
+    m_engineDestroyedConnection = {};
+    m_engine = nullptr;
     m_component = nullptr;
     m_ownedComponent.reset();
     setStatus(Status::Canceled);
@@ -327,7 +353,18 @@ void QmlObjectFactory::setEngine(QQmlEngine *engine)
 {
     if (m_engine == engine)
         return;
+
+    QObject::disconnect(m_engineDestroyedConnection);
+    m_engineDestroyedConnection = {};
     m_engine = engine;
+
+    if (m_engine) {
+        m_engineDestroyedConnection = connect(m_engine, &QObject::destroyed, this, [this] {
+            m_engine = nullptr;
+            m_engineDestroyedConnection = {};
+            emit engineChanged();
+        });
+    }
     emit engineChanged();
 }
 
