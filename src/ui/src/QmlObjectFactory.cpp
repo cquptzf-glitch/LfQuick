@@ -118,11 +118,7 @@ void QmlObjectLoadHandle::onIncubatorStatusChanged()
             fail(QStringLiteral("QML incubation completed without an object"));
             return;
         }
-        QQmlEngine::setObjectOwnership(created, QQmlEngine::CppOwnership);
-        m_object = created;
-        emit objectChanged();
-        setStatus(Status::Ready);
-        emit finished();
+        finishWithObject(created);
         break;
     }
     case QQmlIncubator::Error: {
@@ -152,6 +148,44 @@ void QmlObjectLoadHandle::cancel()
     emit finished();
 }
 
+void QmlObjectLoadHandle::forceCompletion()
+{
+    if (m_status != Status::Loading || !m_engine)
+        return;
+
+    if (m_incubator) {
+        m_incubator->forceCompletion();
+        onIncubatorStatusChanged();
+        return;
+    }
+
+    if (m_component && m_component->status() == QQmlComponent::Ready) {
+        startIncubation();
+        if (m_incubator) {
+            m_incubator->forceCompletion();
+            onIncubatorStatusChanged();
+        }
+        return;
+    }
+
+    // A component may still be compiling asynchronously. Foreground access is
+    // explicitly allowed to block, so abandon that compilation and recreate it
+    // synchronously. This mirrors LazyLoader's "item access forces completion"
+    // behavior while keeping the common background path asynchronous.
+    if (m_component)
+        disconnect(m_component.get(), nullptr, this, nullptr);
+    m_component.reset();
+
+    QString error;
+    QObject *created = QmlObjectFactory::createSync(
+        m_engine, m_source, m_initialProperties, &error);
+    if (!created) {
+        fail(error);
+        return;
+    }
+    finishWithObject(created);
+}
+
 QObject *QmlObjectLoadHandle::takeObject()
 {
     QObject *object = m_object;
@@ -160,6 +194,18 @@ QObject *QmlObjectLoadHandle::takeObject()
         emit objectChanged();
     }
     return object;
+}
+
+void QmlObjectLoadHandle::finishWithObject(QObject *object)
+{
+    if (m_status != Status::Loading || !object)
+        return;
+
+    QQmlEngine::setObjectOwnership(object, QQmlEngine::CppOwnership);
+    m_object = object;
+    emit objectChanged();
+    setStatus(Status::Ready);
+    emit finished();
 }
 
 void QmlObjectLoadHandle::fail(const QString &message)
