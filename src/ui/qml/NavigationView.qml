@@ -6,6 +6,7 @@ Item {
     id: root
 
     property var model
+    property var controller
     property var runtime
     property bool compact: false
     property int compactWidth: 72
@@ -21,15 +22,29 @@ Item {
     implicitHeight: 480
 
     function syncSelectedRoute() {
+        if (root.controller)
+            return
         if (root.model && root.runtime && root.model.selectedRoute !== undefined)
             root.model.selectedRoute = root.runtime.currentRoute
     }
 
     function navigate(route, parameters) {
-        if (root.runtime)
-            root.runtime.push(route, parameters || {})
+        const args = parameters || {}
+        if (root.controller)
+            root.controller.navigate(route, args)
+        else if (root.runtime)
+            root.runtime.push(route, args)
         else
-            root.routeRequested(route, parameters || {})
+            root.routeRequested(route, args)
+    }
+
+    function goBack() {
+        if (root.controller)
+            root.controller.back()
+        else if (root.runtime)
+            root.runtime.back()
+        else
+            root.backRequested()
     }
 
     Rectangle {
@@ -41,20 +56,17 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 8
-        spacing: 6
+        anchors.margins: Tokens.spacingSmall
+        spacing: Tokens.spacingSmall
 
-        ToolButton {
+        LfButton {
             Layout.fillWidth: true
             visible: root.showBackButton
-            enabled: root.runtime ? root.runtime.canGoBack : false
+            enabled: root.controller ? root.controller.canGoBack
+                   : root.runtime ? root.runtime.canGoBack
+                                  : true
             text: root.compact ? "‹" : qsTr("Back")
-            onClicked: {
-                if (root.runtime)
-                    root.runtime.back()
-                else
-                    root.backRequested()
-            }
+            onClicked: root.goBack()
         }
 
         ListView {
@@ -62,7 +74,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            spacing: 4
+            spacing: Tokens.spacingXSmall
             model: root.model
 
             delegate: Item {
@@ -96,7 +108,7 @@ Item {
                 ColumnLayout {
                     id: contentColumn
                     width: parent.width
-                    spacing: 4
+                    spacing: Tokens.spacingXSmall
 
                     Rectangle {
                         Layout.fillWidth: true
@@ -110,23 +122,24 @@ Item {
                         visible: delegateRoot.showGroupHeader && !root.compact
                         text: delegateRoot.group
                         color: Tokens.textSecondary
-                        font.pixelSize: 12
+                        font.pixelSize: Tokens.fontSizeCaption
                         elide: Text.ElideRight
-                        leftPadding: 8
-                        rightPadding: 8
+                        leftPadding: Tokens.spacingSmall
+                        rightPadding: Tokens.spacingSmall
                     }
 
-                    Button {
+                    LfButton {
                         id: navigationButton
                         Layout.fillWidth: true
                         checkable: true
                         checked: delegateRoot.selected
+                        highlighted: delegateRoot.selected
                         enabled: delegateRoot.itemEnabled
                         leftPadding: 10
                         rightPadding: 10
 
                         contentItem: RowLayout {
-                            spacing: 8
+                            spacing: Tokens.controlSpacing
 
                             Image {
                                 visible: delegateRoot.icon.length > 0
@@ -159,8 +172,8 @@ Item {
                                     && delegateRoot.badge !== null
                                     && String(delegateRoot.badge).length > 0
                                 text: String(delegateRoot.badge)
-                                color: Tokens.textSecondary
-                                font.pixelSize: 11
+                                color: delegateRoot.selected ? Tokens.onAccent : Tokens.textSecondary
+                                font.pixelSize: Tokens.fontSizeCaption
                             }
                         }
 
@@ -173,6 +186,7 @@ Item {
 
     Connections {
         target: root.runtime
+        enabled: !root.controller && root.runtime !== null
         function onCurrentRouteChanged() { root.syncSelectedRoute() }
     }
 
