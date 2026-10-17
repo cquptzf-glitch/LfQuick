@@ -38,7 +38,7 @@ QtObject {
 
     InputTarget {
         id: registration
-        id: root.targetId
+        targetId: root.targetId
         target: root.target
         enabled: root.enabled
         active: root.active
