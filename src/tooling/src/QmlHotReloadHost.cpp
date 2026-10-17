@@ -1,8 +1,9 @@
 #include <LfQuick/Tooling/QmlHotReloadHost.h>
 
+#include <LfQuick/Tooling/HotReloadStateTransfer.h>
 #include <LfQuick/Tooling/QmlHotReloadController.h>
+#include <LfQuick/Ui/QmlObjectFactory.h>
 
-#include <QQmlComponent>
 #include <QQmlEngine>
 #include <QtQml/qqml.h>
 
@@ -194,25 +195,13 @@ bool QmlHotReloadHost::reloadInternal(qint64 attemptedRevision)
     setStatus(Status::Reloading);
     setLastError({});
 
-    QQmlComponent component(engine, url, QQmlComponent::PreferSynchronous);
-    if (component.status() == QQmlComponent::Loading) {
-        setLastError(QStringLiteral("Hot reload currently requires synchronous local or resource QML sources"));
-        setStatus(Status::Failed);
-        emit reloadFailed(m_lastError, attemptedRevision);
-        return false;
-    }
-    if (component.status() == QQmlComponent::Error) {
-        setLastError(component.errorString());
-        setStatus(Status::Failed);
-        emit reloadFailed(m_lastError, attemptedRevision);
-        return false;
-    }
-
-    QObject *created = component.createWithInitialProperties(m_initialProperties);
+    QString creationError;
+    QObject *created = QmlObjectFactory::createSync(
+        engine, url, m_initialProperties, &creationError);
     if (!created) {
-        setLastError(component.errorString().isEmpty()
+        setLastError(creationError.isEmpty()
                          ? QStringLiteral("Hot reload component creation failed")
-                         : component.errorString());
+                         : creationError);
         setStatus(Status::Failed);
         emit reloadFailed(m_lastError, attemptedRevision);
         return false;
@@ -227,17 +216,24 @@ bool QmlHotReloadHost::reloadInternal(qint64 attemptedRevision)
         return false;
     }
 
-    const QVariantMap state = preservedState();
+    const QVariantMap legacyRootState = preservedState();
+    QPointer<QQuickItem> previous = m_item;
+
     candidate->setVisible(false);
     candidate->setParent(this);
     candidate->setParentItem(this);
     candidate->setPosition({0.0, 0.0});
     candidate->setSize(size());
 
-    for (auto it = state.cbegin(); it != state.cend(); ++it)
+    for (auto it = legacyRootState.cbegin(); it != legacyRootState.cend(); ++it)
         candidate->setProperty(it.key().toUtf8().constData(), it.value());
 
-    QPointer<QQuickItem> previous = m_item;
+    // Stable scoped IDs restore state throughout the object tree. The legacy
+    // preservedProperties list above remains only as a root-level compatibility
+    // path for existing applications.
+    if (previous)
+        HotReloadStateTransfer::transfer(candidate, previous);
+
     m_item = candidate;
     candidate->setVisible(true);
     emit itemChanged();
