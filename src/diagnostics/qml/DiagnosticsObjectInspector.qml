@@ -8,8 +8,8 @@ Rectangle {
     property int refreshInterval: 500
     property bool autoRefresh: true
 
-    color: "#e61c1c1f"
-    border.color: "#707078"
+    color: DiagnosticsTokens.panel
+    border.color: DiagnosticsTokens.panelBorder
     radius: 8
     implicitWidth: 420
     implicitHeight: 420
@@ -38,7 +38,7 @@ Rectangle {
                 ? (root.target.objectName && root.target.objectName.length > 0
                    ? root.target.objectName : String(root.target))
                 : qsTr("No object selected")
-            color: "#f1f1f3"
+            color: DiagnosticsTokens.textStrong
             font.bold: true
             font.pixelSize: 13
             elide: Text.ElideRight
@@ -49,9 +49,9 @@ Rectangle {
             width: parent.width
             height: 30
             text: root.filter
-            color: "#f1f1f3"
-            selectionColor: "#5078b8ff"
-            selectedTextColor: "#ffffff"
+            color: DiagnosticsTokens.textStrong
+            selectionColor: DiagnosticsTokens.selection
+            selectedTextColor: DiagnosticsTokens.onActive
             font.pixelSize: 12
             verticalAlignment: TextInput.AlignVCenter
             leftPadding: 8
@@ -62,8 +62,10 @@ Rectangle {
                 anchors.fill: parent
                 z: -1
                 radius: 5
-                color: "#303037"
-                border.color: filterEditor.activeFocus ? "#64b5f6" : "#4b4b52"
+                color: DiagnosticsTokens.surface
+                border.color: filterEditor.activeFocus
+                              ? DiagnosticsTokens.info
+                              : DiagnosticsTokens.surfaceHover
             }
         }
 
@@ -85,7 +87,9 @@ Rectangle {
                 width: ListView.view.width
                 height: 44
                 radius: 4
-                color: index % 2 === 0 ? "#242429" : "#29292f"
+                color: index % 2 === 0
+                       ? DiagnosticsTokens.rowEven
+                       : DiagnosticsTokens.rowOdd
 
                 Text {
                     anchors.left: parent.left
@@ -94,7 +98,9 @@ Rectangle {
                     anchors.topMargin: 5
                     width: parent.width * 0.43
                     text: propertyName + (dynamic ? " *" : "")
-                    color: writable ? "#e1e1e4" : "#aeb0b6"
+                    color: writable
+                           ? DiagnosticsTokens.textPrimary
+                           : DiagnosticsTokens.textMuted
                     font.pixelSize: 11
                     font.bold: true
                     elide: Text.ElideRight
@@ -108,7 +114,7 @@ Rectangle {
                     width: parent.width * 0.42
                     horizontalAlignment: Text.AlignRight
                     text: propertyType
-                    color: "#777981"
+                    color: DiagnosticsTokens.textFaint
                     font.pixelSize: 9
                     elide: Text.ElideLeft
                 }
@@ -121,7 +127,7 @@ Rectangle {
                     anchors.bottom: parent.bottom
                     anchors.bottomMargin: 5
                     text: valueText
-                    color: "#9fa1a7"
+                    color: DiagnosticsTokens.textDim
                     font.pixelSize: 10
                     elide: Text.ElideRight
                 }
