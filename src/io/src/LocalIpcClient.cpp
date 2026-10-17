@@ -39,13 +39,14 @@ LocalIpcClient::LocalIpcClient(QObject *parent)
         case QLocalSocket::UnconnectedState: setState(State::Disconnected); break;
         case QLocalSocket::ConnectingState: setState(State::Connecting); break;
         case QLocalSocket::ConnectedState: setState(State::Connected); break;
-        case QLocalSocket::ClosingState: setState(State::Connecting); break;
+        case QLocalSocket::ClosingState: setState(State::Disconnecting); break;
         }
     });
     connect(m_socket, &QLocalSocket::connected,
             this, &LocalIpcClient::connectedToServer);
     connect(m_socket, &QLocalSocket::disconnected, this, [this] {
         m_buffer.clear();
+        setState(State::Disconnected);
         emit disconnectedFromServer();
     });
     connect(m_socket, &QLocalSocket::readyRead,
