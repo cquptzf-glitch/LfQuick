@@ -1,5 +1,6 @@
 #pragma once
 
+#include <LfQuick/Io/FileDocument.h>
 #include <LfQuick/Io/LfQuickIoGlobal.h>
 
 #include <QObject>
@@ -7,8 +8,6 @@
 #include <QtQmlIntegration/qqmlintegration.h>
 
 namespace LfQuick {
-
-class FileDocument;
 
 class LFQUICKIO_EXPORT JsonDocument : public QObject
 {
