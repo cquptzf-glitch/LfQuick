@@ -458,6 +458,27 @@ LfPropertyGrid {
         delete grid;
     }
 
+    void searchableComboFiltersAfterComponentCompletion()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"QML(
+import QtQuick
+import LfQuick
+
+LfSearchableComboBox {
+    model: ["Alpha", "Beta", "Gamma"]
+    property int filteredCount: filteredIndices.length
+    Component.onCompleted: searchText = "et"
+}
+)QML", QUrl(QStringLiteral("qrc:/tests/LfQuickSearchableCombo.qml")));
+        QObject *combo = component.create();
+        QVERIFY2(combo, qPrintable(component.errorString()));
+        QCOMPARE(combo->property("filteredCount").toInt(), 1);
+        QVERIFY(combo->property("_componentReady").toBool());
+        delete combo;
+    }
+
     void lazyLoaderCanForceBackgroundLoadAndUnload()
     {
         QTemporaryDir temporary;

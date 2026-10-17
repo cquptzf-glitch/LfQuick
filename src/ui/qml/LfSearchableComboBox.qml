@@ -8,7 +8,11 @@ LfComboBox {
 
     property string searchText: ""
     property int maxPopupHeight: 340
+    property bool _componentReady: false
+    Component.onCompleted: _componentReady = true
     readonly property var filteredIndices: {
+        if (!_componentReady)
+            return []
         const indices = []
         const query = searchText.trim().toLocaleLowerCase()
         for (let i = 0; i < count; ++i) {
