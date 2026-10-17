@@ -103,6 +103,10 @@ void ItemTransformWatcher::watchItem(QQuickItem *item)
     }
     m_watchedItems.push_back(item);
 
+    const bool endpointSource = item == m_source;
+    const bool endpointTarget = item == m_target;
+    const bool endpointCommonParent = item == m_commonParent;
+
     const auto changed = [this] { invalidate(); };
     const auto topologyChanged = [this] {
         rebuild();
@@ -120,22 +124,26 @@ void ItemTransformWatcher::watchItem(QQuickItem *item)
                                     [topologyChanged](QQuickItem *) { topologyChanged(); }));
     m_connections.push_back(connect(item, &QQuickItem::windowChanged, this,
                                     [topologyChanged](QQuickWindow *) { topologyChanged(); }));
-    m_connections.push_back(connect(item, &QObject::destroyed, this, [this, item] {
-        if (m_source == item) {
-            m_source = nullptr;
-            emit sourceChanged();
-        }
-        if (m_target == item) {
-            m_target = nullptr;
-            emit targetChanged();
-        }
-        if (m_commonParent == item) {
-            m_commonParent = nullptr;
-            emit commonParentChanged();
-        }
-        rebuild();
-        invalidate();
-    }));
+    m_connections.push_back(connect(
+        item, &QObject::destroyed, this,
+        [this, endpointSource, endpointTarget, endpointCommonParent] {
+            // QPointer is already null by QObject::destroyed emission time, so
+            // remember the endpoint roles when the connection is established.
+            if (endpointSource) {
+                m_source = nullptr;
+                emit sourceChanged();
+            }
+            if (endpointTarget) {
+                m_target = nullptr;
+                emit targetChanged();
+            }
+            if (endpointCommonParent) {
+                m_commonParent = nullptr;
+                emit commonParentChanged();
+            }
+            rebuild();
+            invalidate();
+        }));
 }
 
 void ItemTransformWatcher::watchWindow(QQuickWindow *window)
