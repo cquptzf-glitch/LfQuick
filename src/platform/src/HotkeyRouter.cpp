@@ -4,6 +4,8 @@
 #include <QKeyEvent>
 #include <QVariantMap>
 
+#include <utility>
+
 namespace LfQuick {
 
 HotkeyRouter::HotkeyRouter(QObject *parent)
@@ -91,7 +93,7 @@ QVariantList HotkeyRouter::hotkeys() const
 {
     QVariantList result;
     result.reserve(m_hotkeys.size());
-    for (const Entry &entry : m_hotkeys) {
+    for (const Entry &entry : std::as_const(m_hotkeys)) {
         result.push_back(QVariantMap{
             {QStringLiteral("id"), entry.id},
             {QStringLiteral("sequence"), entry.sequence.toString(QKeySequence::PortableText)},
