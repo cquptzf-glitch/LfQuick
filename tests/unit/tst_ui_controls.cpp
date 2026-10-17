@@ -28,6 +28,7 @@ Item {
 
     LifetimeLease { object: parent }
     QmlObjectFactory { }
+    LfLazyLoader { }
 
     LfButton { text: "Button" }
     LfTextField { text: "Text" }
