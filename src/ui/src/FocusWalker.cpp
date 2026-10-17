@@ -134,6 +134,7 @@ QVariantList FocusWalker::dumpOrder(Mode mode) const
         const QPointF center = centerInScope(item);
         result.push_back(QVariantMap{
             {QStringLiteral("index"), i},
+            {QStringLiteral("item"), QVariant::fromValue(static_cast<QObject *>(item))},
             {QStringLiteral("name"), item->objectName().isEmpty()
                 ? QString::fromLatin1(item->metaObject()->className())
                 : item->objectName()},
