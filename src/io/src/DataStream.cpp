@@ -158,11 +158,12 @@ void DataStream::setParser(DataStreamParser *parser)
     if (m_parser == parser)
         return;
 
-    if (m_parser && !m_buffer.isEmpty())
-        m_parser->streamEnded(m_buffer);
     const bool bufferChanged = !m_buffer.isEmpty();
+    if (m_parser && !m_ended)
+        m_parser->streamEnded(m_buffer);
     m_buffer.clear();
     m_parser = parser;
+    m_ended = false;
     emit parserChanged();
     if (bufferChanged)
         emit bufferedBytesChanged();
@@ -188,8 +189,14 @@ void DataStream::attachDevice(QIODevice *device)
     if (m_device == device)
         return;
 
+    if (m_device)
+        readAvailable();
     disconnectDevice();
+    if (m_parser && !m_ended)
+        end();
+
     m_device = device;
+    m_ended = false;
     if (m_device) {
         m_deviceConnections.push_back(connect(m_device, &QIODevice::readyRead,
                                               this, &DataStream::readAvailable));
@@ -223,6 +230,7 @@ void DataStream::feed(const QByteArray &bytes)
     if (bytes.isEmpty())
         return;
 
+    m_ended = false;
     emit bytesReceived(bytes);
     if (!m_parser)
         return;
@@ -236,6 +244,10 @@ void DataStream::feed(const QByteArray &bytes)
 
 void DataStream::end()
 {
+    if (m_ended)
+        return;
+    m_ended = true;
+
     if (!m_parser) {
         if (!m_buffer.isEmpty()) {
             m_buffer.clear();
