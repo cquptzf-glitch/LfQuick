@@ -6,6 +6,33 @@
 #include <utility>
 
 namespace LfQuick {
+namespace {
+
+qsizetype trailingDelimiterPrefixLength(const QByteArray &buffer,
+                                        const QByteArray &delimiter)
+{
+    if (buffer.isEmpty() || delimiter.size() <= 1)
+        return 0;
+
+    const qsizetype maximum = std::min(buffer.size(), delimiter.size() - 1);
+    for (qsizetype length = maximum; length > 0; --length) {
+        if (buffer.endsWith(delimiter.first(length)))
+            return length;
+    }
+    return 0;
+}
+
+qint64 discardExceptDelimiterPrefix(QByteArray &buffer,
+                                    const QByteArray &delimiter)
+{
+    const qsizetype keep = trailingDelimiterPrefixLength(buffer, delimiter);
+    const qsizetype drop = buffer.size() - keep;
+    if (drop > 0)
+        buffer.remove(0, drop);
+    return static_cast<qint64>(drop);
+}
+
+} // namespace
 
 void DataStreamParser::streamEnded(QByteArray &buffer)
 {
@@ -59,8 +86,11 @@ void DelimitedStreamParser::parseBytes(QByteArray &incoming, QByteArray &buffer)
     if (m_discardingOversizedRecord) {
         const qsizetype recoveryIndex = buffer.indexOf(m_delimiter);
         if (recoveryIndex < 0) {
-            const qint64 dropped = buffer.size();
-            buffer.clear();
+            // Keep only a suffix that can still become the beginning of a
+            // delimiter in the next chunk. This preserves split delimiters
+            // (for example "\r" + "\n") without retaining the oversized
+            // record itself.
+            const qint64 dropped = discardExceptDelimiterPrefix(buffer, m_delimiter);
             if (dropped > 0)
                 emit bufferOverflow(dropped);
             return;
@@ -92,10 +122,10 @@ void DelimitedStreamParser::parseBytes(QByteArray &incoming, QByteArray &buffer)
     }
 
     if (m_maxBufferedBytes > 0 && buffer.size() > m_maxBufferedBytes) {
-        const qint64 dropped = buffer.size();
-        buffer.clear();
+        const qint64 dropped = discardExceptDelimiterPrefix(buffer, m_delimiter);
         m_discardingOversizedRecord = true;
-        emit bufferOverflow(dropped);
+        if (dropped > 0)
+            emit bufferOverflow(dropped);
     }
 }
 
