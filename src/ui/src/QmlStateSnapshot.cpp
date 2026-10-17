@@ -54,7 +54,33 @@ QString scopedKey(const QString &scope, const QString &key)
     return scope.isEmpty() ? key : scope + QLatin1Char('/') + key;
 }
 
-void indexTree(QObject *object, const QString &scope, TreeIndex &index)
+bool isWithinScope(const QString &candidate, const QString &scope)
+{
+    return candidate == scope
+        || candidate.startsWith(scope + QLatin1Char('/'));
+}
+
+void invalidateScope(TreeIndex &index, const QString &scope)
+{
+    // A duplicated scope makes every descendant identity ambiguous, even when
+    // the descendant's own local key appears only once. Retrospectively remove
+    // keys already indexed from the first occurrence of the scope.
+    QStringList invalidated;
+    for (auto it = index.objects.cbegin(); it != index.objects.cend(); ++it) {
+        if (isWithinScope(it.key(), scope))
+            invalidated.push_back(it.key());
+    }
+    for (const QString &key : invalidated) {
+        index.objects.remove(key);
+        index.ambiguous.insert(key);
+    }
+    index.ambiguous.insert(scope);
+}
+
+void indexTree(QObject *object,
+               const QString &scope,
+               bool ancestorAmbiguous,
+               TreeIndex &index)
 {
     if (!object)
         return;
@@ -65,23 +91,30 @@ void indexTree(QObject *object, const QString &scope, TreeIndex &index)
         index.postReloadHooks.push_back(hook);
 
     QString childScope = scope;
+    bool childAmbiguous = ancestorAmbiguous;
     const QString key = stateKey(object);
     if (!key.isEmpty()) {
         const QString fullKey = scopedKey(scope, key);
         childScope = fullKey;
 
-        if (index.ambiguous.contains(fullKey)) {
-            // Already known to be ambiguous in this scope.
-        } else if (index.objects.contains(fullKey)) {
+        if (ancestorAmbiguous || index.ambiguous.contains(fullKey)) {
             index.objects.remove(fullKey);
             index.ambiguous.insert(fullKey);
+            childAmbiguous = true;
+        } else if (index.objects.contains(fullKey)) {
+            invalidateScope(index, fullKey);
+            childAmbiguous = true;
         } else {
             index.objects.insert(fullKey, object);
+            childAmbiguous = false;
         }
     }
 
+    // If this unkeyed object lives below an ambiguous scope, descendants remain
+    // ambiguous as well. A local child key cannot repair an ambiguous ancestor
+    // identity.
     for (QObject *child : object->children())
-        indexTree(child, childScope, index);
+        indexTree(child, childScope, childAmbiguous, index);
 }
 
 QVariantMap captureProperties(QObject *object)
@@ -114,13 +147,17 @@ int restoreExplicitProperties(QObject *object,
     if (!attached)
         return 0;
 
+    const QStringList properties = attached->stateProperties();
+    QPointer<QObject> guardedObject = object;
     int restored = 0;
-    for (const QString &propertyName : attached->stateProperties()) {
+    for (const QString &propertyName : properties) {
+        if (!guardedObject)
+            break;
         if (!state.contains(propertyName))
             continue;
 
         const QByteArray name = propertyName.toUtf8();
-        if (!object->setProperty(name.constData(), state.value(propertyName))) {
+        if (!guardedObject->setProperty(name.constData(), state.value(propertyName))) {
             ++skipped;
             continue;
         }
@@ -147,7 +184,7 @@ QVariantMap QmlStateSnapshot::capture(QObject *root)
     snapshot.insert(QString::fromLatin1(kVersionKey), kSnapshotVersion);
 
     TreeIndex index;
-    indexTree(root, {}, index);
+    indexTree(root, {}, false, index);
 
     QVariantMap objects;
     for (auto it = index.objects.cbegin(); it != index.objects.cend(); ++it) {
@@ -169,7 +206,7 @@ QmlStateRestoreStats QmlStateSnapshot::restore(QObject *root,
         return stats;
 
     TreeIndex index;
-    indexTree(root, {}, index);
+    indexTree(root, {}, false, index);
 
     // capture() always emits an explicit version marker. An empty QVariantMap
     // is reserved for initial creation with no previous serialized tree.
@@ -199,16 +236,20 @@ QmlStateRestoreStats QmlStateSnapshot::restore(QObject *root,
         auto *persistent = qobject_cast<PersistentState *>(object);
         if (ambiguous.contains(it.key())) {
             if (persistent) {
+                QPointer<PersistentState> guard = persistent;
                 persistent->markLoaded();
-                completedPersistentStates.insert(persistent);
+                if (guard)
+                    completedPersistentStates.insert(guard.data());
             }
             continue;
         }
 
         if (!objects.contains(it.key())) {
             if (persistent) {
+                QPointer<PersistentState> guard = persistent;
                 persistent->markLoaded();
-                completedPersistentStates.insert(persistent);
+                if (guard)
+                    completedPersistentStates.insert(guard.data());
             }
             continue;
         }
@@ -216,8 +257,10 @@ QmlStateRestoreStats QmlStateSnapshot::restore(QObject *root,
         ++stats.matchedObjects;
         const QVariantMap objectState = objects.value(it.key()).toMap();
         if (persistent) {
+            QPointer<PersistentState> guard = persistent;
             stats.restoredProperties += persistent->restoreState(objectState, true);
-            completedPersistentStates.insert(persistent);
+            if (guard)
+                completedPersistentStates.insert(guard.data());
         } else {
             stats.restoredProperties += restoreExplicitProperties(
                 object, objectState, stats.skippedProperties);
