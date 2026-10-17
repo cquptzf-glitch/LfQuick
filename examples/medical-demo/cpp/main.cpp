@@ -10,6 +10,10 @@
 #include <LfQuick/Charts/ChartDataModel.h>
 #endif
 
+#ifdef LFQUICK_HAS_DIAGNOSTICS
+#include <LfQuick/Diagnostics/DiagnosticsModel.h>
+#endif
+
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -174,6 +178,150 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
     QuickRuntime quickRuntime(&engine);
 
+#ifdef LFQUICK_HAS_DIAGNOSTICS
+    DiagnosticsModel diagnosticsModel;
+    diagnosticsModel.setMaxEvents(500);
+    diagnosticsModel.setMetric(QStringLiteral("dataview.samples.count"), sampleModel.rowCount());
+    diagnosticsModel.setMetric(QStringLiteral("dataview.results.count"), resultModel.rowCount());
+    diagnosticsModel.setMetric(QStringLiteral("scanner.enabled"), scanner.isEnabled());
+    diagnosticsModel.setMetric(QStringLiteral("runtime.route"), quickRuntime.currentRoute());
+    diagnosticsModel.setMetric(QStringLiteral("runtime.depth"), quickRuntime.depth());
+    diagnosticsModel.setMetric(QStringLiteral("runtime.singletonCount"), quickRuntime.singletonCount());
+    diagnosticsModel.setMetric(QStringLiteral("runtime.retainedLruWeight"), quickRuntime.retainedLruWeight());
+    diagnosticsModel.recordEvent(QStringLiteral("app"),
+                                 QStringLiteral("startup"),
+                                 {{QStringLiteral("syntheticData"), true}},
+                                 QStringLiteral("info"),
+                                 QStringLiteral("Medical demo diagnostics initialized"));
+
+    QObject::connect(&sampleModel, &DataTableModel::countChanged,
+                     &diagnosticsModel, [&] {
+        diagnosticsModel.setMetric(QStringLiteral("dataview.samples.count"), sampleModel.rowCount());
+    });
+    QObject::connect(&resultModel, &DataTableModel::countChanged,
+                     &diagnosticsModel, [&] {
+        diagnosticsModel.setMetric(QStringLiteral("dataview.results.count"), resultModel.rowCount());
+    });
+    QObject::connect(&scanner, &KeyboardWedgeScanner::enabledChanged,
+                     &diagnosticsModel, [&] {
+        diagnosticsModel.setMetric(QStringLiteral("scanner.enabled"), scanner.isEnabled());
+    });
+    QObject::connect(scanner.session(), &ScannerSession::scanAccepted,
+                     &diagnosticsModel, [&](const QString &value) {
+        diagnosticsModel.incrementMetric(QStringLiteral("scanner.acceptedCount"));
+        diagnosticsModel.recordEvent(QStringLiteral("scanner"),
+                                     QStringLiteral("accepted"),
+                                     {{QStringLiteral("length"), value.size()}},
+                                     QStringLiteral("info"),
+                                     QStringLiteral("Scanner input accepted"));
+    });
+    QObject::connect(scanner.session(), &ScannerSession::scanRejected,
+                     &diagnosticsModel, [&](const QString &rawValue, const QString &reason) {
+        diagnosticsModel.incrementMetric(QStringLiteral("scanner.rejectedCount"));
+        diagnosticsModel.recordEvent(QStringLiteral("scanner"),
+                                     QStringLiteral("rejected"),
+                                     {{QStringLiteral("length"), rawValue.size()},
+                                      {QStringLiteral("reason"), reason}},
+                                     QStringLiteral("warning"),
+                                     reason);
+    });
+
+    QObject::connect(&quickRuntime, &QuickRuntime::currentRouteChanged,
+                     &diagnosticsModel, [&] {
+        diagnosticsModel.setMetric(QStringLiteral("runtime.route"), quickRuntime.currentRoute());
+        diagnosticsModel.setMetric(QStringLiteral("runtime.depth"), quickRuntime.depth());
+        diagnosticsModel.incrementMetric(QStringLiteral("navigation.routeChangeCount"));
+        diagnosticsModel.recordEvent(QStringLiteral("navigation"),
+                                     QStringLiteral("routeChanged"),
+                                     {{QStringLiteral("route"), quickRuntime.currentRoute()},
+                                      {QStringLiteral("depth"), quickRuntime.depth()}},
+                                     QStringLiteral("info"),
+                                     quickRuntime.currentRoute());
+    });
+    QObject::connect(&quickRuntime, &QuickRuntime::navigationChanged,
+                     &diagnosticsModel, [&] {
+        diagnosticsModel.setMetric(QStringLiteral("runtime.depth"), quickRuntime.depth());
+        diagnosticsModel.setMetric(QStringLiteral("runtime.canGoBack"), quickRuntime.canGoBack());
+    });
+    QObject::connect(&quickRuntime, &QuickRuntime::cacheStateChanged,
+                     &diagnosticsModel, [&] {
+        diagnosticsModel.setMetric(QStringLiteral("runtime.singletonCount"), quickRuntime.singletonCount());
+        diagnosticsModel.setMetric(QStringLiteral("runtime.retainedLruWeight"), quickRuntime.retainedLruWeight());
+    });
+    QObject::connect(&quickRuntime, &QuickRuntime::cacheEntryEvicted,
+                     &diagnosticsModel, [&](const QString &route) {
+        diagnosticsModel.incrementMetric(QStringLiteral("runtime.cacheEvictionCount"));
+        diagnosticsModel.recordEvent(QStringLiteral("cache"),
+                                     QStringLiteral("evicted"),
+                                     {{QStringLiteral("route"), route}},
+                                     QStringLiteral("info"),
+                                     route);
+    });
+    QObject::connect(&quickRuntime, &QuickRuntime::navigationBlocked,
+                     &diagnosticsModel,
+                     [&](const QString &fromRoute, const QString &toRoute, const QString &reason) {
+        diagnosticsModel.recordEvent(QStringLiteral("navigation"),
+                                     QStringLiteral("blocked"),
+                                     {{QStringLiteral("fromRoute"), fromRoute},
+                                      {QStringLiteral("toRoute"), toRoute},
+                                      {QStringLiteral("reason"), reason}},
+                                     QStringLiteral("warning"),
+                                     reason);
+    });
+    QObject::connect(&quickRuntime, &QuickRuntime::navigationFailed,
+                     &diagnosticsModel, [&](const QString &route, const QString &message) {
+        diagnosticsModel.recordEvent(QStringLiteral("navigation"),
+                                     QStringLiteral("failed"),
+                                     {{QStringLiteral("route"), route}},
+                                     QStringLiteral("error"),
+                                     message);
+    });
+    QObject::connect(&quickRuntime, &QuickRuntime::pageFallbackAttempted,
+                     &diagnosticsModel,
+                     [&](const QString &route, const QString &primaryProvider,
+                         const QString &fallbackProvider, const QString &primaryError) {
+        diagnosticsModel.recordEvent(QStringLiteral("fallback"),
+                                     QStringLiteral("attempted"),
+                                     {{QStringLiteral("route"), route},
+                                      {QStringLiteral("primaryProvider"), primaryProvider},
+                                      {QStringLiteral("fallbackProvider"), fallbackProvider},
+                                      {QStringLiteral("primaryError"), primaryError}},
+                                     QStringLiteral("warning"),
+                                     route);
+    });
+    QObject::connect(&quickRuntime, &QuickRuntime::pageFallbackActivated,
+                     &diagnosticsModel,
+                     [&](const QString &route, const QString &provider, const QString &strategy) {
+        diagnosticsModel.incrementMetric(QStringLiteral("fallback.activatedCount"));
+        diagnosticsModel.recordEvent(QStringLiteral("fallback"),
+                                     QStringLiteral("activated"),
+                                     {{QStringLiteral("route"), route},
+                                      {QStringLiteral("provider"), provider},
+                                      {QStringLiteral("strategy"), strategy}},
+                                     QStringLiteral("info"),
+                                     strategy);
+    });
+    QObject::connect(&quickRuntime, &QuickRuntime::pageFallbackFailed,
+                     &diagnosticsModel,
+                     [&](const QString &route, const QString &provider, const QString &message) {
+        diagnosticsModel.recordEvent(QStringLiteral("fallback"),
+                                     QStringLiteral("failed"),
+                                     {{QStringLiteral("route"), route},
+                                      {QStringLiteral("provider"), provider}},
+                                     QStringLiteral("error"),
+                                     message);
+    });
+    QObject::connect(quickRuntime.errorCollector(), &QmlErrorCollector::errorRecorded,
+                     &diagnosticsModel, [&](const QVariantMap &entry) {
+        diagnosticsModel.incrementMetric(QStringLiteral("qml.errorCount"));
+        diagnosticsModel.recordEvent(QStringLiteral("qml"),
+                                     QStringLiteral("error"),
+                                     entry,
+                                     QStringLiteral("error"),
+                                     entry.value(QStringLiteral("message")).toString());
+    });
+#endif
+
     engine.rootContext()->setContextProperty(QStringLiteral("sampleModel"), &sampleModel);
     engine.rootContext()->setContextProperty(QStringLiteral("resultModel"), &resultModel);
     engine.rootContext()->setContextProperty(QStringLiteral("scanner"), &scanner);
@@ -187,9 +335,20 @@ int main(int argc, char *argv[])
 #else
     engine.rootContext()->setContextProperty(QStringLiteral("chartsAvailable"), false);
 #endif
+#ifdef LFQUICK_HAS_DIAGNOSTICS
+    engine.rootContext()->setContextProperty(QStringLiteral("diagnosticsAvailable"), true);
+    engine.rootContext()->setContextProperty(QStringLiteral("diagnosticsModel"), &diagnosticsModel);
+#else
+    engine.rootContext()->setContextProperty(QStringLiteral("diagnosticsAvailable"), false);
+    engine.rootContext()->setContextProperty(QStringLiteral("diagnosticsModel"), static_cast<QObject *>(nullptr));
+#endif
 
     QTimer liveDataTimer(&app);
-    QObject::connect(&liveDataTimer, &QTimer::timeout, &sampleModel, [&sampleModel] {
+    QObject::connect(&liveDataTimer, &QTimer::timeout, &sampleModel, [&sampleModel
+#ifdef LFQUICK_HAS_DIAGNOSTICS
+                                                                     , &diagnosticsModel
+#endif
+    ] {
         static int cursor = 0;
         const int rowCount = sampleModel.rowCount();
         if (rowCount == 0)
@@ -201,6 +360,9 @@ int main(int argc, char *argv[])
                                              : QStringLiteral("Running"));
         }
         cursor = (cursor + 3) % rowCount;
+#ifdef LFQUICK_HAS_DIAGNOSTICS
+        diagnosticsModel.incrementMetric(QStringLiteral("dataview.liveMutationCount"), 3);
+#endif
     });
     liveDataTimer.start(800);
 
