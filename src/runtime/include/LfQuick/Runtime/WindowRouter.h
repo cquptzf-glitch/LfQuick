@@ -40,6 +40,7 @@ public:
 
     WindowResult open(const WindowOpenRequest &request);
     WindowResult activate(QStringView instanceId);
+    WindowResult reparent(QStringView instanceId, QStringView ownerInstanceId = {});
     WindowResult close(QStringView instanceId);
     WindowResult closeAll();
 
@@ -53,6 +54,9 @@ signals:
     void activeWindowChanged(const QString &instanceId);
     void windowOpened(const QString &windowId, const QString &instanceId);
     void windowActivated(const QString &windowId, const QString &instanceId);
+    void windowOwnerChanged(const QString &windowId,
+                            const QString &instanceId,
+                            const QString &ownerInstanceId);
     void windowClosed(const QString &windowId, const QString &instanceId);
     void windowOpenFailed(const QString &windowId, const QString &message);
     void windowCloseBlocked(const QString &windowId,
@@ -67,6 +71,7 @@ private:
     QList<std::shared_ptr<Record>> closeClosure(const std::shared_ptr<Record> &root) const;
     WindowResult closeRecords(const QList<std::shared_ptr<Record>> &records,
                               const std::shared_ptr<Record> &root);
+    bool wouldFormOwnerCycle(QStringView instanceId, QStringView ownerInstanceId) const;
     void setActive(const std::shared_ptr<Record> &record);
     void clearActiveIf(QStringView instanceId);
 
