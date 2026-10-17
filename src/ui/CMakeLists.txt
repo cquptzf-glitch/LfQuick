@@ -35,6 +35,10 @@ qt_add_qml_module(LfQuickUi
         src/OverlayCoordinatorBusyToken.cpp
         include/LfQuick/Ui/BusyToken.h
         src/BusyToken.cpp
+        include/LfQuick/Ui/FocusWalker.h
+        src/FocusWalker.cpp
+        include/LfQuick/Ui/FocusManager.h
+        src/FocusManager.cpp
         include/LfQuick/Ui/FocusNavigator.h
         src/FocusNavigator.cpp
         include/LfQuick/Ui/PermissionEvaluator.h
@@ -130,6 +134,8 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/OverlayBackend.h
         include/LfQuick/Ui/OverlayCoordinator.h
         include/LfQuick/Ui/BusyToken.h
+        include/LfQuick/Ui/FocusWalker.h
+        include/LfQuick/Ui/FocusManager.h
         include/LfQuick/Ui/FocusNavigator.h
         include/LfQuick/Ui/NavigationGuardState.h
         include/LfQuick/Ui/NavigationGuardController.h
