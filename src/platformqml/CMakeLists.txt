@@ -7,6 +7,8 @@ qt_add_qml_module(LfQuickPlatformQml
     RESOURCE_PREFIX /qt/qml
     SOURCES
         PlatformQmlTypes.h
+    QML_FILES
+        ScannerTarget.qml
 )
 
 target_link_libraries(LfQuickPlatformQml
