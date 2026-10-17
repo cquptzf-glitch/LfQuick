@@ -23,7 +23,9 @@ class LFQUICKRUNTIME_EXPORT PageRouter : public QObject
     Q_OBJECT
     Q_PROPERTY(QString currentRoute READ currentRoute NOTIFY currentRouteChanged FINAL)
     Q_PROPERTY(bool canGoBack READ canGoBack NOTIFY historyChanged FINAL)
+    Q_PROPERTY(bool canGoForward READ canGoForward NOTIFY historyChanged FINAL)
     Q_PROPERTY(int depth READ depth NOTIFY historyChanged FINAL)
+    Q_PROPERTY(int forwardDepth READ forwardDepth NOTIFY historyChanged FINAL)
     Q_PROPERTY(int maxRetainedLruPages READ maxRetainedLruPages WRITE setMaxRetainedLruPages NOTIFY cachePolicyChanged FINAL)
     Q_PROPERTY(qint64 maxRetainedLruWeight READ maxRetainedLruWeight WRITE setMaxRetainedLruWeight NOTIFY cachePolicyChanged FINAL)
     Q_PROPERTY(qint64 retainedLruWeight READ retainedLruWeight NOTIFY cacheStateChanged FINAL)
@@ -37,8 +39,11 @@ public:
 
     QString currentRoute() const;
     bool canGoBack() const noexcept;
+    bool canGoForward() const noexcept;
     int depth() const noexcept;
+    int forwardDepth() const noexcept;
     QStringList history() const;
+    QStringList forwardHistory() const;
 
     int maxRetainedLruPages() const noexcept;
     void setMaxRetainedLruPages(int value);
@@ -53,6 +58,7 @@ public:
     RouteResult push(const RouteRequest &request);
     RouteResult replace(const RouteRequest &request);
     RouteResult back();
+    RouteResult forward();
     void reset();
 
 signals:
@@ -89,6 +95,7 @@ private:
     bool activate(Entry &entry);
     void deactivateCurrent(bool suspend);
     void destroy(Entry &entry);
+    void clearForwardHistory();
     void destroySingletonCache();
     void touch(Entry &entry);
     void enforceLruLimit();
@@ -101,6 +108,7 @@ private:
     PageRegistry *m_pages = nullptr;
     PageProviderRegistry *m_providers = nullptr;
     std::vector<Entry> m_history;
+    std::vector<Entry> m_forwardHistory;
     std::vector<std::shared_ptr<INavigationGuard>> m_guards;
     QHash<QString, std::shared_ptr<IPageInstance>> m_singletons;
     int m_maxRetainedLruPages = 3;
