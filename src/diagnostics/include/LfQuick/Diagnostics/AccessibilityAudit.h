@@ -2,6 +2,7 @@
 
 #include <LfQuick/Diagnostics/LfQuickDiagnosticsGlobal.h>
 
+#include <QMetaObject>
 #include <QObject>
 #include <QPointer>
 #include <QQuickItem>
@@ -52,6 +53,7 @@ private:
                              const QString &severity = QStringLiteral("warning"));
 
     QPointer<QQuickItem> m_root;
+    QMetaObject::Connection m_rootDestroyedConnection;
     QVariantList m_issues;
     bool m_includeDisabled = false;
     bool m_includeInvisible = false;
