@@ -6,6 +6,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QString>
+#include <QStringList>
 #include <QVariantMap>
 #include <QtQml/qqml.h>
 #include <QtQmlIntegration/qqmlintegration.h>
@@ -71,6 +72,8 @@ class LFQUICKUI_EXPORT LfAttached : public QObject
     Q_PROPERTY(int focusOrder READ focusOrder WRITE setFocusOrder NOTIFY focusOrderChanged FINAL)
     Q_PROPERTY(bool acceptScanner READ acceptScanner WRITE setAcceptScanner NOTIFY acceptScannerChanged FINAL)
     Q_PROPERTY(QString helpContext READ helpContext WRITE setHelpContext NOTIFY helpContextChanged FINAL)
+    Q_PROPERTY(QString reloadKey READ reloadKey WRITE setReloadKey NOTIFY reloadKeyChanged FINAL)
+    Q_PROPERTY(QStringList stateProperties READ stateProperties WRITE setStateProperties NOTIFY statePropertiesChanged FINAL)
 
 public:
     explicit LfAttached(QObject *target);
@@ -92,12 +95,20 @@ public:
     QString helpContext() const { return m_helpContext; }
     void setHelpContext(const QString &context);
 
+    QString reloadKey() const { return m_reloadKey; }
+    void setReloadKey(const QString &key);
+
+    QStringList stateProperties() const { return m_stateProperties; }
+    void setStateProperties(const QStringList &properties);
+
 signals:
     void validationRuleChanged();
     void focusPolicyChanged();
     void focusOrderChanged();
     void acceptScannerChanged();
     void helpContextChanged();
+    void reloadKeyChanged();
+    void statePropertiesChanged();
 
 private:
     PermissionBinding *m_permission = nullptr;
@@ -106,6 +117,8 @@ private:
     int m_focusOrder = 0;
     bool m_acceptScanner = false;
     QString m_helpContext;
+    QString m_reloadKey;
+    QStringList m_stateProperties;
 };
 
 class LFQUICKUI_EXPORT Lf : public QObject
