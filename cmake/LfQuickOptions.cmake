@@ -1,4 +1,3 @@
-option(BUILD_SHARED_LIBS "Build LfQuick libraries as shared libraries" ON)
 option(LFQUICK_BUILD_MODELS "Build lightweight QObject/JavaScript model helpers" ON)
 option(LFQUICK_BUILD_IO "Build file, stream, process and local IPC helpers" ON)
 option(LFQUICK_BUILD_PLATFORM "Build platform/input adapters" ON)
