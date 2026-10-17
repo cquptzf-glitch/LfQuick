@@ -1,5 +1,6 @@
 #include <LfQuick/Platform/HotkeyRouter.h>
 
+#include <QCoreApplication>
 #include <QKeyEvent>
 #include <QSignalSpy>
 #include <QTest>
