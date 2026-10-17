@@ -139,10 +139,11 @@ public:
             owner->winId();
         QWindow *windowHandle = m_widget->windowHandle();
         QWindow *ownerHandle = owner ? owner->windowHandle() : nullptr;
-        if (!windowHandle && owner)
+        if (!windowHandle)
             return false;
-        if (windowHandle)
-            windowHandle->setTransientParent(ownerHandle);
+        if (owner && !ownerHandle)
+            return false;
+        windowHandle->setTransientParent(ownerHandle);
 
         m_widget->setProperty("lfquickWindowOwnerInstanceId", ownerInstanceId);
         m_widget->setGeometry(previousGeometry);
@@ -276,8 +277,20 @@ std::unique_ptr<IWindowInstance> WidgetWindowProvider::create(
     }
 
     QWidget *owner = nullptr;
-    if (!request.ownerInstanceId.isEmpty())
+    if (!request.ownerInstanceId.isEmpty()) {
         owner = m_state->widgets.value(request.ownerInstanceId);
+        if (!owner) {
+            m_lastErrorInfo.code = QStringLiteral("widget-window.owner-incompatible");
+            m_lastErrorInfo.message = QStringLiteral(
+                "Widget window owner '%1' is not managed by this provider")
+                .arg(request.ownerInstanceId);
+            m_lastErrorInfo.details = {
+                {QStringLiteral("windowId"), descriptor.id},
+                {QStringLiteral("ownerInstanceId"), request.ownerInstanceId}
+            };
+            return {};
+        }
+    }
 
     QWidget *widget = it.value()(owner, request.parameters);
     if (!widget) {
@@ -290,7 +303,9 @@ std::unique_ptr<IWindowInstance> WidgetWindowProvider::create(
         return {};
     }
 
-    if (owner && widget->parentWidget() == owner)
+    // Runtime owns window lifetime. A QWidget QObject parent would introduce a
+    // second, implicit ownership tree and break Detach semantics.
+    if (widget->parentWidget())
         widget->setParent(nullptr, widget->windowFlags() | Qt::Window);
     widget->setAttribute(Qt::WA_DeleteOnClose, false);
     widget->setProperty("lfquickWindowParameters", request.parameters);
@@ -301,7 +316,7 @@ std::unique_ptr<IWindowInstance> WidgetWindowProvider::create(
     m_state->widgets.insert(instanceId, widget);
 
     auto instance = std::make_unique<WidgetWindowInstance>(instanceId, widget, m_state);
-    if (owner && !instance->updateOwner(request.ownerInstanceId)) {
+    if (!request.ownerInstanceId.isEmpty() && !instance->updateOwner(request.ownerInstanceId)) {
         m_state->widgets.remove(instanceId);
         widget->deleteLater();
         m_lastErrorInfo.code = QStringLiteral("widget-window.owner-bind-failed");
