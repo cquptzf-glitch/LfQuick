@@ -5,6 +5,8 @@
 #include <QLocalSocket>
 #include <QUuid>
 
+#include <algorithm>
+
 namespace LfQuick {
 namespace {
 
@@ -26,6 +28,11 @@ LocalIpcClient::LocalIpcClient(QObject *parent)
     : QObject(parent)
     , m_socket(new QLocalSocket(this))
 {
+    // Keep Qt's own socket buffer bounded as a first line of defense. The
+    // parser below additionally never lets its application buffer exceed one
+    // maximum-sized frame.
+    m_socket->setReadBufferSize(IpcFrameCodec::maximumBufferedBytes());
+
     connect(m_socket, &QLocalSocket::stateChanged, this,
             [this](QLocalSocket::LocalSocketState state) {
         switch (state) {
@@ -154,20 +161,46 @@ void LocalIpcClient::readAvailable()
 {
     if (!m_socket)
         return;
-    m_buffer.append(m_socket->readAll());
 
-    while (true) {
-        QVariantMap message;
-        QString error;
-        const auto result = IpcFrameCodec::takeFrame(m_buffer, message, &error);
-        if (result == IpcFrameCodec::DecodeResult::Incomplete)
-            break;
-        if (result == IpcFrameCodec::DecodeResult::Error) {
-            setErrorString(error);
+    const qsizetype maxBuffered = IpcFrameCodec::maximumBufferedBytes();
+    const qsizetype chunkSize = IpcFrameCodec::recommendedReadChunkBytes();
+
+    while (m_socket && m_socket->bytesAvailable() > 0) {
+        const qsizetype room = maxBuffered - m_buffer.size();
+        if (room <= 0) {
+            setErrorString(QStringLiteral("IPC receive buffer exceeded the frame limit"));
             m_socket->abort();
-            break;
+            m_buffer.clear();
+            return;
         }
-        handleMessage(message);
+
+        const qint64 wanted = static_cast<qint64>(std::min<qsizetype>(
+            {room, chunkSize, static_cast<qsizetype>(m_socket->bytesAvailable())}));
+        const QByteArray bytes = m_socket->read(wanted);
+        if (bytes.isEmpty())
+            break;
+        m_buffer.append(bytes);
+
+        while (true) {
+            QVariantMap message;
+            QString error;
+            const auto result = IpcFrameCodec::takeFrame(m_buffer, message, &error);
+            if (result == IpcFrameCodec::DecodeResult::Incomplete)
+                break;
+            if (result == IpcFrameCodec::DecodeResult::Error) {
+                setErrorString(error);
+                m_socket->abort();
+                m_buffer.clear();
+                return;
+            }
+            if (!IpcFrameCodec::validateTypedEnvelope(message, &error)) {
+                setErrorString(error);
+                m_socket->abort();
+                m_buffer.clear();
+                return;
+            }
+            handleMessage(message);
+        }
     }
 }
 
@@ -205,13 +238,18 @@ bool LocalIpcClient::writeFrame(const QVariantMap &message)
     }
 
     QString error;
+    if (!IpcFrameCodec::validateTypedEnvelope(message, &error)) {
+        setErrorString(error);
+        return false;
+    }
+
     const QByteArray frame = IpcFrameCodec::encode(message, &error);
     if (frame.isEmpty() && !error.isEmpty()) {
         setErrorString(error);
         return false;
     }
-    if (m_socket->write(frame) < 0) {
-        setErrorString(m_socket->errorString());
+    if (!IpcFrameCodec::writeAll(m_socket, frame, &error)) {
+        setErrorString(error.isEmpty() ? m_socket->errorString() : error);
         return false;
     }
     m_socket->flush();
