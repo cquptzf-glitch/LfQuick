@@ -49,6 +49,10 @@ QVariantMap RuntimeCapabilities::capabilities() const
 {
     QVariantMap result;
 
+    // Platform's compatibility FileWatcher surface is now implemented by the
+    // technology-neutral Io module, so any valid Platform build has Io.
+    insertCapability(result, QStringLiteral("module.io"), true);
+
 #ifdef LFQUICK_CAP_PLATFORM_QML
     insertCapability(result, QStringLiteral("module.platformQml"), true);
 #else
