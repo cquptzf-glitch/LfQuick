@@ -41,6 +41,7 @@ Item {
 
     LfButton { text: "Button" }
     LfToolButton { text: "Tool"; checkable: true; checked: true }
+    LfMenuButton { text: "More" }
     LfTextField { text: "Text" }
     LfCheckBox { text: "Check"; checked: true }
     LfRadioButton { text: "Radio"; checked: true }
@@ -88,6 +89,12 @@ Item {
     LfCommandBar {
         LfToolButton { text: "Refresh" }
         LfButton { text: "Run"; highlighted: true }
+    }
+    LfSplitView {
+        width: 320
+        height: 120
+        Item { }
+        Item { }
     }
     LfNumberInput { from: 0; to: 100; value: 42 }
     LfRangeInput { from: 0; to: 100; first.value: 20; second.value: 80 }
