@@ -5,8 +5,8 @@ Rectangle {
 
     property var runtime
 
-    color: "#e61c1c1f"
-    border.color: "#707078"
+    color: DiagnosticsTokens.panel
+    border.color: DiagnosticsTokens.panelBorder
     radius: 8
     implicitWidth: 360
     implicitHeight: 220
@@ -18,7 +18,7 @@ Rectangle {
 
         Text {
             text: qsTr("Route Inspector")
-            color: "#f1f1f3"
+            color: DiagnosticsTokens.textStrong
             font.bold: true
             font.pixelSize: 12
         }
@@ -28,7 +28,7 @@ Rectangle {
             text: root.runtime
                 ? qsTr("Current: %1").arg(root.runtime.currentRoute || "-")
                 : qsTr("No runtime")
-            color: "#e1e1e4"
+            color: DiagnosticsTokens.textPrimary
             font.pixelSize: 11
             elide: Text.ElideRight
         }
@@ -42,7 +42,7 @@ Rectangle {
                     .arg(root.runtime.depth)
                     .arg(root.runtime.forwardDepth)
                 : ""
-            color: "#cfd0d4"
+            color: DiagnosticsTokens.textSecondary
             font.pixelSize: 10
         }
 
@@ -54,7 +54,7 @@ Rectangle {
                     .arg(root.runtime.retainedLruWeight)
                     .arg(root.runtime.maxRetainedLruWeight)
                 : ""
-            color: "#9fa1a7"
+            color: DiagnosticsTokens.textDim
             font.pixelSize: 10
         }
 
@@ -63,10 +63,19 @@ Rectangle {
             visible: root.runtime !== null
 
             Rectangle {
-                width: 68; height: 26; radius: 4
-                color: backMouse.containsMouse ? "#4b4b52" : "#303037"
+                width: 68
+                height: 26
+                radius: 4
+                color: backMouse.containsMouse
+                       ? DiagnosticsTokens.surfaceHover
+                       : DiagnosticsTokens.surface
                 opacity: root.runtime && root.runtime.canGoBack ? 1.0 : 0.4
-                Text { anchors.centerIn: parent; text: qsTr("Back"); color: "#e1e1e4"; font.pixelSize: 10 }
+                Text {
+                    anchors.centerIn: parent
+                    text: qsTr("Back")
+                    color: DiagnosticsTokens.textPrimary
+                    font.pixelSize: 10
+                }
                 MouseArea {
                     id: backMouse
                     anchors.fill: parent
@@ -77,10 +86,19 @@ Rectangle {
             }
 
             Rectangle {
-                width: 68; height: 26; radius: 4
-                color: forwardMouse.containsMouse ? "#4b4b52" : "#303037"
+                width: 68
+                height: 26
+                radius: 4
+                color: forwardMouse.containsMouse
+                       ? DiagnosticsTokens.surfaceHover
+                       : DiagnosticsTokens.surface
                 opacity: root.runtime && root.runtime.canGoForward ? 1.0 : 0.4
-                Text { anchors.centerIn: parent; text: qsTr("Forward"); color: "#e1e1e4"; font.pixelSize: 10 }
+                Text {
+                    anchors.centerIn: parent
+                    text: qsTr("Forward")
+                    color: DiagnosticsTokens.textPrimary
+                    font.pixelSize: 10
+                }
                 MouseArea {
                     id: forwardMouse
                     anchors.fill: parent
