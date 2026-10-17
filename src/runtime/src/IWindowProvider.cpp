@@ -1,6 +1,28 @@
 #include <LfQuick/Runtime/IWindowProvider.h>
 
+#include <LfQuick/Runtime/IWindowBacking.h>
+#include <LfQuick/Runtime/IWindowInstance.h>
+
 namespace LfQuick {
+
+bool IWindowProvider::canAdoptBacking(const WindowDescriptor &descriptor,
+                                      const IWindowBacking &backing) const
+{
+    Q_UNUSED(descriptor);
+    Q_UNUSED(backing);
+    return false;
+}
+
+std::unique_ptr<IWindowInstance> IWindowProvider::createWithBacking(
+    const WindowDescriptor &descriptor,
+    const WindowOpenRequest &request,
+    std::unique_ptr<IWindowBacking> &backing)
+{
+    Q_UNUSED(descriptor);
+    Q_UNUSED(request);
+    Q_UNUSED(backing);
+    return {};
+}
 
 WindowProviderError IWindowProvider::lastErrorInfo() const
 {
