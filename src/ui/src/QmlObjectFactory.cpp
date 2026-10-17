@@ -52,6 +52,17 @@ QmlObjectLoadHandle::~QmlObjectLoadHandle()
 {
     if (m_status == Status::Loading && m_incubator)
         m_incubator->clear();
+
+    QObject::disconnect(m_componentDestroyedConnection);
+    m_componentDestroyedConnection = {};
+    if (m_component)
+        disconnect(m_component, nullptr, this, nullptr);
+    m_component = nullptr;
+
+    // Disconnect before m_ownedComponent is destroyed. Its QObject::destroyed
+    // signal must not re-enter this object while member teardown is underway.
+    m_ownedComponent.reset();
+
     if (m_object)
         m_object->deleteLater();
 }
@@ -85,6 +96,9 @@ void QmlObjectLoadHandle::begin(QQmlEngine *engine)
 
     m_componentDestroyedConnection = connect(m_component, &QObject::destroyed, this, [this] {
         m_component = nullptr;
+        // Externally owned components can disappear while a load is pending.
+        // An internally owned component cannot reach this path during normal
+        // teardown because the destructor disconnects first.
         m_ownedComponent.release();
         if (m_status == Status::Loading)
             fail(QStringLiteral("QML component was destroyed while loading"));
