@@ -143,17 +143,27 @@ private slots:
 
         QVERIFY(surface.isReady());
         QVERIFY(surface.loadDurationMs() >= 0);
+        QVERIFY(surface.effectiveDevicePixelRatio() > 0.0);
+        QCOMPARE(surface.surfaceSize(), surface.size());
 
+        const quint64 initialResizeCount = surface.resizeCount();
         for (int i = 0; i < 120; ++i) {
             surface.resize(320 + (i % 17) * 7, 200 + (i % 13) * 5);
             QCoreApplication::processEvents(QEventLoop::AllEvents, 2);
             QVERIFY(surface.rootObject());
             QCOMPARE(surface.rootObject()->size(), QSizeF(surface.size()));
+            QCOMPARE(surface.surfaceSize(), surface.size());
         }
+
+        QVERIFY(surface.resizeCount() > initialResizeCount);
+        QVERIFY(surface.effectiveDevicePixelRatio() > 0.0);
 
         surface.resetMetrics();
         QCOMPARE(surface.loadDurationMs(), -1);
         QCOMPARE(surface.firstFrameMs(), -1);
+        QCOMPARE(surface.resizeCount(), quint64(0));
+        QCOMPARE(surface.surfaceSize(), surface.size());
+        QVERIFY(surface.effectiveDevicePixelRatio() > 0.0);
     }
 };
 
