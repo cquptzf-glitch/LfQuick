@@ -8,6 +8,7 @@
 #include <QtQmlIntegration/qqmlintegration.h>
 
 class QFileSystemWatcher;
+class QTimer;
 
 namespace LfQuick {
 
@@ -43,6 +44,7 @@ private:
     void scheduleRebuild();
 
     QFileSystemWatcher *m_watcher = nullptr;
+    QTimer *m_rebuildTimer = nullptr;
     QSet<QString> m_files;
     QSet<QString> m_directories;
 };
