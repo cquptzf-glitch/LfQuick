@@ -35,6 +35,20 @@ public:
         Q_UNUSED(handler);
     }
 
+    // Runtime stores ownership using technology-neutral instance ids. Native
+    // adapters can override these hooks to keep QWidget/QWindow/etc ownership
+    // in sync. The default accepts detaching because non-native providers may
+    // have no platform ownership to update, but rejects assigning a new owner.
+    virtual bool canUpdateOwner(const WindowInstanceId &ownerInstanceId) const
+    {
+        return ownerInstanceId.isEmpty();
+    }
+
+    virtual bool updateOwner(const WindowInstanceId &ownerInstanceId)
+    {
+        return ownerInstanceId.isEmpty();
+    }
+
     virtual bool updateParameters(const QVariantMap &parameters)
     {
         return parameters.isEmpty();
