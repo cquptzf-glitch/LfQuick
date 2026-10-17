@@ -7,6 +7,17 @@
 #include <QStyleKitStyle>
 
 namespace LfQuick {
+namespace {
+
+QString normalizedStylePath(const QString &path)
+{
+    const QString trimmed = path.trimmed();
+    if (trimmed.startsWith(QStringLiteral("qrc:/")))
+        return QStringLiteral(":/") + trimmed.mid(5);
+    return trimmed;
+}
+
+} // namespace
 
 StyleKitBridge::StyleKitBridge(QObject *parent)
     : QObject(parent)
@@ -71,7 +82,7 @@ bool StyleKitBridge::applyToApplication()
         return false;
     }
 
-    const QString requestedPath = m_stylePath.trimmed();
+    const QString requestedPath = normalizedStylePath(m_stylePath);
     auto *candidate = new QStyleKitStyle;
     const QString previousCandidatePath = candidate->stylePath();
     candidate->setStylePath(requestedPath);
@@ -84,21 +95,21 @@ bool StyleKitBridge::applyToApplication()
         || candidate->stylePath() != requestedPath) {
         delete candidate;
         setLastError(QStringLiteral("StyleKit style could not be loaded as a Style root: %1")
-                         .arg(requestedPath));
+                         .arg(m_stylePath.trimmed()));
         return false;
     }
 
     const QStringList themes = candidate->availableThemeNames();
     if (themes.isEmpty()) {
         delete candidate;
-        setLastError(QStringLiteral("StyleKit style exposes no themes: %1").arg(requestedPath));
+        setLastError(QStringLiteral("StyleKit style exposes no themes: %1").arg(m_stylePath.trimmed()));
         return false;
     }
 
     if (m_themeName != QStringLiteral("System") && !themes.contains(m_themeName)) {
         delete candidate;
         setLastError(QStringLiteral("StyleKit theme '%1' is not available in %2")
-                         .arg(m_themeName, requestedPath));
+                         .arg(m_themeName, m_stylePath.trimmed()));
         return false;
     }
 
@@ -146,14 +157,11 @@ bool StyleKitBridge::validateStylePath(QString *error) const
         return false;
     }
 
-    const QString path = m_stylePath.trimmed();
-    if ((path.startsWith(QStringLiteral(":/")) || path.startsWith(QStringLiteral("qrc:/")))) {
-        const QString resourcePath = path.startsWith(QStringLiteral("qrc:/"))
-            ? QStringLiteral(":/") + path.mid(5)
-            : path;
-        if (!QFile::exists(resourcePath)) {
+    const QString path = normalizedStylePath(m_stylePath);
+    if (path.startsWith(QStringLiteral(":/"))) {
+        if (!QFile::exists(path)) {
             if (error)
-                *error = QStringLiteral("StyleKit resource does not exist: %1").arg(path);
+                *error = QStringLiteral("StyleKit resource does not exist: %1").arg(m_stylePath.trimmed());
             return false;
         }
         return true;
