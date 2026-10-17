@@ -142,7 +142,9 @@ private:
     QPointer<QIODevice> m_device;
     QByteArray m_buffer;
     QList<QMetaObject::Connection> m_deviceConnections;
+    QPointer<QIODevice> m_readContinuationDevice;
     bool m_ended = false;
+    bool m_reading = false;
     bool m_readContinuationQueued = false;
 };
 
