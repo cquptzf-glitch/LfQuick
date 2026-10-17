@@ -32,6 +32,7 @@ void FileDocument::setPath(const QString &path)
         return;
 
     m_path = normalized;
+    setExternalConflict(false);
     setErrorString({});
     refreshWatch();
     emit pathChanged();
@@ -86,6 +87,14 @@ void FileDocument::setAutoReload(bool autoReload)
     emit autoReloadChanged();
 }
 
+void FileDocument::setReloadWhenDirty(bool reloadWhenDirty)
+{
+    if (m_reloadWhenDirty == reloadWhenDirty)
+        return;
+    m_reloadWhenDirty = reloadWhenDirty;
+    emit reloadWhenDirtyChanged();
+}
+
 bool FileDocument::load()
 {
     if (m_path.isEmpty()) {
@@ -109,6 +118,7 @@ bool FileDocument::load()
     const bool changed = m_data != loadedData;
     m_data = loadedData;
     setDirty(false);
+    setExternalConflict(false);
     setErrorString({});
     refreshWatch();
     if (changed)
@@ -149,6 +159,7 @@ bool FileDocument::save()
     }
 
     setDirty(false);
+    setExternalConflict(false);
     setErrorString({});
     refreshWatch();
     emit metadataChanged();
@@ -178,12 +189,25 @@ void FileDocument::clear()
         emit contentChanged();
 }
 
+void FileDocument::markDirty()
+{
+    setDirty(true);
+}
+
 void FileDocument::setDirty(bool dirty)
 {
     if (m_dirty == dirty)
         return;
     m_dirty = dirty;
     emit dirtyChanged();
+}
+
+void FileDocument::setExternalConflict(bool conflict)
+{
+    if (m_externalConflict == conflict)
+        return;
+    m_externalConflict = conflict;
+    emit externalConflictChanged();
 }
 
 void FileDocument::setErrorString(const QString &error)
@@ -210,6 +234,13 @@ void FileDocument::handleExternalChange(const QString &path)
 
     emit metadataChanged();
     emit externalChanged(m_path);
+
+    if (m_dirty && !m_reloadWhenDirty) {
+        setExternalConflict(true);
+        emit externalConflictDetected(m_path);
+        return;
+    }
+
     if (m_autoReload)
         load();
 }
