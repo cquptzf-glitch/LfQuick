@@ -128,20 +128,20 @@ bool FileDocument::load()
     return true;
 }
 
-bool FileDocument::save()
+bool FileDocument::writeDataToPath(const QString &path)
 {
-    if (m_path.isEmpty()) {
+    if (path.isEmpty()) {
         setErrorString(QStringLiteral("File path is empty"));
         return false;
     }
 
-    const QFileInfo info(m_path);
+    const QFileInfo info(path);
     if (!QDir().mkpath(info.absolutePath())) {
         setErrorString(QStringLiteral("Failed to create parent directory"));
         return false;
     }
 
-    QSaveFile file(m_path);
+    QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly)) {
         setErrorString(file.errorString());
         return false;
@@ -157,6 +157,13 @@ bool FileDocument::save()
         setErrorString(file.errorString());
         return false;
     }
+    return true;
+}
+
+bool FileDocument::save()
+{
+    if (!writeDataToPath(m_path))
+        return false;
 
     setDirty(false);
     setExternalConflict(false);
@@ -169,14 +176,30 @@ bool FileDocument::save()
 
 bool FileDocument::saveAs(const QString &path)
 {
-    const QString previous = m_path;
-    setPath(path);
-    if (m_path.isEmpty()) {
-        if (previous != m_path)
-            setPath(previous);
+    const QString targetPath = normalizedPath(path);
+    if (targetPath.isEmpty()) {
+        setErrorString(QStringLiteral("File path is empty"));
         return false;
     }
-    return save();
+    if (targetPath == m_path)
+        return save();
+
+    // Treat Save As as one transaction: the document remains associated with
+    // its current path/watch/conflict state until the target file has been
+    // committed successfully. A failed write therefore cannot strand the
+    // in-memory document on a path that never became valid.
+    if (!writeDataToPath(targetPath))
+        return false;
+
+    m_path = targetPath;
+    setDirty(false);
+    setExternalConflict(false);
+    setErrorString({});
+    refreshWatch();
+    emit pathChanged();
+    emit metadataChanged();
+    emit saved();
+    return true;
 }
 
 void FileDocument::clear()
