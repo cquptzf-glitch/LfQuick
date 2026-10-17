@@ -27,7 +27,17 @@ void DelimitedStreamParser::setDelimiter(const QByteArray &delimiter)
     if (m_delimiter == delimiter)
         return;
     m_delimiter = delimiter;
+    m_discardingOversizedRecord = false;
     emit delimiterChanged();
+}
+
+void DelimitedStreamParser::setMaxBufferedBytes(qint64 maxBufferedBytes)
+{
+    maxBufferedBytes = std::max<qint64>(0, maxBufferedBytes);
+    if (m_maxBufferedBytes == maxBufferedBytes)
+        return;
+    m_maxBufferedBytes = maxBufferedBytes;
+    emit maxBufferedBytesChanged();
 }
 
 void DelimitedStreamParser::parseBytes(QByteArray &incoming, QByteArray &buffer)
@@ -39,10 +49,28 @@ void DelimitedStreamParser::parseBytes(QByteArray &incoming, QByteArray &buffer)
     incoming.clear();
 
     if (m_delimiter.isEmpty()) {
+        m_discardingOversizedRecord = false;
         const QByteArray complete = std::exchange(buffer, QByteArray{});
         emit chunk(complete);
         emit read(QString::fromUtf8(complete));
         return;
+    }
+
+    if (m_discardingOversizedRecord) {
+        const qsizetype recoveryIndex = buffer.indexOf(m_delimiter);
+        if (recoveryIndex < 0) {
+            const qint64 dropped = buffer.size();
+            buffer.clear();
+            if (dropped > 0)
+                emit bufferOverflow(dropped);
+            return;
+        }
+
+        const qint64 dropped = recoveryIndex;
+        buffer.remove(0, recoveryIndex + m_delimiter.size());
+        if (dropped > 0)
+            emit bufferOverflow(dropped);
+        m_discardingOversizedRecord = false;
     }
 
     while (true) {
@@ -50,15 +78,39 @@ void DelimitedStreamParser::parseBytes(QByteArray &incoming, QByteArray &buffer)
         if (index < 0)
             break;
 
+        if (m_maxBufferedBytes > 0 && index > m_maxBufferedBytes) {
+            const qint64 dropped = index;
+            buffer.remove(0, index + m_delimiter.size());
+            emit bufferOverflow(dropped);
+            continue;
+        }
+
         const QByteArray complete = buffer.left(index);
         buffer.remove(0, index + m_delimiter.size());
         emit chunk(complete);
         emit read(QString::fromUtf8(complete));
     }
+
+    if (m_maxBufferedBytes > 0 && buffer.size() > m_maxBufferedBytes) {
+        const qint64 dropped = buffer.size();
+        buffer.clear();
+        m_discardingOversizedRecord = true;
+        emit bufferOverflow(dropped);
+    }
 }
 
 void DelimitedStreamParser::streamEnded(QByteArray &buffer)
 {
+    if (m_discardingOversizedRecord) {
+        const qint64 dropped = buffer.size();
+        buffer.clear();
+        m_discardingOversizedRecord = false;
+        if (dropped > 0)
+            emit bufferOverflow(dropped);
+        emit finished();
+        return;
+    }
+
     if (!buffer.isEmpty()) {
         const QByteArray remaining = std::exchange(buffer, QByteArray{});
         emit chunk(remaining);
@@ -150,6 +202,7 @@ DataStream::DataStream(QObject *parent)
 
 DataStream::~DataStream()
 {
+    QObject::disconnect(m_parserDestroyedConnection);
     disconnectDevice();
 }
 
@@ -158,12 +211,30 @@ void DataStream::setParser(DataStreamParser *parser)
     if (m_parser == parser)
         return;
 
+    QObject::disconnect(m_parserDestroyedConnection);
+    m_parserDestroyedConnection = {};
+
     const bool bufferChanged = !m_buffer.isEmpty();
     if (m_parser && !m_ended)
         m_parser->streamEnded(m_buffer);
     m_buffer.clear();
     m_parser = parser;
     m_ended = false;
+
+    if (m_parser) {
+        m_parserDestroyedConnection = connect(
+            m_parser, &QObject::destroyed, this, [this] {
+                const bool bufferChanged = !m_buffer.isEmpty();
+                m_parser = nullptr;
+                m_parserDestroyedConnection = {};
+                m_buffer.clear();
+                m_ended = false;
+                emit parserChanged();
+                if (bufferChanged)
+                    emit bufferedBytesChanged();
+            });
+    }
+
     emit parserChanged();
     if (bufferChanged)
         emit bufferedBytesChanged();
