@@ -1,4 +1,6 @@
 #include <QDebug>
+#include <QStandardItemModel>
+#include <QQmlContext>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQmlError>
@@ -9,6 +11,58 @@ class DataViewQmlSmokeTest : public QObject
     Q_OBJECT
 
 private slots:
+    void hierarchicalTreeControlsAcceptAbstractItemModels()
+    {
+        QStandardItemModel model;
+        model.setHorizontalHeaderLabels({QStringLiteral("Name")});
+        auto *instrument = new QStandardItem(QStringLiteral("Instrument A"));
+        instrument->appendRow(new QStandardItem(QStringLiteral("Channel 1")));
+        instrument->appendRow(new QStandardItem(QStringLiteral("Channel 2")));
+        model.appendRow(instrument);
+        QCOMPARE(model.rowCount(), 1);
+        QCOMPARE(model.rowCount(model.index(0, 0)), 2);
+
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("deviceTree"), &model);
+        QQmlComponent component(&engine);
+        component.setData(R"QML(
+import QtQuick
+import LfQuick.DataView
+
+Item {
+    width: 600
+    height: 480
+
+    LfTreeView {
+        objectName: "treeView"
+        width: 300
+        height: 300
+        model: deviceTree
+    }
+    LfTreeSelect {
+        objectName: "treeSelect"
+        y: 320
+        model: deviceTree
+        placeholderText: "Choose a channel"
+    }
+}
+)QML", QUrl(QStringLiteral("qrc:/tests/LfQuickTreeControls.qml")));
+
+        if (component.isError()) {
+            for (const QQmlError &error : component.errors())
+                qWarning().noquote() << error.toString();
+        }
+        QObject *root = component.create();
+        QVERIFY2(root, qPrintable(component.errorString()));
+        QObject *tree = root->findChild<QObject *>(QStringLiteral("treeView"));
+        QObject *picker = root->findChild<QObject *>(QStringLiteral("treeSelect"));
+        QVERIFY(tree);
+        QVERIFY(picker);
+        QCOMPARE(picker->property("placeholderText").toString(),
+                 QStringLiteral("Choose a channel"));
+        delete root;
+    }
+
     void publicDataViewTypesInstantiate()
     {
         QQmlEngine engine;

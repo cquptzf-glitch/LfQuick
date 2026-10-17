@@ -406,6 +406,38 @@ LfPage {
                 }
             }
 
+            LfCard {
+                Layout.fillWidth: true
+                Layout.leftMargin: Tokens.spacingLarge
+                Layout.rightMargin: Tokens.spacingLarge
+                title: qsTr("Complex selection controls")
+                subtitle: qsTr("Searchable options and stable-key multi-selection.")
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Tokens.spacingMedium
+
+                    LfSearchableComboBox {
+                        Layout.preferredWidth: 240
+                        model: [qsTr("Whole blood"), qsTr("Serum"),
+                                qsTr("Plasma"), qsTr("Quality control")]
+                        currentIndex: 0
+                    }
+
+                    LfMultiSelect {
+                        Layout.preferredWidth: 300
+                        model: [
+                            { text: qsTr("STAT"), value: "stat" },
+                            { text: qsTr("QC"), value: "qc" },
+                            { text: qsTr("Calibration"), value: "cal" }
+                        ]
+                        selectedValues: ["qc"]
+                    }
+
+                    Item { Layout.fillWidth: true }
+                }
+            }
+
             FocusDebugPanel {
                 Layout.fillWidth: true
                 Layout.leftMargin: Tokens.spacingLarge

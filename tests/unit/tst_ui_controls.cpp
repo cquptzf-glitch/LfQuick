@@ -285,6 +285,63 @@ Item {
         delete root;
     }
 
+    void complexSelectorsPreserveStableValues()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"QML(
+import QtQuick
+import LfQuick
+
+Item {
+    LfMultiSelect {
+        id: multi
+        objectName: "multi"
+        model: [
+            { text: "Priority", value: "priority" },
+            { text: "Quality control", value: "qc" },
+            { text: "Disabled", value: "off", enabled: false }
+        ]
+        maximumSelection: 1
+        property int commitCount: 0
+        property bool secondRejected: false
+        property bool disabledRejected: false
+        onSelectionCommitted: function(keys) { commitCount += 1 }
+        Component.onCompleted: {
+            toggleIndex(0)
+            secondRejected = !toggleIndex(1)
+            disabledRejected = !toggleIndex(2)
+        }
+    }
+
+    LfSearchableComboBox {
+        objectName: "searchable"
+        model: ["Alpha", "Beta", "Gamma"]
+        searchText: "bet"
+        readonly property int filteredCount: filteredIndices.length
+        readonly property int firstSourceIndex: filteredIndices.length > 0 ? filteredIndices[0] : -1
+    }
+}
+)QML", QUrl(QStringLiteral("qrc:/tests/LfQuickBatch5Selectors.qml")));
+
+        QObject *root = component.create();
+        QVERIFY2(root, qPrintable(component.errorString()));
+        QObject *multi = root->findChild<QObject *>(QStringLiteral("multi"));
+        QObject *searchable = root->findChild<QObject *>(QStringLiteral("searchable"));
+        QVERIFY(multi);
+        QVERIFY(searchable);
+
+        const QVariantList values = multi->property("selectedValues").toList();
+        QCOMPARE(values.size(), 1);
+        QCOMPARE(values.first().toString(), QStringLiteral("priority"));
+        QCOMPARE(multi->property("commitCount").toInt(), 1);
+        QVERIFY(multi->property("secondRejected").toBool());
+        QVERIFY(multi->property("disabledRejected").toBool());
+        QCOMPARE(searchable->property("filteredCount").toInt(), 1);
+        QCOMPARE(searchable->property("firstSourceIndex").toInt(), 1);
+        delete root;
+    }
+
     void lazyLoaderCanForceBackgroundLoadAndUnload()
     {
         QTemporaryDir temporary;
