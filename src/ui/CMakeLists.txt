@@ -137,6 +137,14 @@ qt_add_qml_module(LfQuickUi
         qml/LfTag.qml
         qml/LfCommandBar.qml
         qml/LfSplitView.qml
+        qml/LfFormField.qml
+        qml/LfFormSection.qml
+        qml/LfListItem.qml
+        qml/LfSettingsItem.qml
+        qml/LfStepper.qml
+        qml/LfTimeline.qml
+        qml/LfSideSheet.qml
+        qml/LfContextMenu.qml
         qml/LfNumberInput.qml
         qml/LfRangeInput.qml
         qml/LfProgressRing.qml
