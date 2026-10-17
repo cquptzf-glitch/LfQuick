@@ -69,9 +69,19 @@ bool QuickRuntime::canGoBack() const
     return m_router && m_router->canGoBack();
 }
 
+bool QuickRuntime::canGoForward() const
+{
+    return m_router && m_router->canGoForward();
+}
+
 int QuickRuntime::depth() const
 {
     return m_router ? m_router->depth() : 0;
+}
+
+int QuickRuntime::forwardDepth() const
+{
+    return m_router ? m_router->forwardDepth() : 0;
 }
 
 QQuickItem *QuickRuntime::host() const
@@ -212,6 +222,11 @@ bool QuickRuntime::replace(const QString &route, const QVariantMap &parameters)
 bool QuickRuntime::back()
 {
     return m_router && m_router->back().accepted;
+}
+
+bool QuickRuntime::forward()
+{
+    return m_router && m_router->forward().accepted;
 }
 
 void QuickRuntime::reset()
