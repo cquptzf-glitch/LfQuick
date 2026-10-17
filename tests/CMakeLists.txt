@@ -41,6 +41,12 @@ qt_add_executable(tst_runtime
 target_link_libraries(tst_runtime PRIVATE LfQuick::Runtime Qt6::Test)
 lfquick_register_test(tst_runtime)
 
+qt_add_executable(tst_runtime_stress
+    unit/tst_runtime_stress.cpp
+)
+target_link_libraries(tst_runtime_stress PRIVATE LfQuick::Runtime Qt6::Test)
+lfquick_register_test(tst_runtime_stress)
+
 qt_add_executable(tst_runtime_abi
     unit/tst_runtime_abi.cpp
 )
@@ -83,6 +89,12 @@ if(LFQUICK_BUILD_PLATFORM)
     )
     target_link_libraries(tst_platform PRIVATE LfQuick::Platform Qt6::Test)
     lfquick_register_test(tst_platform)
+
+    qt_add_executable(tst_scanner_stress
+        unit/tst_scanner_stress.cpp
+    )
+    target_link_libraries(tst_scanner_stress PRIVATE LfQuick::Platform Qt6::Test)
+    lfquick_register_test(tst_scanner_stress)
 endif()
 
 if(LFQUICK_BUILD_UI)
