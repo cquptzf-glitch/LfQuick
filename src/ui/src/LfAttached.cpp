@@ -142,6 +142,31 @@ void LfAttached::setHelpContext(const QString &context)
     emit helpContextChanged();
 }
 
+void LfAttached::setReloadKey(const QString &key)
+{
+    const QString normalized = key.trimmed();
+    if (m_reloadKey == normalized)
+        return;
+    m_reloadKey = normalized;
+    emit reloadKeyChanged();
+}
+
+void LfAttached::setStateProperties(const QStringList &properties)
+{
+    QStringList normalized;
+    normalized.reserve(properties.size());
+    for (const QString &property : properties) {
+        const QString name = property.trimmed();
+        if (!name.isEmpty() && !normalized.contains(name))
+            normalized.push_back(name);
+    }
+
+    if (m_stateProperties == normalized)
+        return;
+    m_stateProperties = normalized;
+    emit statePropertiesChanged();
+}
+
 LfAttached *Lf::qmlAttachedProperties(QObject *object)
 {
     return new LfAttached(object);
