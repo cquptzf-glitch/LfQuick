@@ -62,23 +62,23 @@ QtObject {
     readonly property color critical: Theme.highContrast ? textPrimary : "#A80000"
     readonly property color info: accent
 
-    readonly property int radiusSmall: 4
-    readonly property int radiusMedium: 8
-    readonly property int radiusLarge: 12
-    readonly property int spacingXSmall: 4
-    readonly property int spacingSmall: 6
-    readonly property int spacingMedium: 12
-    readonly property int spacingLarge: 20
-    readonly property int spacingXLarge: 28
+    // Compatibility aliases. New components can consume Units/Typography/Motion
+    // directly while existing controls keep their Tokens.* API unchanged.
+    readonly property int radiusSmall: Units.radiusSmall
+    readonly property int radiusMedium: Units.radiusMedium
+    readonly property int radiusLarge: Units.radiusLarge
+    readonly property int spacingXSmall: Units.xs
+    readonly property int spacingSmall: Units.sm
+    readonly property int spacingMedium: Units.md
+    readonly property int spacingLarge: Units.lg
+    readonly property int spacingXLarge: Units.xl
 
-    readonly property int controlHeight: Theme.density === Theme.Touch ? 44
-                                         : Theme.density === Theme.Compact ? 28
-                                         : 32
-    readonly property int controlPaddingHorizontal: Theme.density === Theme.Touch ? 16 : 12
-    readonly property int controlSpacing: Theme.density === Theme.Touch ? 10 : 8
-    readonly property int indicatorSize: Theme.density === Theme.Touch ? 22 : 18
-    readonly property int fontSizeBody: Theme.density === Theme.Touch ? 16 : 14
-    readonly property int fontSizeCaption: Theme.density === Theme.Touch ? 14 : 12
-    readonly property int animationFast: Theme.animationEnabled ? 90 : 0
-    readonly property int animationNormal: Theme.animationEnabled ? 160 : 0
+    readonly property int controlHeight: Units.controlHeight
+    readonly property int controlPaddingHorizontal: Units.controlPaddingHorizontal
+    readonly property int controlSpacing: Units.controlGap
+    readonly property int indicatorSize: Units.indicatorSize
+    readonly property int fontSizeBody: Typography.body
+    readonly property int fontSizeCaption: Typography.caption
+    readonly property int animationFast: Motion.fast
+    readonly property int animationNormal: Motion.normal
 }
