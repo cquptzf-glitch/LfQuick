@@ -54,6 +54,13 @@ public:
             return;
         if (m_activationCallback)
             m_activationCallback();
+
+        // Activation callbacks are external and may synchronously switch/reset
+        // the host, which destroys the current routed item. Re-check the
+        // guarded pointer before touching the page again.
+        if (!m_item)
+            return;
+
         m_item->setVisible(true);
         QMetaObject::invokeMethod(m_item, "onPageActivated", Qt::DirectConnection);
     }
@@ -63,7 +70,10 @@ public:
         if (!m_item)
             return;
         QMetaObject::invokeMethod(m_item, "onPageDeactivated", Qt::DirectConnection);
-        m_item->setVisible(false);
+
+        // QML lifecycle hooks can destroy their own root object.
+        if (m_item)
+            m_item->setVisible(false);
     }
 
     void suspend() override
@@ -85,11 +95,14 @@ public:
 
         bool accepted = true;
         for (auto it = parameters.cbegin(); it != parameters.cend(); ++it) {
+            if (!m_item)
+                return false;
+
             const QByteArray name = it.key().toUtf8();
             if (!m_item->setProperty(name.constData(), it.value()))
                 accepted = false;
         }
-        return accepted;
+        return accepted && !m_item.isNull();
     }
 
     void destroy() override
