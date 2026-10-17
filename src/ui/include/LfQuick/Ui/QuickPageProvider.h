@@ -4,6 +4,7 @@
 
 #include <QHash>
 #include <QPointer>
+#include <QUrl>
 #include <QVariantMap>
 
 #include <functional>
@@ -47,6 +48,7 @@ public:
 
 private:
     struct PrewarmEntry {
+        QUrl source;
         QVariantMap parameters;
         QPointer<QmlObjectLoadHandle> handle;
     };
