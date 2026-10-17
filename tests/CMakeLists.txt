@@ -77,6 +77,14 @@ qt_add_executable(tst_window_owner
 target_link_libraries(tst_window_owner PRIVATE LfQuick::Runtime Qt6::Test)
 lfquick_register_test(tst_window_owner)
 
+if(LFQUICK_BUILD_MODELS)
+    qt_add_executable(tst_models
+        unit/tst_models.cpp
+    )
+    target_link_libraries(tst_models PRIVATE LfQuick::Models Qt6::Qml Qt6::Test)
+    lfquick_register_test(tst_models)
+endif()
+
 if(LFQUICK_BUILD_IO)
     qt_add_executable(tst_io
         unit/tst_io.cpp
