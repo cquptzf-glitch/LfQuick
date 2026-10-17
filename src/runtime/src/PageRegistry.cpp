@@ -1,4 +1,3 @@
-
 #include <LfQuick/Runtime/PageRegistry.h>
 
 #include <utility>
@@ -17,7 +16,7 @@ bool PageRegistry::registerPage(PageDescriptor descriptor)
 
 bool PageRegistry::unregisterPage(QStringView route)
 {
-    return m_pages.remove(route.toString()) > 0;
+    return m_pages.remove(route.toString());
 }
 
 std::optional<PageDescriptor> PageRegistry::find(QStringView route) const
