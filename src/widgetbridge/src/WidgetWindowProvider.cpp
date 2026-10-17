@@ -8,6 +8,7 @@
 #include <QPointer>
 #include <QUuid>
 #include <QWidget>
+#include <QWindow>
 
 #include <utility>
 
@@ -104,6 +105,50 @@ public:
     void setCloseRequestHandler(CloseRequestHandler handler) override
     {
         m_closeRequestHandler = std::move(handler);
+    }
+
+    bool canUpdateOwner(const WindowInstanceId &ownerInstanceId) const override
+    {
+        if (!m_widget || !m_state)
+            return false;
+        if (ownerInstanceId.isEmpty())
+            return true;
+        const QWidget *owner = m_state->widgets.value(ownerInstanceId);
+        return owner && owner != m_widget;
+    }
+
+    bool updateOwner(const WindowInstanceId &ownerInstanceId) override
+    {
+        if (!canUpdateOwner(ownerInstanceId))
+            return false;
+
+        QWidget *owner = ownerInstanceId.isEmpty()
+            ? nullptr
+            : m_state->widgets.value(ownerInstanceId);
+
+        const bool wasVisible = m_widget->isVisible();
+        const QRect previousGeometry = m_widget->geometry();
+        if (m_widget->parentWidget())
+            m_widget->setParent(nullptr, m_widget->windowFlags() | Qt::Window);
+
+        // QWidget parentage controls QObject lifetime, which is too strong for
+        // Runtime OwnerClosePolicy::Detach. Use the native transient relation
+        // instead so Runtime remains authoritative over lifetime.
+        m_widget->winId();
+        if (owner)
+            owner->winId();
+        QWindow *windowHandle = m_widget->windowHandle();
+        QWindow *ownerHandle = owner ? owner->windowHandle() : nullptr;
+        if (!windowHandle && owner)
+            return false;
+        if (windowHandle)
+            windowHandle->setTransientParent(ownerHandle);
+
+        m_widget->setProperty("lfquickWindowOwnerInstanceId", ownerInstanceId);
+        m_widget->setGeometry(previousGeometry);
+        if (wasVisible)
+            m_widget->show();
+        return true;
     }
 
     bool updateParameters(const QVariantMap &parameters) override
@@ -245,8 +290,8 @@ std::unique_ptr<IWindowInstance> WidgetWindowProvider::create(
         return {};
     }
 
-    if (owner && widget->parentWidget() != owner)
-        widget->setParent(owner, widget->windowFlags() | Qt::Window);
+    if (owner && widget->parentWidget() == owner)
+        widget->setParent(nullptr, widget->windowFlags() | Qt::Window);
     widget->setAttribute(Qt::WA_DeleteOnClose, false);
     widget->setProperty("lfquickWindowParameters", request.parameters);
 
@@ -255,7 +300,20 @@ std::unique_ptr<IWindowInstance> WidgetWindowProvider::create(
     widget->setProperty("lfquickWindowId", descriptor.id);
     m_state->widgets.insert(instanceId, widget);
 
-    return std::make_unique<WidgetWindowInstance>(instanceId, widget, m_state);
+    auto instance = std::make_unique<WidgetWindowInstance>(instanceId, widget, m_state);
+    if (owner && !instance->updateOwner(request.ownerInstanceId)) {
+        m_state->widgets.remove(instanceId);
+        widget->deleteLater();
+        m_lastErrorInfo.code = QStringLiteral("widget-window.owner-bind-failed");
+        m_lastErrorInfo.message = QStringLiteral("Widget window could not bind its native owner");
+        m_lastErrorInfo.details = {
+            {QStringLiteral("windowId"), descriptor.id},
+            {QStringLiteral("ownerInstanceId"), request.ownerInstanceId}
+        };
+        return {};
+    }
+
+    return instance;
 }
 
 bool WidgetWindowProvider::registerFactory(QString id, Factory factory)
