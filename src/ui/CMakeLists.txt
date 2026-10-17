@@ -81,6 +81,7 @@ qt_add_qml_module(LfQuickUi
         qml/LfStateLayer.qml
         qml/LfTooltip.qml
         qml/LfPopup.qml
+        qml/LfMessageBox.qml
         qml/LfFocusGroup.qml
         qml/LfAppBar.qml
         qml/LfFramelessWindow.qml
@@ -101,6 +102,8 @@ qt_add_qml_module(LfQuickUi
         qml/DialogOverlay.qml
         qml/FocusDebugPanel.qml
         qml/NavigationResponsivePolicy.qml
+        qml/NavigationDelegate.qml
+        qml/NavigationLayout.qml
         qml/NavigationView.qml
         qml/ApplicationShell.qml
 )
