@@ -1,0 +1,21 @@
+cmake_minimum_required(VERSION 3.24)
+
+project(LfQuickPackageSmoke LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+set(_lfquick_components @LFQUICK_PACKAGE_SMOKE_COMPONENTS_ARGS@)
+find_package(LfQuick REQUIRED COMPONENTS ${_lfquick_components})
+
+add_executable(lfquick_package_smoke main.cpp)
+
+foreach(_component IN LISTS _lfquick_components)
+    if(NOT TARGET "LfQuick::${_component}")
+        message(FATAL_ERROR
+            "LfQuick component '${_component}' was reported as found but target "
+            "'LfQuick::${_component}' is unavailable")
+    endif()
+    target_link_libraries(lfquick_package_smoke PRIVATE "LfQuick::${_component}")
+endforeach()
