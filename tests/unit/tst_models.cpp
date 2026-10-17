@@ -5,6 +5,7 @@
 #include <QAbstractItemModel>
 #include <QDebug>
 #include <QJSEngine>
+#include <QPointer>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQmlError>
@@ -223,6 +224,53 @@ QtObject {
         QCOMPARE(repeater.instanceAt(0), instance);
         QCOMPARE(instance->property("labelFromContext").toString(), QStringLiteral("after"));
         QCOMPARE(instance->property("indexFromContext").toInt(), 0);
+    }
+
+    void objectRepeaterClearStaysClearButUnexpectedDestructionSelfHeals()
+    {
+        QQmlEngine engine;
+        QQmlComponent delegate(&engine);
+        delegate.setData(R"(
+            import QtQml
+            QtObject {
+                required property var modelData
+                required property int modelIndex
+            }
+        )", QUrl(QStringLiteral("inmemory:/LifecycleDelegate.qml")));
+        QVERIFY2(delegate.isReady(), qPrintable(delegate.errorString()));
+
+        ObjectRepeater repeater;
+        repeater.setDelegate(&delegate);
+        repeater.setKeyProperty(QStringLiteral("id"));
+        repeater.setModel(QVariantList{
+            row(QStringLiteral("a"), QStringLiteral("A")),
+            row(QStringLiteral("b"), QStringLiteral("B"))
+        });
+        QCOMPARE(repeater.count(), 2);
+
+        QPointer<QObject> first = repeater.instanceAt(0);
+        QPointer<QObject> second = repeater.instanceAt(1);
+        repeater.clear();
+        QCOMPARE(repeater.count(), 0);
+        QTest::qWait(20);
+        QCOMPARE(repeater.count(), 0);
+        QVERIFY(first.isNull());
+        QVERIFY(second.isNull());
+
+        // Explicit refresh remains available after clear().
+        repeater.refresh();
+        QCOMPARE(repeater.count(), 2);
+
+        QSignalSpy created(&repeater, &ObjectRepeater::instanceCreated);
+        QObject *unexpected = repeater.instanceAt(0);
+        QVERIFY(unexpected);
+        delete unexpected;
+
+        // Unexpected delegate destruction is different from framework-owned
+        // teardown: it must queue one healing refresh and restore the row.
+        QTRY_COMPARE_WITH_TIMEOUT(created.count(), 1, 1000);
+        QCOMPARE(repeater.count(), 2);
+        QVERIFY(repeater.instanceAt(0));
     }
 
     void scriptModelMovesStableKeysAndUpdatesPayloadWithoutReset()
