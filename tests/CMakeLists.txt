@@ -214,3 +214,67 @@ if(LFQUICK_BUILD_QRANGE_MODEL_ADAPTER)
     target_link_libraries(tst_range_model_adapter PRIVATE LfQuick::RangeModelAdapter Qt6::Test)
     lfquick_register_test(tst_range_model_adapter)
 endif()
+
+# Verify the installed SDK rather than only the in-tree aliases. The consumer
+# requires every component that exists in this build, so missing exported Qt
+# dependencies and broken check_required_components() semantics fail during
+# the downstream configure/generate step.
+set(LFQUICK_PACKAGE_SMOKE_COMPONENTS Core Runtime)
+macro(lfquick_append_package_smoke_component target component)
+    if(TARGET ${target})
+        list(APPEND LFQUICK_PACKAGE_SMOKE_COMPONENTS ${component})
+    endif()
+endmacro()
+
+lfquick_append_package_smoke_component(LfQuickPlatform Platform)
+lfquick_append_package_smoke_component(LfQuickPlatformQml PlatformQml)
+lfquick_append_package_smoke_component(LfQuickUi Ui)
+lfquick_append_package_smoke_component(LfQuickIntegration Integration)
+lfquick_append_package_smoke_component(LfQuickDataView DataView)
+lfquick_append_package_smoke_component(LfQuickWidgetBridge WidgetBridge)
+lfquick_append_package_smoke_component(LfQuickCharts Charts)
+lfquick_append_package_smoke_component(LfQuickDiagnostics Diagnostics)
+lfquick_append_package_smoke_component(LfQuickTooling Tooling)
+lfquick_append_package_smoke_component(LfQuickStyleKit StyleKit)
+lfquick_append_package_smoke_component(LfQuickSafeAreaAdapter SafeAreaAdapter)
+lfquick_append_package_smoke_component(LfQuickRangeModelAdapter RangeModelAdapter)
+lfquick_append_package_smoke_component(LfQuickCanvasPainterAdapter CanvasPainterAdapter)
+lfquick_append_package_smoke_component(LfQuickCustomQuickCharts CustomQuickCharts)
+lfquick_append_package_smoke_component(LfQuickLegacyQCustomPlotAdapter LegacyQCustomPlotAdapter)
+lfquick_append_package_smoke_component(LfQuickFluentStyle FluentStyle)
+lfquick_append_package_smoke_component(LfQuickBrandTestStyle BrandTestStyle)
+list(REMOVE_DUPLICATES LFQUICK_PACKAGE_SMOKE_COMPONENTS)
+list(JOIN LFQUICK_PACKAGE_SMOKE_COMPONENTS " " LFQUICK_PACKAGE_SMOKE_COMPONENTS_ARGS)
+
+set(_lfquick_package_consumer_source_dir
+    "${CMAKE_CURRENT_BINARY_DIR}/package-consumer-source")
+set(_lfquick_package_consumer_build_dir
+    "${CMAKE_CURRENT_BINARY_DIR}/package-consumer-build")
+set(_lfquick_package_install_prefix
+    "${CMAKE_CURRENT_BINARY_DIR}/package-install")
+file(MAKE_DIRECTORY "${_lfquick_package_consumer_source_dir}")
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/package/CMakeLists.txt.in"
+    "${_lfquick_package_consumer_source_dir}/CMakeLists.txt"
+    @ONLY
+)
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/package/main.cpp"
+    "${_lfquick_package_consumer_source_dir}/main.cpp"
+    COPYONLY
+)
+
+add_test(
+    NAME package_downstream_smoke
+    COMMAND ${CMAKE_COMMAND}
+        "-DLFQUICK_BUILD_DIR=${PROJECT_BINARY_DIR}"
+        "-DLFQUICK_INSTALL_PREFIX=${_lfquick_package_install_prefix}"
+        "-DLFQUICK_CONSUMER_SOURCE_DIR=${_lfquick_package_consumer_source_dir}"
+        "-DLFQUICK_CONSUMER_BUILD_DIR=${_lfquick_package_consumer_build_dir}"
+        "-DLFQUICK_QT6_DIR=${Qt6_DIR}"
+        "-DLFQUICK_CONFIG=$<CONFIG>"
+        "-DLFQUICK_GENERATOR=${CMAKE_GENERATOR}"
+        "-DLFQUICK_GENERATOR_PLATFORM=${CMAKE_GENERATOR_PLATFORM}"
+        "-DLFQUICK_GENERATOR_TOOLSET=${CMAKE_GENERATOR_TOOLSET}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/package/run_downstream_smoke.cmake"
+)
