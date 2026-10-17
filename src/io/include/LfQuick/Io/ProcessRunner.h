@@ -4,6 +4,7 @@
 #include <LfQuick/Io/LfQuickIoGlobal.h>
 
 #include <QByteArray>
+#include <QMetaObject>
 #include <QObject>
 #include <QPointer>
 #include <QStringList>
@@ -118,6 +119,7 @@ private:
     void setState(State state);
     void setErrorString(const QString &error);
     void finishParsers();
+    void completeRun(int exitCode, ExitStatus status);
 
     QProcess *m_process = nullptr;
     QString m_program;
@@ -134,8 +136,11 @@ private:
     QString m_errorString;
     QPointer<DataStreamParser> m_stdoutParser;
     QPointer<DataStreamParser> m_stderrParser;
+    QMetaObject::Connection m_stdoutParserDestroyedConnection;
+    QMetaObject::Connection m_stderrParserDestroyedConnection;
     QByteArray m_stdoutParserBuffer;
     QByteArray m_stderrParserBuffer;
+    bool m_runCompletionEmitted = true;
 };
 
 } // namespace LfQuick
