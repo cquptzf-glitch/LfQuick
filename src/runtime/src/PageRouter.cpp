@@ -59,6 +59,7 @@ struct PageRouter::Entry
 {
     PageDescriptor descriptor;
     QVariantMap parameters;
+    QVariantMap savedState;
     std::shared_ptr<IPageInstance> instance;
     bool suspended = false;
     quint64 lastTouched = 0;
@@ -240,6 +241,17 @@ RouteResult PageRouter::createEntry(const RouteRequest &request, Entry &entry)
             request.route,
             Error(QStringLiteral("routing"), 3,
                   creationFailureMessage(diagnostics), diagnostics));
+    }
+
+    // Every new instance receives one state-finalization callback. Stateful
+    // providers use the empty map to complete their initial-load lifecycle;
+    // technology-neutral providers inherit the no-op default implementation.
+    if (!created->restoreState({})) {
+        created->destroy();
+        return RouteResult::failure(
+            request.route,
+            Error(QStringLiteral("routing"), 9,
+                  QStringLiteral("Page rejected initial state finalization")));
     }
 
     entry.instance = std::shared_ptr<IPageInstance>(std::move(created));
@@ -663,6 +675,11 @@ bool PageRouter::ensureInstance(Entry &entry)
     if (!created)
         return false;
 
+    if (!created->restoreState(entry.savedState)) {
+        created->destroy();
+        return false;
+    }
+
     entry.instance = std::shared_ptr<IPageInstance>(std::move(created));
     entry.suspended = false;
     touch(entry);
@@ -750,6 +767,9 @@ void PageRouter::destroy(Entry &entry)
         entry.suspended = false;
         return;
     }
+
+    if (entry.instance->isValid())
+        entry.savedState = entry.instance->saveState();
 
     entry.instance->destroy();
     entry.instance.reset();

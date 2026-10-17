@@ -1,5 +1,6 @@
 qt_add_library(LfQuickUi
     src/QuickPageProvider.cpp
+    src/QuickWindowProvider.cpp
     src/NavigationGuardState.cpp
     src/NavigationGuardController.cpp
     src/QuickRuntime.cpp
@@ -46,6 +47,28 @@ qt_add_qml_module(LfQuickUi
         src/PermissionEvaluator.cpp
         include/LfQuick/Ui/LfAttached.h
         src/LfAttached.cpp
+        include/LfQuick/Ui/QmlIncubationScheduler.h
+        src/QmlIncubationScheduler.cpp
+        include/LfQuick/Ui/QmlObjectFactory.h
+        src/QmlObjectFactory.cpp
+        include/LfQuick/Ui/QmlLazyLoader.h
+        src/QmlLazyLoader.cpp
+        include/LfQuick/Ui/BoundComponent.h
+        src/BoundComponent.cpp
+        include/LfQuick/Ui/QmlStateSnapshot.h
+        src/QmlStateSnapshot.cpp
+        include/LfQuick/Ui/LifetimeLease.h
+        src/LifetimeLease.cpp
+        include/LfQuick/Ui/PersistentState.h
+        src/PersistentState.cpp
+        include/LfQuick/Ui/PostReloadHook.h
+        src/PostReloadHook.cpp
+        include/LfQuick/Ui/ItemTransformWatcher.h
+        src/ItemTransformWatcher.cpp
+        include/LfQuick/Ui/PopupAnchor.h
+        src/PopupAnchor.cpp
+        include/LfQuick/Ui/WindowRuntime.h
+        src/WindowRuntime.cpp
         include/LfQuick/Ui/HelpContextRegistry.h
         src/HelpContextRegistry.cpp
         include/LfQuick/Ui/DpiHelper.h
@@ -79,6 +102,12 @@ qt_add_qml_module(LfQuickUi
         qml/Motion.qml
         qml/ThemeSystemAdapter.qml
         qml/IconLoader.qml
+        qml/LfPaddingBox.qml
+        qml/LfWrapper.qml
+        qml/LfAspectBox.qml
+        qml/LfClipBox.qml
+        qml/LfSizeProxy.qml
+        qml/LfWindowDefinition.qml
         qml/LfButton.qml
         qml/LfTextField.qml
         qml/LfCheckBox.qml
@@ -136,6 +165,7 @@ target_sources(LfQuickUi PUBLIC
     FILES
         include/LfQuick/Ui/LfQuickUiGlobal.h
         include/LfQuick/Ui/QuickPageProvider.h
+        include/LfQuick/Ui/QuickWindowProvider.h
         include/LfQuick/Ui/QmlErrorCollector.h
         include/LfQuick/Ui/OverlayBackend.h
         include/LfQuick/Ui/OverlayCoordinator.h
@@ -147,6 +177,17 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/NavigationGuardController.h
         include/LfQuick/Ui/PermissionEvaluator.h
         include/LfQuick/Ui/LfAttached.h
+        include/LfQuick/Ui/QmlIncubationScheduler.h
+        include/LfQuick/Ui/QmlObjectFactory.h
+        include/LfQuick/Ui/QmlLazyLoader.h
+        include/LfQuick/Ui/BoundComponent.h
+        include/LfQuick/Ui/QmlStateSnapshot.h
+        include/LfQuick/Ui/LifetimeLease.h
+        include/LfQuick/Ui/PersistentState.h
+        include/LfQuick/Ui/PostReloadHook.h
+        include/LfQuick/Ui/ItemTransformWatcher.h
+        include/LfQuick/Ui/PopupAnchor.h
+        include/LfQuick/Ui/WindowRuntime.h
         include/LfQuick/Ui/HelpContextRegistry.h
         include/LfQuick/Ui/DpiHelper.h
         include/LfQuick/Ui/ValidationEvaluator.h

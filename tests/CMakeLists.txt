@@ -65,11 +65,33 @@ qt_add_executable(tst_window_router
 target_link_libraries(tst_window_router PRIVATE LfQuick::Runtime Qt6::Test)
 lfquick_register_test(tst_window_router)
 
+qt_add_executable(tst_window_reload
+    unit/tst_window_reload.cpp
+)
+target_link_libraries(tst_window_reload PRIVATE LfQuick::Runtime Qt6::Test)
+lfquick_register_test(tst_window_reload)
+
 qt_add_executable(tst_window_owner
     unit/tst_window_owner.cpp
 )
 target_link_libraries(tst_window_owner PRIVATE LfQuick::Runtime Qt6::Test)
 lfquick_register_test(tst_window_owner)
+
+if(LFQUICK_BUILD_MODELS)
+    qt_add_executable(tst_models
+        unit/tst_models.cpp
+    )
+    target_link_libraries(tst_models PRIVATE LfQuick::Models Qt6::Qml Qt6::Test)
+    lfquick_register_test(tst_models)
+endif()
+
+if(LFQUICK_BUILD_IO)
+    qt_add_executable(tst_io
+        unit/tst_io.cpp
+    )
+    target_link_libraries(tst_io PRIVATE LfQuick::Io Qt6::Test)
+    lfquick_register_test(tst_io)
+endif()
 
 if(LFQUICK_BUILD_DATAVIEW)
     qt_add_executable(tst_dataview
@@ -135,6 +157,12 @@ if(LFQUICK_BUILD_UI)
     )
     target_link_libraries(tst_ui_state PRIVATE LfQuick::Ui Qt6::Test)
     lfquick_register_test(tst_ui_state)
+
+    qt_add_executable(tst_post_reload_hook
+        unit/tst_post_reload_hook.cpp
+    )
+    target_link_libraries(tst_post_reload_hook PRIVATE LfQuick::Ui Qt6::Test)
+    lfquick_register_test(tst_post_reload_hook)
 
     qt_add_executable(tst_ui_controls
         unit/tst_ui_controls.cpp
@@ -218,6 +246,13 @@ if(LFQUICK_ENABLE_HOT_RELOAD)
     )
     target_link_libraries(tst_tooling PRIVATE LfQuick::Tooling Qt6::Test)
     lfquick_register_test(tst_tooling)
+
+    qt_add_executable(tst_runtime_infrastructure
+        unit/tst_runtime_infrastructure.cpp
+    )
+    target_link_libraries(tst_runtime_infrastructure
+        PRIVATE LfQuick::Tooling Qt6::Qml Qt6::Test)
+    lfquick_register_test(tst_runtime_infrastructure)
 endif()
 
 if(LFQUICK_BUILD_QRANGE_MODEL_ADAPTER)
@@ -239,6 +274,8 @@ macro(lfquick_append_package_smoke_component target component)
     endif()
 endmacro()
 
+lfquick_append_package_smoke_component(LfQuickModels Models)
+lfquick_append_package_smoke_component(LfQuickIo Io)
 lfquick_append_package_smoke_component(LfQuickPlatform Platform)
 lfquick_append_package_smoke_component(LfQuickPlatformQml PlatformQml)
 lfquick_append_package_smoke_component(LfQuickUi Ui)
@@ -282,6 +319,8 @@ if(NOT BUILD_SHARED_LIBS)
         endif()
     endmacro()
 
+    lfquick_append_package_smoke_qml_plugin(LfQuickModels)
+    lfquick_append_package_smoke_qml_plugin(LfQuickIo)
     lfquick_append_package_smoke_qml_plugin(LfQuickPlatformQml)
     lfquick_append_package_smoke_qml_plugin(LfQuickUi)
     lfquick_append_package_smoke_qml_plugin(LfQuickIntegration)

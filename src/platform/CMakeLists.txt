@@ -8,7 +8,6 @@ qt_add_library(LfQuickPlatform
     src/SystemAppearance.cpp
     src/ScreenService.cpp
     src/ClipboardService.cpp
-    src/FileWatcher.cpp
     src/RuntimeCapabilities.cpp
 )
 add_library(LfQuick::Platform ALIAS LfQuickPlatform)
@@ -62,6 +61,7 @@ target_sources(LfQuickPlatform PUBLIC
 target_link_libraries(LfQuickPlatform
     PUBLIC
         LfQuick::Core
+        LfQuick::Io
         Qt6::Core
         Qt6::Gui
 )

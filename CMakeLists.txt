@@ -44,8 +44,12 @@ if(LFQUICK_BUILD_PLATFORM OR LFQUICK_BUILD_UI OR LFQUICK_BUILD_INTEGRATION
     find_package(Qt6 6.8.3 REQUIRED COMPONENTS Gui)
 endif()
 
-if(LFQUICK_BUILD_PLATFORM_QML)
+if(LFQUICK_BUILD_PLATFORM_QML OR LFQUICK_BUILD_MODELS OR LFQUICK_BUILD_IO)
     find_package(Qt6 6.8.3 REQUIRED COMPONENTS Qml QmlIntegration)
+endif()
+
+if(LFQUICK_BUILD_IO)
+    find_package(Qt6 6.8.3 REQUIRED COMPONENTS Network)
 endif()
 
 if(LFQUICK_BUILD_UI OR LFQUICK_BUILD_INTEGRATION OR LFQUICK_BUILD_MEDICAL_DEMO
@@ -109,12 +113,24 @@ if(LFQUICK_BUILD_PLATFORM_QML AND NOT LFQUICK_BUILD_PLATFORM)
     message(FATAL_ERROR "LFQUICK_BUILD_PLATFORM_QML requires LFQUICK_BUILD_PLATFORM=ON")
 endif()
 
+if(LFQUICK_BUILD_PLATFORM AND NOT LFQUICK_BUILD_IO)
+    message(FATAL_ERROR "LFQUICK_BUILD_PLATFORM requires LFQUICK_BUILD_IO=ON for the FileWatcher compatibility API")
+endif()
+
 if(LFQUICK_BUILD_INTEGRATION AND (NOT LFQUICK_BUILD_UI OR NOT LFQUICK_BUILD_PLATFORM))
     message(FATAL_ERROR "LFQUICK_BUILD_INTEGRATION requires LFQUICK_BUILD_UI=ON and LFQUICK_BUILD_PLATFORM=ON")
 endif()
 
 add_subdirectory(src/core)
 add_subdirectory(src/runtime)
+
+if(LFQUICK_BUILD_MODELS)
+    add_subdirectory(src/models)
+endif()
+
+if(LFQUICK_BUILD_IO)
+    add_subdirectory(src/io)
+endif()
 
 if(LFQUICK_BUILD_PLATFORM)
     add_subdirectory(src/platform)
@@ -207,6 +223,8 @@ endif()
 # Install/export the framework libraries using their public alias names.
 lfquick_install_target(LfQuickCore Core)
 lfquick_install_target(LfQuickRuntime Runtime)
+lfquick_install_target(LfQuickModels Models)
+lfquick_install_target(LfQuickIo Io)
 lfquick_install_target(LfQuickPlatform Platform)
 lfquick_install_target(LfQuickPlatformQml PlatformQml)
 lfquick_install_target(LfQuickUi Ui)
@@ -226,6 +244,12 @@ lfquick_install_target(LfQuickFluentStyle FluentStyle)
 lfquick_install_target(LfQuickBrandTestStyle BrandTestStyle)
 
 set(LFQUICK_PACKAGE_QT_COMPONENTS Core)
+if(TARGET LfQuickModels)
+    list(APPEND LFQUICK_PACKAGE_QT_COMPONENTS Qml QmlIntegration)
+endif()
+if(TARGET LfQuickIo)
+    list(APPEND LFQUICK_PACKAGE_QT_COMPONENTS Qml QmlIntegration Network)
+endif()
 if(TARGET LfQuickPlatform)
     list(APPEND LFQUICK_PACKAGE_QT_COMPONENTS Gui)
 endif()

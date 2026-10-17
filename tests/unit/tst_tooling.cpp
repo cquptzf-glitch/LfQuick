@@ -1,11 +1,14 @@
+#include <LfQuick/Tooling/HotReloadStateTransfer.h>
 #include <LfQuick/Tooling/QmlHotReloadController.h>
 #include <LfQuick/Tooling/QmlHotReloadHost.h>
+#include <LfQuick/Ui/LfAttached.h>
 
 #include <QFile>
 #include <QQmlEngine>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
+#include <QtQml/qqml.h>
 
 using namespace LfQuick;
 
@@ -16,6 +19,40 @@ class TestHotReloadHost : public QmlHotReloadHost
 public:
     using QmlHotReloadHost::componentComplete;
 };
+
+class TestStateObject : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(int counter READ counter WRITE setCounter NOTIFY counterChanged)
+
+public:
+    using QObject::QObject;
+
+    int counter() const noexcept { return m_counter; }
+    void setCounter(int value)
+    {
+        if (m_counter == value)
+            return;
+        m_counter = value;
+        emit counterChanged();
+    }
+
+signals:
+    void counterChanged();
+
+private:
+    int m_counter = 0;
+};
+
+LfAttached *setReloadMetadata(QObject *object,
+                              const QString &key,
+                              const QStringList &properties = {})
+{
+    auto *attached = qmlAttachedPropertiesObject<Lf>(object, true);
+    attached->setReloadKey(key);
+    attached->setStateProperties(properties);
+    return attached;
+}
 
 bool writeTextFile(const QString &path, const QByteArray &content)
 {
@@ -126,6 +163,67 @@ private slots:
 
         QCOMPARE(controller.watchedSourceCount(), 0);
         QCOMPARE(controller.resolveSource(logical), logical);
+    }
+
+    void stateTransferUsesScopedStableKeys()
+    {
+        QObject oldRoot;
+        QObject newRoot;
+
+        QObject oldLeft(&oldRoot);
+        QObject oldRight(&oldRoot);
+        setReloadMetadata(&oldLeft, QStringLiteral("left"));
+        setReloadMetadata(&oldRight, QStringLiteral("right"));
+
+        TestStateObject oldLeftValue(&oldLeft);
+        TestStateObject oldRightValue(&oldRight);
+        setReloadMetadata(&oldLeftValue, QStringLiteral("value"), {QStringLiteral("counter")});
+        setReloadMetadata(&oldRightValue, QStringLiteral("value"), {QStringLiteral("counter")});
+        oldLeftValue.setCounter(41);
+        oldRightValue.setCounter(82);
+
+        QObject newLeft(&newRoot);
+        QObject newRight(&newRoot);
+        setReloadMetadata(&newLeft, QStringLiteral("left"));
+        setReloadMetadata(&newRight, QStringLiteral("right"));
+
+        TestStateObject newLeftValue(&newLeft);
+        TestStateObject newRightValue(&newRight);
+        setReloadMetadata(&newLeftValue, QStringLiteral("value"), {QStringLiteral("counter")});
+        setReloadMetadata(&newRightValue, QStringLiteral("value"), {QStringLiteral("counter")});
+        newLeftValue.setCounter(1);
+        newRightValue.setCounter(2);
+
+        const HotReloadTransferStats stats = HotReloadStateTransfer::transfer(&newRoot, &oldRoot);
+        QCOMPARE(newLeftValue.counter(), 41);
+        QCOMPARE(newRightValue.counter(), 82);
+        QCOMPARE(stats.matchedObjects, 4);
+        QCOMPARE(stats.restoredProperties, 2);
+        QCOMPARE(stats.skippedProperties, 0);
+        QVERIFY(stats.ambiguousKeys.isEmpty());
+    }
+
+    void stateTransferRejectsAmbiguousKeysWithinScope()
+    {
+        QObject oldRoot;
+        QObject newRoot;
+
+        TestStateObject oldFirst(&oldRoot);
+        TestStateObject oldSecond(&oldRoot);
+        setReloadMetadata(&oldFirst, QStringLiteral("duplicate"), {QStringLiteral("counter")});
+        setReloadMetadata(&oldSecond, QStringLiteral("duplicate"), {QStringLiteral("counter")});
+        oldFirst.setCounter(11);
+        oldSecond.setCounter(22);
+
+        TestStateObject replacement(&newRoot);
+        setReloadMetadata(&replacement, QStringLiteral("duplicate"), {QStringLiteral("counter")});
+        replacement.setCounter(7);
+
+        const HotReloadTransferStats stats = HotReloadStateTransfer::transfer(&newRoot, &oldRoot);
+        QCOMPARE(replacement.counter(), 7);
+        QCOMPARE(stats.matchedObjects, 0);
+        QCOMPARE(stats.restoredProperties, 0);
+        QCOMPARE(stats.ambiguousKeys, QStringList{QStringLiteral("duplicate")});
     }
 
     void hostSwapsOnlyAfterSuccessfulCreationAndPreservesSelectedState()

@@ -1,9 +1,11 @@
 #include <LfQuick/WidgetBridge/WidgetWindowProvider.h>
 
+#include <LfQuick/Runtime/IWindowBacking.h>
 #include <LfQuick/Runtime/IWindowInstance.h>
 
 #include <QByteArray>
 #include <QEvent>
+#include <QMetaObject>
 #include <QObject>
 #include <QPointer>
 #include <QUuid>
@@ -39,39 +41,90 @@ struct WidgetWindowProviderState
 
 namespace {
 
+class WidgetWindowBacking final : public IWindowBacking
+{
+public:
+    WidgetWindowBacking(WindowInstanceId id,
+                        QWidget *widget,
+                        std::shared_ptr<WidgetWindowProviderState> state)
+        : m_id(std::move(id))
+        , m_widget(widget)
+        , m_state(std::move(state))
+    {
+        if (m_widget) {
+            m_destroyedConnection = QObject::connect(
+                m_widget, &QObject::destroyed, [this] {
+                    if (m_state)
+                        m_state->widgets.remove(m_id);
+                    m_widget = nullptr;
+                });
+        }
+    }
+
+    ~WidgetWindowBacking() override
+    {
+        QObject::disconnect(m_destroyedConnection);
+        if (!m_widget)
+            return;
+
+        QWidget *widget = m_widget.data();
+        if (m_state && m_state->widgets.value(m_id) == widget)
+            m_state->widgets.remove(m_id);
+        m_widget = nullptr;
+        widget->deleteLater();
+    }
+
+    QString providerId() const override
+    {
+        return QStringLiteral("widget-window");
+    }
+
+    WindowInstanceId instanceId() const override { return m_id; }
+
+    bool valid() const noexcept { return !m_widget.isNull(); }
+    QWidget *widget() const noexcept { return m_widget.data(); }
+    const std::shared_ptr<WidgetWindowProviderState> &state() const noexcept
+    {
+        return m_state;
+    }
+
+    QWidget *takeWidget()
+    {
+        QObject::disconnect(m_destroyedConnection);
+        m_destroyedConnection = {};
+        QWidget *widget = m_widget.data();
+        m_widget = nullptr;
+        return widget;
+    }
+
+private:
+    WindowInstanceId m_id;
+    QPointer<QWidget> m_widget;
+    std::shared_ptr<WidgetWindowProviderState> m_state;
+    QMetaObject::Connection m_destroyedConnection;
+};
+
 class WidgetWindowInstance final : public QObject, public IWindowInstance
 {
 public:
     WidgetWindowInstance(WindowInstanceId id,
                          QWidget *widget,
                          std::shared_ptr<WidgetWindowProviderState> state)
-        : m_id(std::move(id)), m_widget(widget), m_state(std::move(state))
+        : m_id(std::move(id))
+        , m_state(std::move(state))
     {
-        if (m_widget) {
-            m_widget->installEventFilter(this);
-            m_widgetDestroyedConnection = connect(m_widget, &QObject::destroyed, this, [this] {
-                m_widget = nullptr;
-                if (m_state)
-                    m_state->widgets.remove(m_id);
-
-                if (!m_closingFromRouter && m_closeRequestHandler) {
-                    const auto handler = m_closeRequestHandler;
-                    QMetaObject::invokeMethod(this, [handler] {
-                        if (handler)
-                            handler();
-                    }, Qt::QueuedConnection);
-                }
-            });
-        }
+        attachWidget(widget);
     }
 
     ~WidgetWindowInstance() override
     {
-        QObject::disconnect(m_widgetDestroyedConnection);
-        if (m_widget)
-            m_widget->removeEventFilter(this);
-        if (m_state)
+        QWidget *widget = m_widget.data();
+        detachWidgetHooks();
+        if (widget && m_state && m_state->widgets.value(m_id) == widget)
             m_state->widgets.remove(m_id);
+        m_widget = nullptr;
+        if (widget)
+            widget->deleteLater();
     }
 
     WindowInstanceId instanceId() const override { return m_id; }
@@ -214,22 +267,67 @@ public:
         };
     }
 
+    bool canReleaseBacking() const noexcept override
+    {
+        return !m_widget.isNull();
+    }
+
+    std::unique_ptr<IWindowBacking> releaseBacking() override
+    {
+        if (!m_widget)
+            return {};
+
+        QWidget *widget = m_widget.data();
+        detachWidgetHooks();
+        m_widget = nullptr;
+        return std::make_unique<WidgetWindowBacking>(m_id, widget, m_state);
+    }
+
+    bool canAdoptBacking(const IWindowBacking &backing) const noexcept override
+    {
+        const auto *widgetBacking = dynamic_cast<const WidgetWindowBacking *>(&backing);
+        return !m_widget
+            && widgetBacking
+            && widgetBacking->valid()
+            && widgetBacking->instanceId() == m_id
+            && widgetBacking->state() == m_state;
+    }
+
+    bool adoptBacking(std::unique_ptr<IWindowBacking> &backing) override
+    {
+        if (!backing || !canAdoptBacking(*backing))
+            return false;
+
+        auto *widgetBacking = dynamic_cast<WidgetWindowBacking *>(backing.get());
+        QWidget *widget = widgetBacking ? widgetBacking->takeWidget() : nullptr;
+        if (!widget)
+            return false;
+
+        backing.reset();
+        attachWidget(widget);
+        return true;
+    }
+
     void close() override
     {
         if (!m_widget)
             return;
 
-        invokeOptional(m_widget, "onWindowClosing");
+        QWidget *widget = m_widget.data();
+        invokeOptional(widget, "onWindowClosing");
         m_closingFromRouter = true;
-        m_widget->close();
-        m_widget->removeEventFilter(this);
-        QObject::disconnect(m_widgetDestroyedConnection);
-        m_widgetDestroyedConnection = {};
-        m_widget->deleteLater();
-        m_widget = nullptr;
+        widget->close();
+
+        // close() may synchronously destroy a custom QWidget. QPointer protects
+        // the follow-up path, while WA_DeleteOnClose=false covers normal usage.
+        if (m_widget) {
+            detachWidgetHooks();
+            m_widget = nullptr;
+            if (m_state && m_state->widgets.value(m_id) == widget)
+                m_state->widgets.remove(m_id);
+            widget->deleteLater();
+        }
         m_closingFromRouter = false;
-        if (m_state)
-            m_state->widgets.remove(m_id);
     }
 
 protected:
@@ -249,6 +347,37 @@ protected:
     }
 
 private:
+    void attachWidget(QWidget *widget)
+    {
+        m_widget = widget;
+        if (!m_widget)
+            return;
+
+        m_widget->installEventFilter(this);
+        m_widgetDestroyedConnection = connect(m_widget, &QObject::destroyed, this, [this] {
+            m_widget = nullptr;
+            m_widgetDestroyedConnection = {};
+            if (m_state)
+                m_state->widgets.remove(m_id);
+
+            if (!m_closingFromRouter && m_closeRequestHandler) {
+                const auto handler = m_closeRequestHandler;
+                QMetaObject::invokeMethod(this, [handler] {
+                    if (handler)
+                        handler();
+                }, Qt::QueuedConnection);
+            }
+        });
+    }
+
+    void detachWidgetHooks()
+    {
+        QObject::disconnect(m_widgetDestroyedConnection);
+        m_widgetDestroyedConnection = {};
+        if (m_widget)
+            m_widget->removeEventFilter(this);
+    }
+
     WindowInstanceId m_id;
     QPointer<QWidget> m_widget;
     std::shared_ptr<WidgetWindowProviderState> m_state;
@@ -335,8 +464,6 @@ std::unique_ptr<IWindowInstance> WidgetWindowProvider::create(
 
     auto instance = std::make_unique<WidgetWindowInstance>(instanceId, widget, m_state);
     if (!request.ownerInstanceId.isEmpty() && !instance->updateOwner(request.ownerInstanceId)) {
-        m_state->widgets.remove(instanceId);
-        widget->deleteLater();
         m_lastErrorInfo.code = QStringLiteral("widget-window.owner-bind-failed");
         m_lastErrorInfo.message = QStringLiteral("Widget window could not bind its native owner");
         m_lastErrorInfo.details = {
@@ -347,6 +474,47 @@ std::unique_ptr<IWindowInstance> WidgetWindowProvider::create(
     }
 
     return instance;
+}
+
+bool WidgetWindowProvider::canAdoptBacking(const WindowDescriptor &descriptor,
+                                           const IWindowBacking &backing) const
+{
+    const auto *widgetBacking = dynamic_cast<const WidgetWindowBacking *>(&backing);
+    return descriptor.provider == id()
+        && widgetBacking
+        && widgetBacking->valid()
+        && widgetBacking->providerId() == id()
+        && widgetBacking->state() == m_state;
+}
+
+std::unique_ptr<IWindowInstance> WidgetWindowProvider::createWithBacking(
+    const WindowDescriptor &descriptor,
+    const WindowOpenRequest &request,
+    std::unique_ptr<IWindowBacking> &backing)
+{
+    m_lastErrorInfo = {};
+    if (!backing || !canAdoptBacking(descriptor, *backing)) {
+        m_lastErrorInfo.code = QStringLiteral("widget-window.backing-rejected");
+        m_lastErrorInfo.message = QStringLiteral("Widget window backing is incompatible");
+        m_lastErrorInfo.details = {{QStringLiteral("windowId"), descriptor.id}};
+        return {};
+    }
+
+    auto *widgetBacking = dynamic_cast<WidgetWindowBacking *>(backing.get());
+    const WindowInstanceId instanceId = widgetBacking->instanceId();
+    QWidget *widget = widgetBacking->takeWidget();
+    if (!widget) {
+        m_lastErrorInfo.code = QStringLiteral("widget-window.backing-empty");
+        m_lastErrorInfo.message = QStringLiteral("Widget window backing no longer contains a QWidget");
+        return {};
+    }
+
+    backing.reset();
+    widget->setProperty("lfquickWindowParameters", request.parameters);
+    widget->setProperty("lfquickWindowInstanceId", instanceId);
+    widget->setProperty("lfquickWindowId", descriptor.id);
+    m_state->widgets.insert(instanceId, widget);
+    return std::make_unique<WidgetWindowInstance>(instanceId, widget, m_state);
 }
 
 bool WidgetWindowProvider::registerFactory(QString id, Factory factory)

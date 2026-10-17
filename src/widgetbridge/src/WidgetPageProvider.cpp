@@ -4,8 +4,11 @@
 
 #include <QByteArray>
 #include <QLayout>
+#include <QMetaMethod>
+#include <QMetaType>
 #include <QPointer>
 #include <QStackedWidget>
+#include <QVariantMap>
 #include <QWidget>
 
 #include <utility>
@@ -20,6 +23,8 @@ struct WidgetPageProviderState
 
 namespace {
 
+constexpr auto kPageStateProperty = "lfquickPageState";
+
 void invokeOptional(QObject *object, const char *method)
 {
     if (!object || !method)
@@ -30,6 +35,53 @@ void invokeOptional(QObject *object, const char *method)
         return;
 
     QMetaObject::invokeMethod(object, method, Qt::DirectConnection);
+}
+
+QVariantMap saveWidgetPageState(QWidget *widget)
+{
+    if (!widget)
+        return {};
+
+    QVariantMap state = widget->property(kPageStateProperty).toMap();
+    const int methodIndex = widget->metaObject()->indexOfMethod("savePageState()");
+    if (methodIndex < 0)
+        return state;
+
+    const QMetaMethod method = widget->metaObject()->method(methodIndex);
+    if (method.returnMetaType() != QMetaType::fromType<QVariantMap>())
+        return state;
+
+    QVariantMap methodState;
+    if (method.invoke(widget, Qt::DirectConnection,
+                      Q_RETURN_ARG(QVariantMap, methodState))) {
+        state = std::move(methodState);
+        widget->setProperty(kPageStateProperty, state);
+    }
+    return state;
+}
+
+bool restoreWidgetPageState(QWidget *widget, const QVariantMap &state)
+{
+    if (!widget)
+        return state.isEmpty();
+
+    widget->setProperty(kPageStateProperty, state);
+    const int methodIndex = widget->metaObject()->indexOfMethod(
+        "restorePageState(QVariantMap)");
+    if (methodIndex < 0)
+        return true;
+
+    const QMetaMethod method = widget->metaObject()->method(methodIndex);
+    if (method.returnMetaType() == QMetaType::fromType<bool>()) {
+        bool accepted = false;
+        const bool invoked = method.invoke(widget, Qt::DirectConnection,
+                                           Q_RETURN_ARG(bool, accepted),
+                                           Q_ARG(QVariantMap, state));
+        return invoked && accepted;
+    }
+
+    return method.invoke(widget, Qt::DirectConnection,
+                         Q_ARG(QVariantMap, state));
 }
 
 class WidgetPageInstance final : public IPageInstance
@@ -121,6 +173,16 @@ public:
                                       Q_ARG(QVariantMap, parameters));
         }
         return true;
+    }
+
+    QVariantMap saveState() const override
+    {
+        return saveWidgetPageState(m_widget);
+    }
+
+    bool restoreState(const QVariantMap &state) override
+    {
+        return restoreWidgetPageState(m_widget, state);
     }
 
     void destroy() override

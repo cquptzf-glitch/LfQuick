@@ -3,6 +3,7 @@
 #include <LfQuick/Runtime/LfQuickRuntimeGlobal.h>
 #include <LfQuick/Runtime/PageDescriptor.h>
 
+#include <QStringView>
 #include <QVariantMap>
 
 #include <memory>
@@ -36,6 +37,13 @@ public:
     virtual bool canCreate(const PageDescriptor &descriptor) const = 0;
     virtual std::unique_ptr<IPageInstance> create(const PageDescriptor &descriptor,
                                                    const QVariantMap &parameters) = 0;
+
+    // Optional background preparation. Providers may compile/incubate/cache a
+    // candidate without changing the router's synchronous navigation contract.
+    // create() should consume a compatible prewarmed candidate when possible.
+    virtual bool prewarm(const PageDescriptor &descriptor,
+                         const QVariantMap &parameters);
+    virtual void cancelPrewarm(QStringView route);
 
     // Legacy string error access remains for source compatibility. New code
     // should prefer lastErrorInfo() so diagnostics keep stable machine-readable

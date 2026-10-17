@@ -13,7 +13,7 @@ namespace LfQuick {
 class LfAttached;
 class ValidationEvaluator;
 
-class LFQUICKUI_EXPORT LfValidationBinding final : public QObject
+class LFQUICKUI_EXPORT LfValidationBinding : public QObject
 {
     Q_OBJECT
     QML_ELEMENT

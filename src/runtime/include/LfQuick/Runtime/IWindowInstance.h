@@ -1,20 +1,23 @@
 #pragma once
 
+#include <LfQuick/Runtime/IStatefulInstance.h>
+#include <LfQuick/Runtime/IWindowBacking.h>
 #include <LfQuick/Runtime/WindowDescriptor.h>
 
 #include <QVariantMap>
 
 #include <functional>
+#include <memory>
 #include <utility>
 
 namespace LfQuick {
 
-class LFQUICKRUNTIME_EXPORT IWindowInstance
+class LFQUICKRUNTIME_EXPORT IWindowInstance : public IStatefulInstance
 {
 public:
     using CloseRequestHandler = std::function<void()>;
 
-    virtual ~IWindowInstance() = default;
+    ~IWindowInstance() override = default;
 
     virtual WindowInstanceId instanceId() const = 0;
     virtual void activate() = 0;
@@ -54,12 +57,33 @@ public:
         return parameters.isEmpty();
     }
 
-    virtual bool restoreState(const QVariantMap &state)
+    // Optional logical/native split. Instances that support backing transfer
+    // can detach their physical window into an opaque token. releaseBacking()
+    // must leave the logical instance destructible without destroying the
+    // backing. adoptBacking() is primarily the transaction rollback path.
+    virtual bool canReleaseBacking() const noexcept { return false; }
+    virtual std::unique_ptr<IWindowBacking> releaseBacking() { return {}; }
+
+    virtual bool canAdoptBacking(const IWindowBacking &backing) const noexcept
+    {
+        Q_UNUSED(backing);
+        return false;
+    }
+
+    // On failure, implementations must leave `backing` untouched. On success,
+    // they must consume/reset it and restore a valid logical instance.
+    virtual bool adoptBacking(std::unique_ptr<IWindowBacking> &backing)
+    {
+        Q_UNUSED(backing);
+        return false;
+    }
+
+    bool restoreState(const QVariantMap &state) override
     {
         return state.isEmpty();
     }
 
-    virtual QVariantMap saveState() const { return {}; }
+    QVariantMap saveState() const override { return {}; }
     virtual void close() = 0;
 };
 

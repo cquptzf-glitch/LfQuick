@@ -48,7 +48,8 @@ QVariantMap LfValidationBinding::validateNow()
 void LfValidationBinding::reconnectTarget()
 {
     if (m_target) {
-        m_attached = qmlAttachedPropertiesObject<Lf>(m_target, true);
+        m_attached = qobject_cast<LfAttached *>(
+            qmlAttachedPropertiesObject<Lf>(m_target, true));
         if (m_attached) {
             m_ruleConnection = connect(m_attached, &LfAttached::validationRuleChanged,
                                        this, [this] {

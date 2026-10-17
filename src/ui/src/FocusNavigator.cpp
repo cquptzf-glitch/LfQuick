@@ -365,8 +365,10 @@ int FocusNavigator::explicitOrder(QQuickItem *item) const
 {
     if (!item)
         return 0;
-    if (auto *attached = qmlAttachedPropertiesObject<Lf>(item, false))
+    if (auto *attached = qobject_cast<LfAttached *>(
+            qmlAttachedPropertiesObject<Lf>(item, false))) {
         return attached->focusOrder();
+    }
     return 0;
 }
 

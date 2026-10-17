@@ -1,4 +1,4 @@
-#include <LfQuick/Platform/FileWatcher.h>
+#include <LfQuick/Io/FileWatcher.h>
 
 #include <QDir>
 #include <QFileInfo>
@@ -26,6 +26,9 @@ FileWatcher::FileWatcher(QObject *parent)
                 if (m_directories.contains(normalized))
                     emit directoryChanged(normalized);
 
+                // QFileSystemWatcher drops file watches after replace/rename on
+                // several platforms. Watching the parent directory lets a
+                // logical file watch survive atomic-save workflows.
                 for (const QString &file : std::as_const(m_files)) {
                     if (QFileInfo(file).absolutePath() == normalized && QFileInfo::exists(file))
                         emit fileChanged(file);
@@ -68,8 +71,6 @@ bool FileWatcher::watchFile(const QString &path)
     if (m_files.contains(normalized))
         return true;
 
-    // A logical path cannot be both a file and a directory watch. This also
-    // keeps the sets correct if a filesystem entry changes kind between calls.
     m_directories.remove(normalized);
     m_files.insert(normalized);
     rebuildWatcher();
