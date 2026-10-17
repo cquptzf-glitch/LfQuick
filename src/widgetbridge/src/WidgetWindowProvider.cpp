@@ -268,7 +268,7 @@ bool WidgetWindowProvider::registerFactory(QString id, Factory factory)
 
 bool WidgetWindowProvider::unregisterFactory(QStringView id)
 {
-    return m_factories.remove(id.toString()) > 0;
+    return m_factories.remove(id.toString());
 }
 
 bool WidgetWindowProvider::hasFactory(QStringView id) const
