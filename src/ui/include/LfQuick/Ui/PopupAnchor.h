@@ -12,6 +12,8 @@
 
 namespace LfQuick {
 
+class ItemTransformWatcher;
+
 class LFQUICKUI_EXPORT PopupAnchor : public QObject
 {
     Q_OBJECT
@@ -98,6 +100,7 @@ private:
     void reconnectParent();
     void disconnectAnchor();
     void disconnectParent();
+    void syncTransformWatcher();
     QRectF effectiveAvailableRect() const;
     QRectF anchorRect() const;
     Placement calculate(const QSizeF &size) const;
@@ -117,6 +120,7 @@ private:
     QPointer<QQuickItem> m_parentItem;
     QList<QMetaObject::Connection> m_anchorConnections;
     QList<QMetaObject::Connection> m_parentConnections;
+    ItemTransformWatcher *m_transformWatcher = nullptr;
     QSizeF m_popupSize;
     QRectF m_availableRect;
     Edge m_edge = Edge::Auto;
