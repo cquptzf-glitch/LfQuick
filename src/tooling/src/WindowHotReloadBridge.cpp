@@ -89,6 +89,7 @@ void WindowHotReloadBridge::setEnabled(bool enabled)
     if (m_enabled == enabled)
         return;
     m_enabled = enabled;
+    installSourceResolver();
     emit enabledChanged();
 }
 
@@ -159,6 +160,7 @@ bool WindowHotReloadBridge::unwatchWindow(const QString &windowId)
     if (m_controller)
         m_controller->unwatchSource(it->logicalSource);
     m_watches.erase(it);
+    installSourceResolver();
     setLastError({});
     emit watchedWindowsChanged();
     return true;
@@ -166,11 +168,14 @@ bool WindowHotReloadBridge::unwatchWindow(const QString &windowId)
 
 void WindowHotReloadBridge::clearWatches()
 {
-    if (m_watches.isEmpty())
+    if (m_watches.isEmpty()) {
+        installSourceResolver();
         return;
+    }
 
     releaseControllerWatches(m_controller);
     m_watches.clear();
+    installSourceResolver();
     setLastError({});
     emit watchedWindowsChanged();
 }
@@ -180,10 +185,27 @@ void WindowHotReloadBridge::installSourceResolver()
     if (!m_runtime || !m_runtime->quickProvider())
         return;
 
+    // The controller may be shared by page hosts and other tooling. Restrict
+    // the provider resolver to logical sources explicitly owned by this bridge
+    // so unrelated hot-reload mappings cannot affect window creation/reload.
+    // Capturing values rather than `this` also keeps the provider callback safe
+    // across bridge destruction/reconfiguration.
+    QSet<QString> watchedLogicalSources;
+    if (m_enabled && m_controller) {
+        for (auto it = m_watches.cbegin(); it != m_watches.cend(); ++it) {
+            watchedLogicalSources.insert(
+                it->logicalSource.toString(QUrl::FullyEncoded));
+        }
+    }
+
     const QPointer<QmlHotReloadController> controller = m_controller;
     m_runtime->quickProvider()->setSourceResolver(
-        [controller](const QUrl &logicalSource) {
-            return controller ? controller->resolveSource(logicalSource) : logicalSource;
+        [controller, watchedLogicalSources = std::move(watchedLogicalSources)](
+            const QUrl &logicalSource) {
+            const QString key = logicalSource.toString(QUrl::FullyEncoded);
+            if (!controller || !watchedLogicalSources.contains(key))
+                return logicalSource;
+            return controller->resolveSource(logicalSource);
         });
 }
 
