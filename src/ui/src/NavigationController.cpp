@@ -33,11 +33,11 @@ bool NavigationController::navigate(const QString &route, const QVariantMap &par
         }
 
         const QVariantMap item = m_model->get(row);
-        if (!item.value(QStringLiteral("itemVisible"), true).toBool()) {
+        if (!item.value(QStringLiteral("visible"), true).toBool()) {
             emit navigationRejected(normalized, QStringLiteral("Navigation item is hidden"));
             return false;
         }
-        if (!item.value(QStringLiteral("itemEnabled"), true).toBool()) {
+        if (!item.value(QStringLiteral("enabled"), true).toBool()) {
             emit navigationRejected(normalized, QStringLiteral("Navigation item is disabled"));
             return false;
         }
