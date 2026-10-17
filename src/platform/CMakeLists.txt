@@ -1,7 +1,10 @@
 qt_add_library(LfQuickPlatform
     src/ScannerSession.cpp
     src/KeyboardWedgeScanner.cpp
+    src/MockScanner.cpp
+    src/InputTarget.cpp
     src/InputRouter.cpp
+    src/HotkeyRouter.cpp
     src/SystemAppearance.cpp
     src/ScreenService.cpp
     src/ClipboardService.cpp
@@ -35,9 +38,13 @@ target_sources(LfQuickPlatform PUBLIC
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
     FILES
         include/LfQuick/Platform/LfQuickPlatformGlobal.h
+        include/LfQuick/Platform/IInputSource.h
         include/LfQuick/Platform/ScannerSession.h
         include/LfQuick/Platform/KeyboardWedgeScanner.h
+        include/LfQuick/Platform/MockScanner.h
+        include/LfQuick/Platform/InputTarget.h
         include/LfQuick/Platform/InputRouter.h
+        include/LfQuick/Platform/HotkeyRouter.h
         include/LfQuick/Platform/SystemAppearance.h
         include/LfQuick/Platform/ScreenService.h
         include/LfQuick/Platform/ClipboardService.h
