@@ -40,6 +40,7 @@ Item {
     LfBoundComponent { }
 
     LfButton { text: "Button" }
+    LfToolButton { text: "Tool"; checkable: true; checked: true }
     LfTextField { text: "Text" }
     LfCheckBox { text: "Check"; checked: true }
     LfRadioButton { text: "Radio"; checked: true }
@@ -51,6 +52,24 @@ Item {
     LfFilterInput { text: "ready" }
     LfPasswordField { text: "secret" }
     LfStatusIndicator { status: LfStatusIndicator.Success; text: "Ready" }
+    LfBadge { tone: LfBadge.Success; text: "Online" }
+    LfInfoBar {
+        severity: LfInfoBar.Warning
+        title: "Warning"
+        message: "Component smoke test"
+        closable: true
+    }
+    LfDivider { }
+    LfDivider { orientation: LfDivider.Vertical }
+    LfCard {
+        title: "Card"
+        subtitle: "Composable content"
+        LfButton { text: "Action" }
+    }
+    LfTabBar {
+        LfTabButton { text: "Overview" }
+        LfTabButton { text: "Details" }
+    }
     LfNumberInput { from: 0; to: 100; value: 42 }
     LfRangeInput { from: 0; to: 100; first.value: 20; second.value: 80 }
     LfProgressRing { running: true }
@@ -76,6 +95,36 @@ Item {
         }
         QVERIFY2(object, qPrintable(component.errorString()));
         delete object;
+    }
+
+    void infoBarCloseIsObservableAndReusable()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"QML(
+import QtQuick
+import LfQuick
+
+LfInfoBar {
+    objectName: "infoBar"
+    title: "Connection"
+    message: "Disconnected"
+}
+)QML", QUrl(QStringLiteral("qrc:/tests/LfQuickInfoBar.qml")));
+
+        QObject *infoBar = component.create();
+        QVERIFY2(infoBar, qPrintable(component.errorString()));
+        QSignalSpy closeRequested(infoBar, SIGNAL(closeRequested()));
+
+        QVERIFY(infoBar->property("visible").toBool());
+        QVERIFY(QMetaObject::invokeMethod(infoBar, "close", Qt::DirectConnection));
+        QCOMPARE(closeRequested.count(), 1);
+        QVERIFY(infoBar->property("closed").toBool());
+        QVERIFY(!infoBar->property("visible").toBool());
+
+        QVERIFY(infoBar->setProperty("closed", false));
+        QVERIFY(infoBar->property("visible").toBool());
+        delete infoBar;
     }
 
     void lazyLoaderCanForceBackgroundLoadAndUnload()
@@ -119,15 +168,11 @@ QtObject {
             QVariantMap{{QStringLiteral("answer"), 17}}));
         QVERIFY(loader->setProperty("loading", true));
 
-        // Reading item intentionally forces any remaining incubation to finish.
         QObject *loaded = loader->property("item").value<QObject *>();
         QVERIFY2(loaded, qPrintable(loader->property("errorString").toString()));
         QCOMPARE(loaded->property("answer").toInt(), 17);
         QVERIFY(loader->property("active").toBool());
 
-        // Creation inputs are transactional: changing initialProperties while
-        // active must rebuild the item rather than leave the property and the
-        // actual constructed object out of sync.
         QPointer<QObject> firstItem = loaded;
         const int itemSignalsBeforeRecreate = itemChanged.count();
         QVERIFY(loader->setProperty(
@@ -140,8 +185,6 @@ QtObject {
         QVERIFY(loader->property("active").toBool());
         QVERIFY(itemChanged.count() >= itemSignalsBeforeRecreate + 2);
 
-        // If loaded content destroys itself, the loader must not silently leave
-        // QML bindings with stale active/item state.
         const int itemSignalsBeforeDestroy = itemChanged.count();
         const int activeSignalsBeforeDestroy = activeChanged.count();
         delete recreated;
@@ -150,7 +193,6 @@ QtObject {
         QCOMPARE(itemChanged.count(), itemSignalsBeforeDestroy + 1);
         QCOMPARE(activeChanged.count(), activeSignalsBeforeDestroy + 1);
 
-        // The loader remains reusable after unexpected content destruction.
         QVERIFY(loader->setProperty("active", true));
         QObject *reloaded = loader->property("item").value<QObject *>();
         QVERIFY(reloaded);
@@ -220,7 +262,6 @@ LfBoundComponent {
         lease.setHeld(false);
         QTRY_VERIFY(retained.isNull());
 
-        // clear() keeps the component definition, so reload remains available.
         QVERIFY(QMetaObject::invokeMethod(host, "reload", Qt::DirectConnection));
         QObject *second = host->property("item").value<QObject *>();
         QVERIFY(second);
