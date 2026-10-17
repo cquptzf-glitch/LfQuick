@@ -11,9 +11,20 @@ void NavigationController::setModel(NavigationItemModel *model)
 {
     if (m_model == model)
         return;
+
+    QObject::disconnect(m_modelDestroyedConnection);
+    m_modelDestroyedConnection = {};
     m_model = model;
-    if (m_model)
+
+    if (m_model) {
         m_model->setSelectedRoute(m_currentRoute);
+        m_modelDestroyedConnection = connect(m_model, &QObject::destroyed, this, [this] {
+            m_model = nullptr;
+            m_modelDestroyedConnection = {};
+            emit modelChanged();
+        });
+    }
+
     emit modelChanged();
 }
 
