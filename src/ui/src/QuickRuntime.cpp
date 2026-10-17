@@ -55,6 +55,8 @@ QuickRuntime::QuickRuntime(QQmlEngine *engine, QObject *parent)
 
 QuickRuntime::~QuickRuntime()
 {
+    QObject::disconnect(m_hostDestroyedConnection);
+    m_hostDestroyedConnection = {};
     m_router->reset();
     m_providers->unregisterProvider(QStringLiteral("quick"));
 }
@@ -94,8 +96,21 @@ void QuickRuntime::setHost(QQuickItem *host)
     if (m_host == host)
         return;
 
+    QObject::disconnect(m_hostDestroyedConnection);
+    m_hostDestroyedConnection = {};
     m_host = host;
     m_provider->setHost(host);
+
+    if (m_host) {
+        m_hostDestroyedConnection = connect(m_host, &QObject::destroyed, this, [this] {
+            m_host = nullptr;
+            m_hostDestroyedConnection = {};
+            if (m_provider)
+                m_provider->setHost(nullptr);
+            emit hostChanged();
+        });
+    }
+
     emit hostChanged();
 }
 
@@ -170,53 +185,54 @@ void QuickRuntime::setQuickActivationCallback(std::function<void()> callback)
     m_provider->setActivationCallback(std::move(callback));
 }
 
+PageDescriptor QuickRuntime::descriptorFor(const QString &route,
+                                           const QUrl &source,
+                                           int cachePolicy,
+                                           bool useErrorFallback,
+                                           qint64 cacheWeight) const
+{
+    PageDescriptor descriptor;
+    descriptor.route = route;
+    descriptor.provider = QStringLiteral("quick");
+    descriptor.source.insert(QStringLiteral("url"), source);
+    descriptor.cachePolicy = static_cast<PageCachePolicy>(cachePolicy);
+    descriptor.cacheWeight = cacheWeight;
+    descriptor.fallbackPolicy = useErrorFallback ? FallbackPolicy::ErrorPage
+                                                  : FallbackPolicy::None;
+    return descriptor;
+}
+
 bool QuickRuntime::registerPage(const QString &route,
                                 const QUrl &source,
                                 int cachePolicy,
                                 bool useErrorFallback,
                                 qint64 cacheWeight)
 {
-    if (route.isEmpty() || !source.isValid() || source.isEmpty())
+    if (!m_pages)
         return false;
-
-    return registerDescriptor(
-        descriptorFor(route, source, cachePolicy, useErrorFallback, cacheWeight));
+    return m_pages->registerPage(descriptorFor(route, source, cachePolicy,
+                                               useErrorFallback, cacheWeight));
 }
 
 bool QuickRuntime::unregisterPage(const QString &route)
 {
+    if (!m_pages)
+        return false;
     return m_pages->unregisterPage(route);
 }
 
 bool QuickRuntime::push(const QString &route, const QVariantMap &parameters)
 {
-    if (!m_router || route.isEmpty())
+    if (!m_router)
         return false;
-
-    if (m_router->currentRoute() == route) {
-        if (parameters.isEmpty())
-            return true;
-        RouteRequest refresh;
-        refresh.route = route;
-        refresh.parameters = parameters;
-        return m_router->replace(refresh).accepted;
-    }
-
-    RouteRequest request;
-    request.route = route;
-    request.parameters = parameters;
-    return m_router->push(request).accepted;
+    return m_router->push(route, parameters).accepted;
 }
 
 bool QuickRuntime::replace(const QString &route, const QVariantMap &parameters)
 {
-    if (!m_router || route.isEmpty())
+    if (!m_router)
         return false;
-
-    RouteRequest request;
-    request.route = route;
-    request.parameters = parameters;
-    return m_router->replace(request).accepted;
+    return m_router->replace(route, parameters).accepted;
 }
 
 bool QuickRuntime::back()
@@ -233,34 +249,6 @@ void QuickRuntime::reset()
 {
     if (m_router)
         m_router->reset();
-}
-
-PageDescriptor QuickRuntime::descriptorFor(const QString &route,
-                                           const QUrl &source,
-                                           int cachePolicy,
-                                           bool useErrorFallback,
-                                           qint64 cacheWeight) const
-{
-    PageDescriptor descriptor;
-    descriptor.route = route;
-    descriptor.provider = QStringLiteral("quick");
-    descriptor.source.insert(QStringLiteral("url"), source);
-    descriptor.cachePolicy = static_cast<PageCachePolicy>(
-        qBound(static_cast<int>(PageCachePolicy::None),
-               cachePolicy,
-               static_cast<int>(PageCachePolicy::Lru)));
-    descriptor.cacheWeight = qMax<qint64>(1, cacheWeight);
-
-    if (useErrorFallback) {
-        descriptor.fallbackPolicy = FallbackPolicy::ErrorPage;
-        descriptor.source.insert(
-            QStringLiteral("fallbackUrl"),
-            QUrl(QStringLiteral("qrc:/qt/qml/LfQuick/PageLoadError.qml")));
-    } else {
-        descriptor.fallbackPolicy = FallbackPolicy::None;
-    }
-
-    return descriptor;
 }
 
 } // namespace LfQuick
