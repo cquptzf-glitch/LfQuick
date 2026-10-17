@@ -18,6 +18,7 @@
 
 namespace LfQuick {
 
+class BusyToken;
 class OperationHandle;
 
 class LFQUICKUI_EXPORT OverlayCoordinator : public QObject
@@ -63,6 +64,7 @@ public:
     void setBackend(IOverlayBackend *backend);
 
     Q_INVOKABLE QString beginBusy(const QString &message = {}, bool cancelable = false);
+    Q_INVOKABLE BusyToken *acquireBusy(const QString &message = {}, bool cancelable = false);
     Q_INVOKABLE bool endBusy(const QString &token);
     Q_INVOKABLE QString bindOperation(QObject *operation);
     Q_INVOKABLE void cancelTopBusy();
@@ -80,6 +82,7 @@ public:
 
 signals:
     void busyChanged();
+    void busyEnded(const QString &token);
     void busyCancelRequested(const QString &token);
     void toastsChanged();
     void toastPolicyChanged();
