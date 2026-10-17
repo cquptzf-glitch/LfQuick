@@ -117,6 +117,27 @@ private slots:
         QVERIFY(!coordinator.busy());
     }
 
+    void busyOverlayReleasesDestroyedOperation()
+    {
+        OverlayCoordinator coordinator;
+        auto *operation = new OperationHandle;
+        operation->setMessage(QStringLiteral("Synthetic operation"));
+
+        const QString token = coordinator.bindOperation(operation);
+        QVERIFY(!token.isEmpty());
+        QVERIFY(coordinator.busy());
+        QVERIFY(coordinator.hasBusyToken(token));
+        QCOMPARE(coordinator.busyCount(), 1);
+
+        QSignalSpy changed(&coordinator, &OverlayCoordinator::busyChanged);
+        delete operation;
+
+        QVERIFY(!coordinator.busy());
+        QCOMPARE(coordinator.busyCount(), 0);
+        QVERIFY(!coordinator.hasBusyToken(token));
+        QVERIFY(changed.count() >= 1);
+    }
+
     void permissionEvaluatorMapsCoreStatesForQml()
     {
         PermissionEvaluator evaluator;
