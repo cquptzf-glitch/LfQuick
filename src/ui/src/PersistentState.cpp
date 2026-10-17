@@ -18,32 +18,56 @@ void PersistentState::setKey(const QString &key)
     emit keyChanged();
 }
 
-int PersistentState::restoreFrom(QObject *oldInstance)
+QVariantMap PersistentState::saveState() const
 {
-    auto *oldState = qobject_cast<PersistentState *>(oldInstance);
-    if (!oldState) {
-        emit loaded();
-        return 0;
-    }
-
-    int restored = 0;
+    QVariantMap state;
     const QMetaObject *meta = metaObject();
     for (int i = meta->propertyOffset(); i < meta->propertyCount(); ++i) {
         const QMetaProperty property = meta->property(i);
+        if (!property.isReadable())
+            continue;
+        const QVariant value = property.read(this);
+        if (value.isValid())
+            state.insert(QString::fromLatin1(property.name()), value);
+    }
+    return state;
+}
+
+int PersistentState::restoreState(const QVariantMap &state, bool wasReloaded)
+{
+    int restored = 0;
+    for (auto it = state.cbegin(); it != state.cend(); ++it) {
+        const QByteArray name = it.key().toUtf8();
+        const int propertyIndex = metaObject()->indexOfProperty(name.constData());
+        if (propertyIndex < 0)
+            continue;
+
+        const QMetaProperty property = metaObject()->property(propertyIndex);
         if (!property.isWritable())
             continue;
-
-        const QVariant oldValue = oldState->property(property.name());
-        if (!oldValue.isValid())
-            continue;
-
-        if (setProperty(property.name(), oldValue))
+        if (property.write(this, it.value()))
             ++restored;
     }
 
     emit loaded();
-    emit reloaded();
+    if (wasReloaded)
+        emit reloaded();
     return restored;
+}
+
+void PersistentState::markLoaded()
+{
+    emit loaded();
+}
+
+int PersistentState::restoreFrom(QObject *oldInstance)
+{
+    auto *oldState = qobject_cast<PersistentState *>(oldInstance);
+    if (!oldState) {
+        markLoaded();
+        return 0;
+    }
+    return restoreState(oldState->saveState(), true);
 }
 
 } // namespace LfQuick
