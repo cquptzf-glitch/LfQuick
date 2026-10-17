@@ -28,7 +28,10 @@ Item {
     function syncNavigationState() {
         if (!effectiveNavigationController || !root.runtime)
             return
-        effectiveNavigationController.syncCurrentRoute(root.runtime.currentRoute, root.runtime.canGoBack)
+        effectiveNavigationController.syncNavigationState(
+            root.runtime.currentRoute,
+            root.runtime.canGoBack,
+            root.runtime.canGoForward)
     }
 
     NavigationController {
@@ -84,6 +87,10 @@ Item {
                 root.runtime.back()
             else
                 root.navigationView.backRequested()
+        }
+        function onForwardRequested() {
+            if (root.runtime)
+                root.runtime.forward()
         }
     }
 
