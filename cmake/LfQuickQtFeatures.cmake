@@ -2,6 +2,7 @@ set(LFQUICK_HAS_SAFE_AREA OFF)
 set(LFQUICK_HAS_QRANGE_MODEL OFF)
 set(LFQUICK_HAS_QRANGE_MODEL_DRAG_DROP OFF)
 set(LFQUICK_HAS_CANVAS_PAINTER OFF)
+set(LFQUICK_HAS_CANVAS2D_QML OFF)
 set(LFQUICK_HAS_QML_PREVIEW_CMAKE OFF)
 set(LFQUICK_HAS_STYLEKIT OFF)
 
@@ -19,10 +20,13 @@ if(DEFINED Qt6_VERSION)
         set(LFQUICK_HAS_QRANGE_MODEL_DRAG_DROP ON)
     endif()
 
-    # QCanvasPainter is available from Qt 6.11. Keep use behind an adapter;
-    # the main LfQuick public API remains Qt 6.8 compatible.
+    # QCanvasPainter C++ is available from Qt 6.11. The QtCanvas2D QML
+    # module used by LfQuick's declarative adapter is introduced in 6.12.
     if(Qt6_VERSION VERSION_GREATER_EQUAL "6.11.0")
         set(LFQUICK_HAS_CANVAS_PAINTER ON)
+    endif()
+    if(Qt6_VERSION VERSION_GREATER_EQUAL "6.12.0")
+        set(LFQUICK_HAS_CANVAS2D_QML ON)
     endif()
 
     # Qt 6.12 adds the qt_add_qml_preview() CMake integration and the
