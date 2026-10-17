@@ -141,6 +141,14 @@ if(LFQUICK_BUILD_UI)
     lfquick_register_test(tst_navigation_model)
 endif()
 
+if(LFQUICK_BUILD_INTEGRATION)
+    qt_add_executable(tst_integration
+        unit/tst_integration.cpp
+    )
+    target_link_libraries(tst_integration PRIVATE LfQuick::Integration Qt6::Test)
+    lfquick_register_test(tst_integration)
+endif()
+
 if(LFQUICK_BUILD_WIDGET_BRIDGE)
     qt_add_executable(tst_widgetbridge
         unit/tst_widgetbridge.cpp
