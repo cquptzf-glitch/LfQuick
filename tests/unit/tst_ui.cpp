@@ -10,6 +10,7 @@
 #include <LfQuick/Runtime/IPageInstance.h>
 #include <LfQuick/Runtime/IPageProvider.h>
 
+#include <QQuickItem>
 #include <QSignalSpy>
 #include <QTest>
 #include <QQmlEngine>
@@ -191,6 +192,21 @@ private slots:
 
         collector.clear();
         QCOMPARE(collector.count(), 0);
+    }
+
+    void quickRuntimeTracksHostDestruction()
+    {
+        QQmlEngine engine;
+        QuickRuntime runtime(&engine);
+        auto *host = new QQuickItem;
+        runtime.setHost(host);
+        QCOMPARE(runtime.host(), host);
+
+        QSignalSpy changed(&runtime, &QuickRuntime::hostChanged);
+        delete host;
+
+        QCOMPARE(runtime.host(), nullptr);
+        QCOMPARE(changed.count(), 1);
     }
 
     void quickRuntimeRejectsUnknownRouteAndCanDisableFallback()
