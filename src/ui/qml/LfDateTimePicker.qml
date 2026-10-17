@@ -26,18 +26,28 @@ Controls.Control {
                         0)
     }
 
+    function syncChildren() {
+        if (!datePicker || !timePicker)
+            return
+        datePicker.value = new Date(value.getTime())
+        timePicker.value = new Date(value.getTime())
+    }
+
+    onValueChanged: syncChildren()
+    Component.onCompleted: syncChildren()
+
     contentItem: RowLayout {
         spacing: Tokens.spacingSmall
 
         LfDatePicker {
             id: datePicker
             Layout.fillWidth: true
-            value: control.value
             minimumDate: control.minimumDate
             maximumDate: control.maximumDate
             editable: control.editable
             onAccepted: function(dateValue) {
                 control.value = control.combine(dateValue, control.value)
+                control.syncChildren()
                 control.accepted(control.value)
             }
         }
@@ -45,11 +55,11 @@ Controls.Control {
         LfTimePicker {
             id: timePicker
             Layout.preferredWidth: 140
-            value: control.value
             minuteStep: control.minuteStep
             editable: control.editable
             onAccepted: function(timeValue) {
                 control.value = control.combine(control.value, timeValue)
+                control.syncChildren()
                 control.accepted(control.value)
             }
         }
