@@ -69,6 +69,7 @@ private:
         QVariant modelData;
         QObject *identity = nullptr;
         QPointer<QObject> instance;
+        QMetaObject::Connection destroyedConnection;
     };
 
     static qsizetype instanceCount(QQmlListProperty<QObject> *property);
