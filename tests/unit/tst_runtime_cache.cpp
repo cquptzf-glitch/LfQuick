@@ -208,6 +208,20 @@ private slots:
         QCOMPARE(reused.count(), 0);
         QCOMPARE(provider->stats->destroyed, 1);
         QVERIFY(*provider->stats->validityFlags.constLast());
+
+        // The first history entry referenced the same invalid singleton. The
+        // invalidation helper must have cleared that reference, so navigating
+        // back reuses the replacement instance instead of destroying the old
+        // singleton a second time.
+        QVERIFY(router.back().accepted);
+        QCOMPARE(router.currentRoute(), QStringLiteral("/singleton"));
+        QCOMPARE(provider->stats->created, 2);
+        QCOMPARE(provider->stats->destroyed, 1);
+        QCOMPARE(reused.count(), 1);
+
+        router.reset();
+        QCOMPARE(router.singletonCount(), 0);
+        QCOMPARE(provider->stats->destroyed, 2);
     }
 
     void weightedLruEvictsOldestUntilBothBudgetsFit()
