@@ -223,6 +223,12 @@ QString OverlayCoordinator::bindOperation(QObject *object)
         }
     });
 
+    it->destroyedConnection = connect(operation, &QObject::destroyed, this,
+                                      [this, token] {
+        if (m_entries.contains(token))
+            endBusy(token);
+    });
+
     emit busyChanged();
     return token;
 }
@@ -460,6 +466,7 @@ void OverlayCoordinator::removeEntry(const QString &token)
     QObject::disconnect(it->messageConnection);
     QObject::disconnect(it->cancelableConnection);
     QObject::disconnect(it->stateConnection);
+    QObject::disconnect(it->destroyedConnection);
 
     m_entries.erase(it);
     m_order.removeAll(token);
