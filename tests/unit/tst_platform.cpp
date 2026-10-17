@@ -9,6 +9,7 @@
 #include <LfQuick/Platform/SystemAppearance.h>
 
 #include <QClipboard>
+#include <QDir>
 #include <QFile>
 #include <QGuiApplication>
 #include <QKeyEvent>
@@ -226,6 +227,45 @@ private slots:
 
         SystemAppearance appearance;
         QVERIFY(!appearance.colorSchemeName().isEmpty());
+    }
+
+    void fileWatcherPathKindsStayMutuallyExclusive()
+    {
+        QTemporaryDir temporary;
+        QVERIFY(temporary.isValid());
+
+        FileWatcher watcher;
+        const QString directoryPath = temporary.filePath(QStringLiteral("kind-switch"));
+        QVERIFY(QDir().mkpath(directoryPath));
+        QVERIFY(!watcher.watchFile(directoryPath));
+        QCOMPARE(watcher.count(), 0);
+
+        const QString missingFile = temporary.filePath(QStringLiteral("future.json"));
+        QVERIFY(watcher.watchFile(missingFile));
+        QCOMPARE(watcher.count(), 1);
+        QVERIFY(watcher.watchedFiles().contains(QDir::cleanPath(missingFile)));
+        QVERIFY(watcher.unwatch(missingFile));
+        QCOMPARE(watcher.count(), 0);
+
+        QVERIFY(QDir(directoryPath).removeRecursively());
+        {
+            QFile file(directoryPath);
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            QCOMPARE(file.write("file"), qint64(4));
+        }
+        QVERIFY(watcher.watchFile(directoryPath));
+        QCOMPARE(watcher.count(), 1);
+        QVERIFY(watcher.watchedFiles().contains(QDir::cleanPath(directoryPath)));
+
+        QVERIFY(QFile::remove(directoryPath));
+        QVERIFY(QDir().mkpath(directoryPath));
+        QVERIFY(watcher.watchDirectory(directoryPath));
+        QCOMPARE(watcher.count(), 1);
+        QVERIFY(!watcher.watchedFiles().contains(QDir::cleanPath(directoryPath)));
+        QVERIFY(watcher.watchedDirectories().contains(QDir::cleanPath(directoryPath)));
+
+        QVERIFY(watcher.unwatch(directoryPath));
+        QCOMPARE(watcher.count(), 0);
     }
 
     void fileWatcherSurvivesAtomicReplacement()
