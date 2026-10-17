@@ -394,6 +394,10 @@ void ObjectRepeater::refresh()
             record.key = key;
             record.modelData = modelData;
             if (record.instance) {
+                if (QQmlContext *context = QQmlEngine::contextForObject(record.instance)) {
+                    context->setContextProperty(QStringLiteral("modelData"), modelData);
+                    context->setContextProperty(QStringLiteral("modelIndex"), next.size());
+                }
                 record.instance->setProperty("modelData", modelData);
                 record.instance->setProperty("modelIndex", next.size());
                 next.push_back(std::move(record));
@@ -408,9 +412,9 @@ void ObjectRepeater::refresh()
             continue;
         }
 
-        // Context properties are immutable snapshots for expressions that use
-        // them unqualified. Root modelData/modelIndex properties, when present,
-        // are updated on reuse and remain the recommended mutable contract.
+        // The creation context and any declared root model properties are both
+        // initialized before completion. setProperty() here also exposes the
+        // conventional names as dynamic properties on minimalist delegates.
         instance->setProperty("modelData", modelData);
         instance->setProperty("modelIndex", next.size());
 
