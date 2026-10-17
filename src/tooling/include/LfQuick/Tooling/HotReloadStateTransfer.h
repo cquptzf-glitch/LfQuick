@@ -1,27 +1,20 @@
 #pragma once
 
 #include <LfQuick/Tooling/LfQuickToolingGlobal.h>
-
-#include <QStringList>
+#include <LfQuick/Ui/QmlStateSnapshot.h>
 
 class QObject;
 
 namespace LfQuick {
 
-struct LFQUICKTOOLING_EXPORT HotReloadTransferStats
-{
-    int matchedObjects = 0;
-    int restoredProperties = 0;
-    int skippedProperties = 0;
-    QStringList ambiguousKeys;
-};
+using HotReloadTransferStats = QmlStateRestoreStats;
 
+// Compatibility façade retained for Tooling users. The actual state-tree
+// algorithm now lives in Ui::QmlStateSnapshot so hot reload, page recreation
+// and windows can share the same serialized state semantics.
 class LFQUICKTOOLING_EXPORT HotReloadStateTransfer
 {
 public:
-    // Matches objects by Lf.reloadKey. Keys are scoped by their nearest keyed
-    // ancestor, mirroring the reload-scope semantics used by Quickshell.
-    // Only properties listed in Lf.stateProperties on the new object are copied.
     static HotReloadTransferStats transfer(QObject *newRoot, QObject *oldRoot);
 };
 
