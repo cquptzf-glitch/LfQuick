@@ -74,6 +74,7 @@ private:
     QQmlContext *effectiveCreationContext() const;
     void onComponentStatusChanged();
     void onIncubatorStatusChanged();
+    void onEngineDestroyed();
     void finishWithObject(QObject *object);
     void fail(const QString &message);
     void setStatus(Status status);
@@ -82,6 +83,7 @@ private:
     QUrl m_source;
     QVariantMap m_initialProperties;
     QPointer<QQmlEngine> m_engine;
+    QMetaObject::Connection m_engineDestroyedConnection;
     QPointer<QQmlContext> m_creationContext;
     std::unique_ptr<QQmlComponent> m_ownedComponent;
     QPointer<QQmlComponent> m_component;
