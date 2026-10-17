@@ -57,6 +57,7 @@ Command
 Event / Dispatcher / Subscription
 Permission
 Validation / validateValue
+TelemetryEvent / ILogSink
 Route contracts
 ```
 
@@ -73,9 +74,10 @@ None / KeepAlive / Singleton / weighted LRU
 cross-provider fallback
 structured provider diagnostics
 WindowProviderRegistry / WindowRouter
+window owner / reparent / close policy / state save+restore hooks
 ```
 
-`Runtime` must not depend on QWidget or QQuickItem.
+`Runtime` must not depend on QWidget, QWindow or QQuickItem.
 
 ### `LfQuick::Ui` / `LfQuick`
 
@@ -84,13 +86,16 @@ Qt Quick application layer:
 ```text
 QuickRuntime / QuickPageProvider
 QmlErrorCollector / PageLoadError
-Theme / Tokens / LfPage
-OverlayCoordinator / Busy / Toast / Dialog
-FocusNavigator
+Theme / Tokens / Units / Typography / Motion / DpiHelper
+LfPage
+OverlayCoordinator / BusyToken / Toast / Dialog
+FocusWalker / FocusManager / FocusNavigator compatibility API
 NavigationGuardController
-Lf.permission attached context
-ValidationRuleTable / ValidationFormState
+Lf attached context: permission / validationRule / focusPolicy / focusOrder / acceptScanner / helpContext
+ValidationEvaluator / LfValidationBinding / ValidationRuleTable / ValidationFormState
+HelpContextRegistry / LfHelpShortcut
 NavigationItemModel / NavigationView / ApplicationShell
+ThemeSystemAdapter / IconLoader
 ```
 
 The Design System uses semantic `Theme` / `Tokens` and provides reusable controls:
@@ -126,6 +131,7 @@ Large-table/view subsystem:
 DataTableModel
 DataFilterProxyModel
 DataGrid
+DataGridColumn / DataGridHeader / DataGridViewport
 ColumnStateModel / ColumnConfigStore
 DataEditTransaction
 typed delegates
@@ -148,12 +154,12 @@ Metrics include FPS, current/max frame time, slow-frame count and first-visible 
 
 ### `LfQuick::Platform`
 
-Reusable input/platform services:
+Reusable QtCore/Gui input/platform services:
 
 ```text
 ScannerSession
-KeyboardWedgeScanner
-InputRouter
+KeyboardWedgeScanner / MockScanner
+InputTarget / InputRouter / HotkeyRouter
 SystemAppearance
 ScreenService
 ClipboardService
@@ -163,7 +169,40 @@ RuntimeCapabilities
 
 `FileWatcher` keeps desired file watches alive across editor-style atomic file replacement by also watching parent directories.
 
-`RuntimeCapabilities` reports both build-time optional modules and Qt-version features, so applications do not need to scatter Qt-version checks throughout product code.
+`RuntimeCapabilities` reports build-time optional modules/adapters/styles plus Qt-version features, so applications do not need to scatter build-option or Qt-version checks throughout product code.
+
+### `LfQuick::PlatformQml` / `LfQuick.Platform`
+
+Optional QML registration leaf, enabled with:
+
+```text
+-DLFQUICK_BUILD_PLATFORM_QML=ON
+```
+
+It keeps `LfQuick::Platform` free of QtQml dependencies while exposing Platform services to QML through foreign registration. Declarative helpers include:
+
+```text
+ScannerTarget
+InputSourceRegistration
+```
+
+### `LfQuick::Integration` / `LfQuick.Integration`
+
+Optional cross-module leaf, enabled with:
+
+```text
+-DLFQUICK_BUILD_INTEGRATION=ON
+```
+
+It is the approved home for adapters that intentionally depend on multiple foundation modules. Current integration:
+
+```text
+LfScannerTarget
+    Lf.acceptScanner + QQuickItem activeFocus
+    -> Platform InputTarget / InputRouter
+```
+
+The dependency direction is one-way: `Integration -> Ui + Platform`; foundation modules do not depend back on Integration.
 
 ### `LfQuick::WidgetBridge`
 
@@ -176,6 +215,8 @@ WidgetWindowProvider
 WidgetFocusBridge
 WidgetOverlayBackend
 ```
+
+`WidgetWindowProvider` keeps Runtime owner state synchronized with native transient-window ownership without introducing QWidget types into Runtime.
 
 `QuickSurface` exposes:
 
@@ -216,14 +257,16 @@ Optional leaf module for development/runtime observability:
 
 ```text
 DiagnosticsModel
-DiagnosticsHud
+DiagnosticsLogSink
+DiagnosticsHud / inspectors
+AccessibilityAudit
 bounded event history
 generic metrics / timing
 snapshot / JSON
 atomic JSON export
 ```
 
-Foundation modules do not depend on Diagnostics; applications compose it from the outside.
+`DiagnosticsLogSink` accepts Core `TelemetryEvent` records and queues model updates onto the DiagnosticsModel thread when needed. Foundation modules do not depend on Diagnostics; applications compose it from the outside.
 
 ### `LfQuick::Tooling` / `LfQuick.Tooling`
 
@@ -250,11 +293,21 @@ Features:
 - selected-property state preservation;
 - failed reload rollback that keeps the previous UI alive.
 
-### Optional modern-Qt adapters
+### Optional styles and modern-Qt adapters
 
-All are isolated leaf modules and OFF by default.
+Optional leaves are isolated from foundation modules and are OFF by default.
 
 ```text
+LFQUICK_BUILD_FLUENT_STYLE
+    -> LfQuick::FluentStyle / LfQuick.Fluent
+
+LFQUICK_BUILD_BRAND_TEST_STYLE
+    -> LfQuick::BrandTestStyle / LfQuick.BrandTest
+
+LFQUICK_BUILD_SAFEAREA_ADAPTER
+    Qt 6.9+
+    -> LfQuick::SafeAreaAdapter
+
 LFQUICK_BUILD_QRANGE_MODEL_ADAPTER
     Qt 6.10+
     -> LfQuick::RangeModelAdapter / RangeModelBridge
@@ -277,20 +330,22 @@ See [`docs/QT_OPTIONAL_ADAPTERS.md`](docs/QT_OPTIONAL_ADAPTERS.md).
 
 ```text
 LfQuickCore         -> QtCore only
-LfQuickRuntime      -> Core; no QWidget/QQuickItem
+LfQuickRuntime      -> Core; no QWidget/QWindow/QQuickItem
 LfQuickUi           -> Core + Runtime + Qt Quick
 LfQuickDataView     -> Ui + Qt Model/View/Quick
-LfQuickPlatform     -> platform/input services
+LfQuickPlatform     -> Core + QtCore/Gui platform/input services
+LfQuickPlatformQml  -> optional Platform + QtQml leaf
+LfQuickIntegration  -> optional Ui + Platform cross-module leaf
 LfQuickWidgetBridge -> optional Widgets / QuickWidgets
 LfQuickCharts       -> optional visualization
 Diagnostics         -> optional leaf
 Tooling             -> optional development leaf
+Styles              -> optional leaves
 QtAdapters          -> optional version-specific leaves
-StyleKit            -> optional Qt 6.12 leaf
 Product adapters    -> legacy/product dependencies
 ```
 
-`tools/check_architecture.py` prevents framework foundation modules from acquiring reverse dependencies on Diagnostics, Tooling, StyleKit or version-specific Qt adapters.
+`tools/check_architecture.py` prevents foundation modules from acquiring reverse dependencies on Diagnostics, Tooling, Integration, PlatformQml, styles, WidgetBridge or version-specific Qt adapters where those directions are forbidden.
 
 ## Build
 
@@ -308,6 +363,14 @@ Enable QWidget migration demo:
 cmake -S . -B build \
   -DLFQUICK_BUILD_WIDGET_BRIDGE=ON \
   -DLFQUICK_BUILD_HYBRID_DEMO=ON
+```
+
+Enable declarative Platform services and attached scanner integration:
+
+```bash
+cmake -S . -B build \
+  -DLFQUICK_BUILD_PLATFORM_QML=ON \
+  -DLFQUICK_BUILD_INTEGRATION=ON
 ```
 
 Enable Charts / Qt Graphs adapter:
@@ -351,14 +414,21 @@ cmake --build build --target lfquick-screenshot
 
 ```text
 LFQUICK_BUILD_PLATFORM
+LFQUICK_BUILD_PLATFORM_QML
 LFQUICK_BUILD_UI
+LFQUICK_BUILD_INTEGRATION
 LFQUICK_BUILD_DATAVIEW
 LFQUICK_BUILD_WIDGET_BRIDGE
 LFQUICK_BUILD_HYBRID_DEMO
 LFQUICK_BUILD_CHARTS
 LFQUICK_BUILD_QT_GRAPHS_ADAPTER
+LFQUICK_BUILD_CUSTOM_QUICK_CHARTS
+LFQUICK_BUILD_LEGACY_QCUSTOMPLOT_ADAPTER
+LFQUICK_BUILD_SAFEAREA_ADAPTER
 LFQUICK_BUILD_QRANGE_MODEL_ADAPTER
 LFQUICK_EXPERIMENTAL_CANVAS_PAINTER
+LFQUICK_BUILD_FLUENT_STYLE
+LFQUICK_BUILD_BRAND_TEST_STYLE
 LFQUICK_BUILD_DIAGNOSTICS
 LFQUICK_BUILD_MEDICAL_DEMO
 LFQUICK_BUILD_BENCHMARKS
@@ -401,10 +471,13 @@ It also exercises WidgetFocusBridge, shared overlays, WindowRouter/WidgetWindowP
 
 ## Hardening and tests
 
-Current source-level/automated coverage includes:
+Current source-level test coverage registered in CMake includes:
 
 - Runtime 1000-cycle PageRouter push/back stress;
-- Keyboard-wedge 1000-scan loss test;
+- WindowRouter owner/reparent/detach/state-save and topology-close tests;
+- Keyboard-wedge 1000-scan loss test and InputRouter lifetime tests;
+- Integration scanner-policy/lifetime tests;
+- Focus Walker/Manager/Navigator scope-lifetime tests;
 - DataView 20k/50k × 8/20/40-column benchmark matrix;
 - process RSS before/after DataTableModel population;
 - DataGrid FPS/slow-frame telemetry;
@@ -416,6 +489,8 @@ Current source-level/automated coverage includes:
 - Diagnostics bounded model/export tests;
 - optional QRangeModel bridge tests;
 - Python tooling self-tests.
+
+These tests are source-registered but the current HEAD has **not** yet completed the final full Qt 6.8.3 build/CTest matrix.
 
 Multi-DPI, compositor and native z-order behavior require a real desktop environment. See [`tests/manual/WIDGETBRIDGE_HARDENING.md`](tests/manual/WIDGETBRIDGE_HARDENING.md).
 
