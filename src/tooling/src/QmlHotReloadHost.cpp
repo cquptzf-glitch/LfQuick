@@ -15,13 +15,17 @@ QmlHotReloadHost::QmlHotReloadHost(QQuickItem *parent)
 {
 }
 
-QmlHotReloadHost::~QmlHotReloadHost() = default;
+QmlHotReloadHost::~QmlHotReloadHost()
+{
+    releaseWatch();
+}
 
 void QmlHotReloadHost::setController(QmlHotReloadController *controller)
 {
     if (m_controller == controller)
         return;
 
+    releaseWatch();
     if (m_controller)
         disconnect(m_controller, nullptr, this, nullptr);
 
@@ -46,6 +50,7 @@ void QmlHotReloadHost::setSource(const QUrl &source)
     if (m_source == source)
         return;
 
+    releaseWatch();
     m_source = source;
     registerWatch();
     emit sourceChanged();
@@ -59,6 +64,7 @@ void QmlHotReloadHost::setDevelopmentSource(const QUrl &source)
     if (m_developmentSource == source)
         return;
 
+    releaseWatch();
     m_developmentSource = source;
     registerWatch();
     emit developmentSourceChanged();
@@ -129,8 +135,32 @@ void QmlHotReloadHost::registerWatch()
     if (!m_controller || m_source.isEmpty())
         return;
 
-    if (!m_controller->watchSource(m_source, m_developmentSource))
+    if (m_watchController == m_controller
+        && m_watchedLogicalSource == m_source
+        && m_watchedDevelopmentSource == m_developmentSource) {
+        return;
+    }
+
+    releaseWatch();
+    if (!m_controller->watchSource(m_source, m_developmentSource)) {
         setLastError(m_controller->lastError());
+        return;
+    }
+
+    m_watchController = m_controller;
+    m_watchedLogicalSource = m_source;
+    m_watchedDevelopmentSource = m_developmentSource;
+    setLastError({});
+}
+
+void QmlHotReloadHost::releaseWatch()
+{
+    if (m_watchController && !m_watchedLogicalSource.isEmpty())
+        m_watchController->unwatchSource(m_watchedLogicalSource);
+
+    m_watchController = nullptr;
+    m_watchedLogicalSource = {};
+    m_watchedDevelopmentSource = {};
 }
 
 bool QmlHotReloadHost::reloadInternal(qint64 attemptedRevision)
