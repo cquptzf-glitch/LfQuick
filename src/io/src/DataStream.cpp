@@ -386,8 +386,9 @@ void DataStream::readAvailable()
         if (bytes.isEmpty())
             break;
         feed(bytes);
-        if (bytes.size() < kReadChunkBytes && m_device->bytesAvailable() <= 0)
-            break;
+        // feed() emits user-observable signals and may detach or destroy the
+        // current device. The loop condition re-checks the guarded pointer on
+        // the next iteration instead of dereferencing a stale device here.
     }
 }
 
