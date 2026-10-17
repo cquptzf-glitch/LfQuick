@@ -1,6 +1,9 @@
 #include <LfQuick/Runtime/IPageInstance.h>
 #include <LfQuick/Runtime/IWindowInstance.h>
 #include <LfQuick/Runtime/PageDescriptor.h>
+#include <LfQuick/Runtime/PageProviderRegistry.h>
+#include <LfQuick/Runtime/PageRegistry.h>
+#include <LfQuick/Runtime/PageRouter.h>
 #include <LfQuick/Runtime/WindowProviderRegistry.h>
 #include <LfQuick/Runtime/WindowRouter.h>
 #include <LfQuick/Ui/OverlayCoordinator.h>
@@ -55,6 +58,7 @@ private slots:
             {{QStringLiteral("title"), QStringLiteral("Legacy Results")}});
 
         QVERIFY(instance != nullptr);
+        QVERIFY(instance->isValid());
         QCOMPARE(instance->pageId(), QStringLiteral("/legacy/results"));
         QCOMPARE(host.count(), 1);
 
@@ -64,6 +68,86 @@ private slots:
 
         instance->deactivate();
         instance->destroy();
+    }
+
+    void widgetPageProviderInvalidatesInstancesWhenHostChanges()
+    {
+        QStackedWidget firstHost;
+        QStackedWidget secondHost;
+        WidgetPageProvider provider(&firstHost);
+
+        QVERIFY(provider.registerFactory(
+            QStringLiteral("page"),
+            [](QWidget *parent, const QVariantMap &) -> QWidget * {
+                return new QLabel(QStringLiteral("Legacy"), parent);
+            }));
+
+        PageDescriptor descriptor;
+        descriptor.route = QStringLiteral("/legacy");
+        descriptor.provider = QStringLiteral("widget");
+        descriptor.source.insert(QStringLiteral("factory"), QStringLiteral("page"));
+        descriptor.cachePolicy = PageCachePolicy::KeepAlive;
+
+        auto instance = provider.create(descriptor, {});
+        QVERIFY(instance);
+        QVERIFY(instance->isValid());
+        QCOMPARE(firstHost.count(), 1);
+
+        provider.setHost(&secondHost);
+        QCOMPARE(provider.host(), &secondHost);
+        QVERIFY(!instance->isValid());
+
+        instance->destroy();
+        QCOMPARE(firstHost.count(), 0);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    }
+
+    void widgetPageRouterRebuildsIntoNewHostOnBack()
+    {
+        QStackedWidget firstHost;
+        QStackedWidget secondHost;
+        PageRegistry pages;
+        PageProviderRegistry providers;
+        auto provider = std::make_shared<WidgetPageProvider>(&firstHost);
+        int created = 0;
+
+        QVERIFY(provider->registerFactory(
+            QStringLiteral("page"),
+            [&](QWidget *parent, const QVariantMap &parameters) -> QWidget * {
+                ++created;
+                return new QLabel(parameters.value(QStringLiteral("title")).toString(), parent);
+            }));
+        QVERIFY(providers.registerProvider(provider));
+
+        PageDescriptor first;
+        first.route = QStringLiteral("/first");
+        first.provider = QStringLiteral("widget");
+        first.source.insert(QStringLiteral("factory"), QStringLiteral("page"));
+        first.cachePolicy = PageCachePolicy::KeepAlive;
+        first.fallbackPolicy = FallbackPolicy::None;
+        PageDescriptor second = first;
+        second.route = QStringLiteral("/second");
+        QVERIFY(pages.registerPage(first));
+        QVERIFY(pages.registerPage(second));
+
+        PageRouter router(&pages, &providers);
+        QVERIFY(router.push({first.route,
+                             {{QStringLiteral("title"), QStringLiteral("First")}}, {}}).accepted);
+        QVERIFY(router.push({second.route,
+                             {{QStringLiteral("title"), QStringLiteral("Second")}}, {}}).accepted);
+        QCOMPARE(created, 2);
+        QCOMPARE(firstHost.count(), 2);
+
+        provider->setHost(&secondHost);
+        QVERIFY(router.back().accepted);
+
+        QCOMPARE(router.currentRoute(), first.route);
+        QCOMPARE(created, 3);
+        QCOMPARE(firstHost.count(), 0);
+        QCOMPARE(secondHost.count(), 1);
+        auto *label = qobject_cast<QLabel *>(secondHost.currentWidget());
+        QVERIFY(label);
+        QCOMPARE(label->text(), QStringLiteral("First"));
     }
 
     void widgetProviderRejectsUnknownFactory()
