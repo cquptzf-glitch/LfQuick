@@ -35,6 +35,8 @@ qt_add_qml_module(LfQuickUi
         src/PermissionEvaluator.cpp
         include/LfQuick/Ui/LfAttached.h
         src/LfAttached.cpp
+        include/LfQuick/Ui/HelpContextRegistry.h
+        src/HelpContextRegistry.cpp
         include/LfQuick/Ui/ValidationEvaluator.h
         src/ValidationEvaluator.cpp
         include/LfQuick/Ui/ValidationRuleTable.h
@@ -90,6 +92,9 @@ qt_add_qml_module(LfQuickUi
         qml/LfRackView.qml
         qml/LfProcessSteps.qml
         qml/LfConnectionIndicator.qml
+        qml/OverlayStack.qml
+        qml/QuickOverlayBackend.qml
+        qml/UiSurface.qml
         qml/OverlayHost.qml
         qml/BusyOverlay.qml
         qml/ToastStack.qml
@@ -114,6 +119,7 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/NavigationGuardController.h
         include/LfQuick/Ui/PermissionEvaluator.h
         include/LfQuick/Ui/LfAttached.h
+        include/LfQuick/Ui/HelpContextRegistry.h
         include/LfQuick/Ui/ValidationEvaluator.h
         include/LfQuick/Ui/ValidationRuleTable.h
         include/LfQuick/Ui/ValidationFormState.h
