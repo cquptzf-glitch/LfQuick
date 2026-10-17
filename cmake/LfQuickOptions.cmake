@@ -11,6 +11,7 @@ option(LFQUICK_EXPERIMENTAL_CANVAS_PAINTER "Build experimental Qt Canvas2D adapt
 option(LFQUICK_BUILD_DIAGNOSTICS "Build development diagnostics" ON)
 option(LFQUICK_BUILD_MEDICAL_DEMO "Build LfQuick Medical Demo" ON)
 option(LFQUICK_BUILD_BENCHMARKS "Build opt-in performance benchmark executables" OFF)
+option(LFQUICK_BUILD_SCREENSHOT_TOOL "Build local QML screenshot CLI" OFF)
 option(LFQUICK_ENABLE_HOT_RELOAD "Enable development-only QML hot reload adapters" OFF)
 option(LFQUICK_ENABLE_QMLTC "Enable qmltc where supported" OFF)
 option(LFQUICK_EXPERIMENTAL_STYLEKIT "Enable Qt Labs StyleKit experiments" OFF)
