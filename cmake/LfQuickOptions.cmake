@@ -1,5 +1,6 @@
 option(BUILD_SHARED_LIBS "Build LfQuick libraries as shared libraries" ON)
 option(LFQUICK_BUILD_PLATFORM "Build platform/input adapters" ON)
+option(LFQUICK_BUILD_PLATFORM_QML "Build optional QML registrations for Platform services" OFF)
 option(LFQUICK_BUILD_UI "Build Qt Quick UI module" ON)
 option(LFQUICK_BUILD_DATAVIEW "Build DataView module" ON)
 option(LFQUICK_BUILD_WIDGET_BRIDGE "Build QWidget/Quick migration bridge" OFF)
