@@ -1,9 +1,12 @@
+#include <LfQuick/Ui/LifetimeLease.h>
+
 #include <QDebug>
 #include <QFile>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQmlError>
 #include <QPointer>
+#include <QQuickItem>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
@@ -34,6 +37,7 @@ Item {
     LfLifetimeLease { object: parent }
     LfObjectFactory { }
     LfLazyLoader { }
+    LfBoundComponent { }
 
     LfButton { text: "Button" }
     LfTextField { text: "Text" }
@@ -156,6 +160,80 @@ QtObject {
         QCOMPARE(loader->property("item").value<QObject *>(), nullptr);
 
         delete root;
+    }
+
+    void boundComponentPreservesRetainedVisualContentAndTracksDestruction()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"QML(
+import QtQuick
+import LfQuick
+
+LfBoundComponent {
+    objectName: "bound"
+    width: 120
+    height: 60
+    asynchronous: false
+    property int answer: 17
+
+    component: Component {
+        Item {
+            required property int answer
+            implicitWidth: 80
+            implicitHeight: 30
+        }
+    }
+}
+)QML", QUrl(QStringLiteral("qrc:/tests/LfQuickBoundComponent.qml")));
+
+        QObject *host = component.create();
+        QVERIFY2(host, qPrintable(component.errorString()));
+        auto *hostItem = qobject_cast<QQuickItem *>(host);
+        QVERIFY(hostItem);
+
+        QObject *first = host->property("item").value<QObject *>();
+        auto *firstItem = qobject_cast<QQuickItem *>(first);
+        QVERIFY(firstItem);
+        QCOMPARE(first->property("answer").toInt(), 17);
+        QCOMPARE(host->property("implicitWidth").toDouble(), 80.0);
+        QCOMPARE(host->property("implicitHeight").toDouble(), 30.0);
+
+        QVERIFY(host->setProperty("answer", 23));
+        QCOMPARE(first->property("answer").toInt(), 23);
+
+        LfQuick::LifetimeLease lease;
+        lease.setObject(first);
+        lease.setHeld(true);
+        QPointer<QObject> retained = first;
+        QSignalSpy itemChanged(host, SIGNAL(itemChanged()));
+
+        QVERIFY(QMetaObject::invokeMethod(host, "clear", Qt::DirectConnection));
+        QCOMPARE(host->property("item").value<QObject *>(), nullptr);
+        QVERIFY(retained);
+        QCOMPARE(retained->parent(), nullptr);
+        QCOMPARE(firstItem->parentItem(), hostItem);
+        QVERIFY(LfQuick::LifetimeLease::isRetained(retained));
+        QCOMPARE(host->property("implicitWidth").toDouble(), 0.0);
+        QCOMPARE(host->property("implicitHeight").toDouble(), 0.0);
+
+        lease.setHeld(false);
+        QTRY_VERIFY(retained.isNull());
+
+        // clear() keeps the component definition, so reload remains available.
+        QVERIFY(QMetaObject::invokeMethod(host, "reload", Qt::DirectConnection));
+        QObject *second = host->property("item").value<QObject *>();
+        QVERIFY(second);
+        QCOMPARE(second->property("answer").toInt(), 23);
+
+        const int itemSignalsBeforeDestroy = itemChanged.count();
+        delete second;
+        QCOMPARE(host->property("item").value<QObject *>(), nullptr);
+        QCOMPARE(host->property("implicitWidth").toDouble(), 0.0);
+        QCOMPARE(host->property("implicitHeight").toDouble(), 0.0);
+        QCOMPARE(itemChanged.count(), itemSignalsBeforeDestroy + 1);
+
+        delete host;
     }
 };
 
