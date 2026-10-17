@@ -156,6 +156,8 @@ Controls.Control {
                 width: ListView.view ? ListView.view.width : optionsPopup.width
                 implicitHeight: Tokens.controlHeight
                 text: root.textAt(index)
+                // Prevent AbstractButton from replacing the checked binding.
+                checkable: false
                 checked: root.isSelected(index)
                 enabled: {
                     const value = root.valueAt(index)

@@ -138,6 +138,12 @@ Item {
     LfContextMenu {
         model: ["Open", { text: "Disabled", enabled: false }]
     }
+    LfTransferList {
+        model: [{ text: "One", value: "1" }, { text: "Two", value: "2" }]
+        targetValues: ["1"]
+        width: 500
+        height: 240
+    }
     LfNumberInput { from: 0; to: 100; value: 42 }
     LfRangeInput { from: 0; to: 100; first.value: 20; second.value: 80 }
     LfProgressRing { running: true }
@@ -340,6 +346,45 @@ Item {
         QCOMPARE(searchable->property("filteredCount").toInt(), 1);
         QCOMPARE(searchable->property("firstSourceIndex").toInt(), 1);
         delete root;
+    }
+
+    void transferListMaintainsUniqueStableKeys()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"QML(
+import QtQuick
+import LfQuick
+
+LfTransferList {
+    model: [
+        { text: "A", value: "a" },
+        { text: "B", value: "b" },
+        { text: "Disabled", value: "c", enabled: false }
+    ]
+    property bool rejectedDuplicate: false
+    property bool rejectedDisabled: false
+    property int changes: 0
+    onItemsTransferred: function(values) { changes += 1 }
+    Component.onCompleted: {
+        addIndex(0)
+        rejectedDuplicate = !addIndex(0)
+        rejectedDisabled = !addIndex(2)
+        addIndex(1)
+        removeKey("a")
+    }
+}
+)QML", QUrl(QStringLiteral("qrc:/tests/LfQuickTransferList.qml")));
+
+        QObject *transfer = component.create();
+        QVERIFY2(transfer, qPrintable(component.errorString()));
+        const QVariantList keys = transfer->property("targetValues").toList();
+        QCOMPARE(keys.size(), 1);
+        QCOMPARE(keys.first().toString(), QStringLiteral("b"));
+        QCOMPARE(transfer->property("changes").toInt(), 3);
+        QVERIFY(transfer->property("rejectedDuplicate").toBool());
+        QVERIFY(transfer->property("rejectedDisabled").toBool());
+        delete transfer;
     }
 
     void lazyLoaderCanForceBackgroundLoadAndUnload()

@@ -436,6 +436,17 @@ LfPage {
 
                     Item { Layout.fillWidth: true }
                 }
+
+                LfTransferList {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 230
+                    model: [
+                        { text: qsTr("Result review"), value: "review" },
+                        { text: qsTr("QC reports"), value: "qc" },
+                        { text: qsTr("Calibration"), value: "calibration" }
+                    ]
+                    targetValues: ["qc"]
+                }
             }
 
             FocusDebugPanel {

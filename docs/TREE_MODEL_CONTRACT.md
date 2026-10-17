@@ -43,3 +43,5 @@ LfTreeView {
 - For `LfMultiSelect`, provide object `value` keys (or configure `valueRole`) that remain unique and stable. Use `selectedValues` and `selectionCommitted(values)` for external state.
 - `LfSearchableComboBox` filters via `textAt(index)` and preserves source indices in `activated(index)`.
 - Async tree searching, cross-parent filtering, persistent multi-tree selection, and arbitrary role-name adapters are not implemented in this batch.
+
+- `LfTransferList` transfers stable array/ListModel keys, with `addIndex`, `removeKey`, `moveSelectedToTarget`, `moveSelectedToSource`, and bulk helpers. Disabled source options cannot be added. Use bounded datasets (the display lists calculate indices in JavaScript).
