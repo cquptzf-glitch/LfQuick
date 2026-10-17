@@ -103,6 +103,14 @@ if(LFQUICK_BUILD_PLATFORM)
     lfquick_register_test(tst_scanner_stress)
 endif()
 
+if(LFQUICK_BUILD_PLATFORM_QML)
+    qt_add_executable(tst_platform_qml
+        unit/tst_platform_qml.cpp
+    )
+    target_link_libraries(tst_platform_qml PRIVATE LfQuick::PlatformQml Qt6::Qml Qt6::Test)
+    lfquick_register_test(tst_platform_qml)
+endif()
+
 if(LFQUICK_BUILD_UI)
     qt_add_executable(tst_ui
         unit/tst_ui.cpp
