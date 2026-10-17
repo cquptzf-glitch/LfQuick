@@ -29,6 +29,8 @@ QVariant ColumnStateModel::data(const QModelIndex &index, int role) const
     case WidthRole: return column.width;
     case VisibleRole: return column.visible;
     case OrderRole: return index.row();
+    case SortOrderRole: return column.sortOrder;
+    case FilterRole: return column.filter;
     default: return {};
     }
 }
@@ -41,7 +43,9 @@ QHash<int, QByteArray> ColumnStateModel::roleNames() const
         {TitleRole, QByteArrayLiteral("title")},
         {WidthRole, QByteArrayLiteral("width")},
         {VisibleRole, QByteArrayLiteral("visible")},
-        {OrderRole, QByteArrayLiteral("order")}
+        {OrderRole, QByteArrayLiteral("order")},
+        {SortOrderRole, QByteArrayLiteral("sortOrder")},
+        {FilterRole, QByteArrayLiteral("filter")}
     };
 }
 
@@ -56,6 +60,14 @@ void ColumnStateModel::clear()
     emit stateChanged();
 }
 
+int ColumnStateModel::normalizeSortOrder(int sortOrder)
+{
+    return sortOrder == static_cast<int>(Qt::AscendingOrder)
+            || sortOrder == static_cast<int>(Qt::DescendingOrder)
+        ? sortOrder
+        : -1;
+}
+
 bool ColumnStateModel::parseColumn(const QVariantMap &map, ColumnState &state)
 {
     state.id = map.value(QStringLiteral("id")).toString().trimmed();
@@ -63,6 +75,8 @@ bool ColumnStateModel::parseColumn(const QVariantMap &map, ColumnState &state)
     state.title = map.value(QStringLiteral("title"), state.id).toString();
     state.width = std::max<qreal>(24.0, map.value(QStringLiteral("width"), 140.0).toReal());
     state.visible = map.value(QStringLiteral("visible"), true).toBool();
+    state.sortOrder = normalizeSortOrder(map.value(QStringLiteral("sortOrder"), -1).toInt());
+    state.filter = map.value(QStringLiteral("filter"));
     return !state.id.isEmpty() && state.modelColumn >= 0;
 }
 
@@ -106,7 +120,9 @@ QVariantList ColumnStateModel::snapshot() const
             {QStringLiteral("title"), column.title},
             {QStringLiteral("width"), column.width},
             {QStringLiteral("visible"), column.visible},
-            {QStringLiteral("order"), i}
+            {QStringLiteral("order"), i},
+            {QStringLiteral("sortOrder"), column.sortOrder},
+            {QStringLiteral("filter"), column.filter}
         });
     }
     return result;
@@ -121,6 +137,8 @@ bool ColumnStateModel::restoreState(const QVariantList &columns)
         qreal width = 140.0;
         bool visible = true;
         int order = 0;
+        int sortOrder = -1;
+        QVariant filter;
     };
     QHash<QString, SavedState> saved;
     int fallbackOrder = 0;
@@ -133,6 +151,8 @@ bool ColumnStateModel::restoreState(const QVariantList &columns)
         state.width = std::max<qreal>(24.0, map.value(QStringLiteral("width"), 140.0).toReal());
         state.visible = map.value(QStringLiteral("visible"), true).toBool();
         state.order = map.value(QStringLiteral("order"), fallbackOrder).toInt();
+        state.sortOrder = normalizeSortOrder(map.value(QStringLiteral("sortOrder"), -1).toInt());
+        state.filter = map.value(QStringLiteral("filter"));
         saved.insert(id, state);
         ++fallbackOrder;
     }
@@ -144,6 +164,8 @@ bool ColumnStateModel::restoreState(const QVariantList &columns)
             continue;
         column.width = it->width;
         column.visible = it->visible;
+        column.sortOrder = it->sortOrder;
+        column.filter = it->filter;
     }
 
     std::stable_sort(restored.begin(), restored.end(), [&](const ColumnState &left, const ColumnState &right) {
@@ -212,6 +234,18 @@ bool ColumnStateModel::isModelColumnVisible(int modelColumn) const
     return index < 0 ? true : m_columns.at(index).visible;
 }
 
+int ColumnStateModel::sortOrderForModelColumn(int modelColumn) const
+{
+    const int index = indexOfModelColumn(modelColumn);
+    return index < 0 ? -1 : m_columns.at(index).sortOrder;
+}
+
+QVariant ColumnStateModel::filterForModelColumn(int modelColumn) const
+{
+    const int index = indexOfModelColumn(modelColumn);
+    return index < 0 ? QVariant{} : m_columns.at(index).filter;
+}
+
 bool ColumnStateModel::setWidth(const QString &id, qreal width)
 {
     const int index = indexOfId(id);
@@ -243,6 +277,79 @@ bool ColumnStateModel::setVisible(const QString &id, bool visible)
     emit dataChanged(this->index(index), this->index(index), {VisibleRole});
     emit stateChanged();
     return true;
+}
+
+bool ColumnStateModel::setSortOrder(const QString &id, int sortOrder)
+{
+    const int index = indexOfId(id);
+    if (index < 0)
+        return false;
+    sortOrder = normalizeSortOrder(sortOrder);
+    if (m_columns[index].sortOrder == sortOrder)
+        return true;
+
+    for (int i = 0; i < m_columns.size(); ++i) {
+        const int nextOrder = i == index ? sortOrder : -1;
+        if (m_columns[i].sortOrder == nextOrder)
+            continue;
+        m_columns[i].sortOrder = nextOrder;
+        emit dataChanged(this->index(i), this->index(i), {SortOrderRole});
+    }
+    emit stateChanged();
+    return true;
+}
+
+bool ColumnStateModel::setSortOrderByModelColumn(int modelColumn, int sortOrder)
+{
+    const int index = indexOfModelColumn(modelColumn);
+    return index >= 0 && setSortOrder(m_columns.at(index).id, sortOrder);
+}
+
+bool ColumnStateModel::setFilter(const QString &id, const QVariant &filter)
+{
+    const int index = indexOfId(id);
+    if (index < 0)
+        return false;
+    if (m_columns[index].filter == filter)
+        return true;
+    m_columns[index].filter = filter;
+    emit dataChanged(this->index(index), this->index(index), {FilterRole});
+    emit stateChanged();
+    return true;
+}
+
+bool ColumnStateModel::setFilterByModelColumn(int modelColumn, const QVariant &filter)
+{
+    const int index = indexOfModelColumn(modelColumn);
+    return index >= 0 && setFilter(m_columns.at(index).id, filter);
+}
+
+void ColumnStateModel::clearSort()
+{
+    bool changed = false;
+    for (int i = 0; i < m_columns.size(); ++i) {
+        if (m_columns[i].sortOrder < 0)
+            continue;
+        m_columns[i].sortOrder = -1;
+        emit dataChanged(index(i), index(i), {SortOrderRole});
+        changed = true;
+    }
+    if (changed)
+        emit stateChanged();
+}
+
+void ColumnStateModel::clearFilters()
+{
+    bool changed = false;
+    for (int i = 0; i < m_columns.size(); ++i) {
+        if (!m_columns[i].filter.isValid() || m_columns[i].filter.isNull())
+            continue;
+        m_columns[i].filter.clear();
+        emit dataChanged(index(i), index(i), {FilterRole});
+        changed = true;
+    }
+    if (changed)
+        emit stateChanged();
 }
 
 bool ColumnStateModel::moveModelColumn(int modelColumn, int visualIndex)
