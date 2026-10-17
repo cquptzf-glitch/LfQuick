@@ -34,6 +34,13 @@ def run_architecture() -> bool:
     return subprocess.run(command, cwd=ROOT, check=False).returncode == 0
 
 
+def is_token_source(path: Path) -> bool:
+    # Independent leaf styles are intentionally allowed to own their palette.
+    # Examples: Tokens.qml, FluentTokens.qml, BrandTokens.qml,
+    # DiagnosticsTokens.qml.
+    return path.name.endswith("Tokens.qml")
+
+
 def scan_qml(strict_colors: bool) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
@@ -49,8 +56,8 @@ def scan_qml(strict_colors: bool) -> tuple[list[str], list[str]]:
                     if stripped.split()[1].startswith(forbidden):
                         errors.append(f"{rel}:{line_number}: forbidden import {forbidden}")
 
-            if path.name != "Tokens.qml" and MAGIC_COLOR.search(line):
-                message = f"{rel}:{line_number}: hard-coded color literal outside Tokens.qml"
+            if not is_token_source(path) and MAGIC_COLOR.search(line):
+                message = f"{rel}:{line_number}: hard-coded color literal outside *Tokens.qml"
                 (errors if strict_colors else warnings).append(message)
 
             if line.rstrip() != line:
@@ -81,7 +88,7 @@ def main() -> int:
     parser.add_argument(
         "--strict-colors",
         action="store_true",
-        help="treat hard-coded QML color literals outside Tokens.qml as errors",
+        help="treat hard-coded QML color literals outside *Tokens.qml as errors",
     )
     parser.add_argument(
         "--qmllint",
