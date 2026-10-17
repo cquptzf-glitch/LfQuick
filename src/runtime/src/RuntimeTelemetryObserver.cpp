@@ -1,6 +1,8 @@
 #include <LfQuick/Runtime/RuntimeTelemetryObserver.h>
 #include <LfQuick/Runtime/PageRouter.h>
 
+#include <utility>
+
 namespace LfQuick {
 
 RuntimeTelemetryObserver::RuntimeTelemetryObserver(QObject *parent)
