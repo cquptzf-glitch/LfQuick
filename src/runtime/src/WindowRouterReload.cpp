@@ -5,6 +5,8 @@
 #include <LfQuick/Runtime/IWindowProvider.h>
 #include <LfQuick/Runtime/WindowProviderRegistry.h>
 
+#include <QStringList>
+
 #include <memory>
 #include <utility>
 
@@ -107,6 +109,34 @@ WindowResult WindowRouter::reloadInstance(QStringView instanceId)
     auto fatalRollbackFailure = [this, &record, &id, &windowId](
                                     std::unique_ptr<IWindowBacking> &token,
                                     const QString &cause) {
+        // The physical owner is about to disappear. Keep the logical ownership
+        // graph valid even in this catastrophic path by detaching every direct
+        // child first. Native adapters get a best-effort detach while the old
+        // backing still exists; if they reject it, Runtime still clears the
+        // stale owner relation because retaining an id that is being removed is
+        // strictly worse than losing the native transient hint.
+        QStringList detachedChildren;
+        QStringList nativeDetachFailures;
+        for (const auto &child : m_instances) {
+            if (!child || child == record || child->request.ownerInstanceId != id)
+                continue;
+
+            const QString childId = child->instance
+                ? child->instance->instanceId()
+                : QString{};
+            bool nativeDetached = false;
+            if (child->instance && child->instance->canUpdateOwner({}))
+                nativeDetached = child->instance->updateOwner({});
+
+            child->request.ownerInstanceId.clear();
+            if (!childId.isEmpty()) {
+                detachedChildren.push_back(childId);
+                if (!nativeDetached)
+                    nativeDetachFailures.push_back(childId);
+                emit windowOwnerChanged(child->descriptor.id, childId, QString{});
+            }
+        }
+
         token.reset();
         record->instance.reset();
         record->state = WindowState::Closed;
@@ -117,10 +147,15 @@ WindowResult WindowRouter::reloadInstance(QStringView instanceId)
 
         const QString message = cause
             + QStringLiteral("; rollback failed and the logical window was removed");
+        QVariantMap details{{QStringLiteral("rollbackFailed"), true}};
+        if (!detachedChildren.isEmpty())
+            details.insert(QStringLiteral("detachedChildren"), detachedChildren);
+        if (!nativeDetachFailures.isEmpty())
+            details.insert(QStringLiteral("nativeDetachFailures"), nativeDetachFailures);
+
         auto result = WindowResult::failure(
             windowId, id,
-            reloadError(21, message,
-                        {{QStringLiteral("rollbackFailed"), true}}));
+            reloadError(21, message, std::move(details)));
         emit windowReloadFailed(windowId, id, result.error.message());
         return result;
     };
