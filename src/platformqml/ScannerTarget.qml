@@ -1,5 +1,4 @@
 import QtQml
-import LfQuick.Platform
 
 QtObject {
     id: root
