@@ -96,6 +96,12 @@ void QuickRuntime::setHost(QQuickItem *host)
     if (m_host == host)
         return;
 
+    // The host is the scene root for routed Quick pages. Keeping history or
+    // caches alive across a host switch would leave instances attached to the
+    // previous scene tree while currentRoute still reports them as active.
+    if (m_router)
+        m_router->reset();
+
     QObject::disconnect(m_hostDestroyedConnection);
     m_hostDestroyedConnection = {};
     m_host = host;
@@ -107,6 +113,8 @@ void QuickRuntime::setHost(QQuickItem *host)
             m_hostDestroyedConnection = {};
             if (m_provider)
                 m_provider->setHost(nullptr);
+            if (m_router)
+                m_router->reset();
             emit hostChanged();
         });
     }
