@@ -134,6 +134,7 @@ signals:
 
 private:
     void readAvailable();
+    void queueReadContinuation(QIODevice *device);
     void disconnectDevice();
 
     QPointer<DataStreamParser> m_parser;
@@ -142,6 +143,7 @@ private:
     QByteArray m_buffer;
     QList<QMetaObject::Connection> m_deviceConnections;
     bool m_ended = false;
+    bool m_readContinuationQueued = false;
 };
 
 } // namespace LfQuick
