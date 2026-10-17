@@ -5,6 +5,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QQuickItem>
+#include <QQuickWindow>
 #include <QtQmlIntegration/qqmlintegration.h>
 
 namespace LfQuick {
