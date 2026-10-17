@@ -38,21 +38,28 @@ class LFQUICKIO_EXPORT DelimitedStreamParser final : public DataStreamParser
     Q_OBJECT
     QML_NAMED_ELEMENT(LfDelimitedStreamParser)
     Q_PROPERTY(QByteArray delimiter READ delimiter WRITE setDelimiter NOTIFY delimiterChanged FINAL)
+    Q_PROPERTY(qint64 maxBufferedBytes READ maxBufferedBytes WRITE setMaxBufferedBytes NOTIFY maxBufferedBytesChanged FINAL)
 
 public:
     explicit DelimitedStreamParser(QObject *parent = nullptr);
 
     QByteArray delimiter() const { return m_delimiter; }
     void setDelimiter(const QByteArray &delimiter);
+    qint64 maxBufferedBytes() const noexcept { return m_maxBufferedBytes; }
+    void setMaxBufferedBytes(qint64 maxBufferedBytes);
 
     void parseBytes(QByteArray &incoming, QByteArray &buffer) override;
     void streamEnded(QByteArray &buffer) override;
 
 signals:
     void delimiterChanged();
+    void maxBufferedBytesChanged();
+    void bufferOverflow(qint64 droppedBytes);
 
 private:
     QByteArray m_delimiter = QByteArrayLiteral("\n");
+    qint64 m_maxBufferedBytes = 4 * 1024 * 1024;
+    bool m_discardingOversizedRecord = false;
 };
 
 class LFQUICKIO_EXPORT StreamCollector final : public DataStreamParser
@@ -130,6 +137,7 @@ private:
     void disconnectDevice();
 
     QPointer<DataStreamParser> m_parser;
+    QMetaObject::Connection m_parserDestroyedConnection;
     QPointer<QIODevice> m_device;
     QByteArray m_buffer;
     QList<QMetaObject::Connection> m_deviceConnections;
