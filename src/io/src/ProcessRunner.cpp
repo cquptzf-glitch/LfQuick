@@ -27,27 +27,28 @@ ProcessRunner::ProcessRunner(QObject *parent)
             this, &ProcessRunner::handleStdout);
     connect(m_process, &QProcess::readyReadStandardError,
             this, &ProcessRunner::handleStderr);
-    connect(m_process, &QProcess::errorOccurred, this, [this](QProcess::ProcessError) {
+    connect(m_process, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
         setErrorString(m_process->errorString());
+        if (error == QProcess::FailedToStart) {
+            setState(State::NotRunning);
+            completeRun(-1, ExitStatus::Unknown);
+        }
     });
     connect(m_process,
             qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
             this,
             [this](int exitCode, QProcess::ExitStatus status) {
-        handleStdout();
-        handleStderr();
-        finishParsers();
-        m_exitCode = exitCode;
-        m_exitStatus = status == QProcess::NormalExit
-            ? ExitStatus::NormalExit
-            : ExitStatus::CrashExit;
-        emit exitStatusChanged();
-        emit finished(m_exitCode, m_exitStatus);
+        completeRun(exitCode,
+                    status == QProcess::NormalExit
+                        ? ExitStatus::NormalExit
+                        : ExitStatus::CrashExit);
     });
 }
 
 ProcessRunner::~ProcessRunner()
 {
+    QObject::disconnect(m_stdoutParserDestroyedConnection);
+    QObject::disconnect(m_stderrParserDestroyedConnection);
     if (m_process && m_process->state() != QProcess::NotRunning) {
         m_process->kill();
         m_process->waitForFinished(100);
@@ -125,10 +126,22 @@ void ProcessRunner::setStdoutParser(DataStreamParser *parser)
 {
     if (m_stdoutParser == parser)
         return;
+
+    QObject::disconnect(m_stdoutParserDestroyedConnection);
+    m_stdoutParserDestroyedConnection = {};
     if (m_stdoutParser)
         m_stdoutParser->streamEnded(m_stdoutParserBuffer);
     m_stdoutParserBuffer.clear();
     m_stdoutParser = parser;
+    if (m_stdoutParser) {
+        m_stdoutParserDestroyedConnection = connect(
+            m_stdoutParser, &QObject::destroyed, this, [this] {
+                m_stdoutParser = nullptr;
+                m_stdoutParserBuffer.clear();
+                m_stdoutParserDestroyedConnection = {};
+                emit stdoutParserChanged();
+            });
+    }
     emit stdoutParserChanged();
 }
 
@@ -136,10 +149,22 @@ void ProcessRunner::setStderrParser(DataStreamParser *parser)
 {
     if (m_stderrParser == parser)
         return;
+
+    QObject::disconnect(m_stderrParserDestroyedConnection);
+    m_stderrParserDestroyedConnection = {};
     if (m_stderrParser)
         m_stderrParser->streamEnded(m_stderrParserBuffer);
     m_stderrParserBuffer.clear();
     m_stderrParser = parser;
+    if (m_stderrParser) {
+        m_stderrParserDestroyedConnection = connect(
+            m_stderrParser, &QObject::destroyed, this, [this] {
+                m_stderrParser = nullptr;
+                m_stderrParserBuffer.clear();
+                m_stderrParserDestroyedConnection = {};
+                emit stderrParserChanged();
+            });
+    }
     emit stderrParserChanged();
 }
 
@@ -156,6 +181,7 @@ bool ProcessRunner::start()
     setErrorString({});
     m_exitCode = -1;
     m_exitStatus = ExitStatus::Unknown;
+    m_runCompletionEmitted = false;
     emit exitStatusChanged();
 
     m_process->setWorkingDirectory(m_workingDirectory);
@@ -171,8 +197,12 @@ bool ProcessRunner::start()
             environment.insert(it.key(), it.value().toString());
     }
     m_process->setProcessEnvironment(environment);
-    m_process->start(m_program, m_arguments);
+
+    // Enter Starting before QProcess::start(). FailedToStart may be reported
+    // synchronously; setting the state afterwards would incorrectly overwrite
+    // the NotRunning transition produced by the error path.
     setState(State::Starting);
+    m_process->start(m_program, m_arguments);
     return true;
 }
 
@@ -282,6 +312,22 @@ void ProcessRunner::finishParsers()
     if (m_stderrParser)
         m_stderrParser->streamEnded(m_stderrParserBuffer);
     m_stderrParserBuffer.clear();
+}
+
+void ProcessRunner::completeRun(int exitCode, ExitStatus status)
+{
+    if (m_runCompletionEmitted)
+        return;
+    m_runCompletionEmitted = true;
+
+    handleStdout();
+    handleStderr();
+    finishParsers();
+    m_exitCode = exitCode;
+    m_exitStatus = status;
+    setState(State::NotRunning);
+    emit exitStatusChanged();
+    emit finished(m_exitCode, m_exitStatus);
 }
 
 } // namespace LfQuick
