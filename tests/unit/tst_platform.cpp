@@ -69,6 +69,7 @@ private slots:
         QVERIFY(values.contains(QStringLiteral("module.charts")));
         QVERIFY(values.contains(QStringLiteral("module.diagnostics")));
         QVERIFY(values.contains(QStringLiteral("tooling.hotReload")));
+        QVERIFY(values.contains(QStringLiteral("tooling.screenshot")));
         QVERIFY(values.contains(QStringLiteral("adapter.qtGraphs")));
         QVERIFY(values.contains(QStringLiteral("adapter.rangeModel")));
         QVERIFY(values.contains(QStringLiteral("adapter.canvasPainter")));
