@@ -9,6 +9,8 @@ target_include_directories(LfQuickDiagnostics
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
+set_source_files_properties(qml/DiagnosticsTokens.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+
 qt_add_qml_module(LfQuickDiagnostics
     URI LfQuick.Diagnostics
     VERSION 1.0
@@ -23,6 +25,7 @@ qt_add_qml_module(LfQuickDiagnostics
         include/LfQuick/Diagnostics/AccessibilityAudit.h
         src/AccessibilityAudit.cpp
     QML_FILES
+        qml/DiagnosticsTokens.qml
         qml/DiagnosticsHud.qml
         qml/DiagnosticsObjectInspector.qml
         qml/DiagnosticsFpsHud.qml
