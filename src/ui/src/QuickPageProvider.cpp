@@ -173,6 +173,17 @@ QQuickItem *createItem(QQmlEngine *engine,
     return item;
 }
 
+QString combinedCreationError(const QString &prewarmError,
+                              const QString &createError)
+{
+    if (prewarmError.isEmpty())
+        return createError;
+    if (createError.isEmpty())
+        return prewarmError;
+    return QStringLiteral("Prewarm failed: %1\nSynchronous create failed: %2")
+        .arg(prewarmError, createError);
+}
+
 } // namespace
 
 QuickPageProvider::QuickPageProvider(QQmlEngine *engine, QQuickItem *host)
@@ -349,20 +360,24 @@ std::unique_ptr<IPageInstance> QuickPageProvider::create(const PageDescriptor &d
         return {};
     }
 
-    QString primaryError;
-    QQuickItem *item = takePrewarmedItem(descriptor, parameters, primaryError);
-    if (!item && primaryError.isEmpty())
-        item = createItem(m_engine, primarySource, parameters, primaryError);
-
+    QString prewarmError;
+    QQuickItem *item = takePrewarmedItem(descriptor, parameters, prewarmError);
     if (!item) {
-        setLastError(QStringLiteral("quick.create-failed"), primaryError,
-                     {{QStringLiteral("route"), descriptor.route},
-                      {QStringLiteral("sourceUrl"), primarySource.toString()},
-                      {QStringLiteral("stage"), QStringLiteral("primary")}});
-        if (m_errorCollector)
-            m_errorCollector->record(descriptor.route, primarySource, primaryError,
-                                     QStringLiteral("primary"));
-        return {};
+        QString createError;
+        item = createItem(m_engine, primarySource, parameters, createError);
+        if (!item) {
+            const QString primaryError = combinedCreationError(prewarmError, createError);
+            setLastError(QStringLiteral("quick.create-failed"), primaryError,
+                         {{QStringLiteral("route"), descriptor.route},
+                          {QStringLiteral("sourceUrl"), primarySource.toString()},
+                          {QStringLiteral("stage"), QStringLiteral("primary")},
+                          {QStringLiteral("prewarmError"), prewarmError},
+                          {QStringLiteral("createError"), createError}});
+            if (m_errorCollector)
+                m_errorCollector->record(descriptor.route, primarySource, primaryError,
+                                         QStringLiteral("primary"));
+            return {};
+        }
     }
 
     item->setParent(m_host);
