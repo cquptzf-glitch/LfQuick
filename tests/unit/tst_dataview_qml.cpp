@@ -5,6 +5,7 @@
 #include <QQmlEngine>
 #include <QQmlError>
 #include <QTest>
+#include <QSignalSpy>
 
 class DataViewQmlSmokeTest : public QObject
 {
@@ -60,6 +61,15 @@ Item {
         QVERIFY(picker);
         QCOMPARE(picker->property("placeholderText").toString(),
                  QStringLiteral("Choose a channel"));
+
+        // QModelIndex selection snapshots must not survive a model reset.
+        QVERIFY(picker->setProperty("selectedText", QStringLiteral("Instrument A")));
+        QSignalSpy cleared(picker, SIGNAL(selectionCleared()));
+        model.clear();
+        QCOMPARE(picker->property("selectedText").toString(), QString());
+        QCOMPARE(cleared.count(), 1);
+        model.clear();
+        QCOMPARE(cleared.count(), 1);
         delete root;
     }
 

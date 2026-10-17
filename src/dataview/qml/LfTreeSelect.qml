@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls as Controls
+import QtQml
 import LfQuick
 
 // QModelIndex-valued picker; model must derive from QAbstractItemModel.
@@ -13,6 +14,17 @@ Controls.Control {
     property int popupHeight: 300
 
     signal itemSelected(var modelIndex, string label)
+    signal selectionCleared()
+
+    // A QModelIndex must not be retained after the source model is reset.
+    function clearSelection() {
+        const hadSelection = selectedIndex !== undefined || selectedText.length > 0
+        selectedIndex = undefined
+        selectedText = ""
+        picker.close()
+        if (hadSelection)
+            selectionCleared()
+    }
 
     function choose(modelIndex, label) {
         selectedIndex = modelIndex
@@ -26,6 +38,12 @@ Controls.Control {
     }
     function close() {
         picker.close()
+    }
+
+    Connections {
+        target: root.model
+        ignoreUnknownSignals: true
+        function onModelReset() { root.clearSelection() }
     }
 
     implicitWidth: 240

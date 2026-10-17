@@ -8,7 +8,7 @@
 - Expansion APIs use **visual row indices**: `expand(row)`, `collapse(row)`, `activateRow(viewRow, label)`. Use `rowAtIndex(sourceIndex)` when you need to convert a source model index.
 - A tree can be lazy: implement `canFetchMore(parent)` / `fetchMore(parent)` in your model. `expandRecursively` does **not** trigger fetchMore.
 - Use stable app-level node IDs in your model when selection must survive a model reset; QModelIndex is invalid after reset. Do not serialize QModelIndex as application state.
-- Selection is owned by the view's `ItemSelectionModel`. TreeSelect tracks the chosen index plus a snapshot of its display label; on model reset, the caller should clear or re-resolve its choice.
+- Selection is owned by the view's `ItemSelectionModel`. TreeSelect tracks the chosen index plus a snapshot of its display label. On `modelReset`, TreeSelect automatically clears `selectedIndex`/`selectedText` and emits `selectionCleared()` once if there was a selection. On a model-object replacement without reset, the caller should clear or re-resolve its choice.
 
 ## C++ sample
 
