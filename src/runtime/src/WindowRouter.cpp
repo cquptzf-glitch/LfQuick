@@ -348,6 +348,14 @@ QList<WindowInfo> WindowRouter::instances(QStringView windowId) const
     return result;
 }
 
+std::optional<QVariantMap> WindowRouter::saveState(QStringView instanceId) const
+{
+    const auto record = findRecord(instanceId);
+    if (!record || !record->instance)
+        return std::nullopt;
+    return record->instance->saveState();
+}
+
 std::shared_ptr<WindowRouter::Record> WindowRouter::findRecord(QStringView instanceId) const
 {
     const auto it = m_instances.constFind(instanceId.toString());
@@ -429,7 +437,9 @@ WindowResult WindowRouter::closeRecords(const QList<std::shared_ptr<Record>> &re
                                                      {{QStringLiteral("childInstanceId"), record->instance->instanceId()}}));
         }
         record->request.ownerInstanceId.clear();
-        emit windowOwnerChanged(record->descriptor.id, record->instance->instanceId(), {});
+        emit windowOwnerChanged(record->descriptor.id,
+                                record->instance->instanceId(),
+                                QString{});
     }
 
     for (const auto &record : records) {
