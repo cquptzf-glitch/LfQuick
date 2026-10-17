@@ -7,6 +7,7 @@ qt_add_qml_module(LfQuickBrandTestStyle
     URI LfQuick.BrandTest
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
+    OUTPUT_TARGETS _lfquick_brand_qml_output_targets
     QML_FILES
         qml/BrandTokens.qml
         qml/BrandButton.qml
@@ -14,6 +15,8 @@ qt_add_qml_module(LfQuickBrandTestStyle
         qml/BrandSwitch.qml
         qml/BrandDialog.qml
 )
+lfquick_register_qml_output_targets(
+    LfQuickBrandTestStyle ${_lfquick_brand_qml_output_targets})
 
 target_link_libraries(LfQuickBrandTestStyle
     PUBLIC
