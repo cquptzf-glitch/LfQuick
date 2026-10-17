@@ -165,6 +165,47 @@ private slots:
         QCOMPARE(controller.resolveSource(logical), logical);
     }
 
+    void disabledControllerUsesLogicalSourceInsteadOfDevelopmentOverride()
+    {
+        QQmlEngine engine;
+        QmlHotReloadController controller;
+        controller.setEngine(&engine);
+        controller.setDebounceMs(0);
+
+        QTemporaryDir temporary;
+        QVERIFY(temporary.isValid());
+        const QString logicalPath = temporary.filePath(QStringLiteral("Logical.qml"));
+        const QString developmentPath = temporary.filePath(QStringLiteral("Development.qml"));
+        QVERIFY(writeTextFile(
+            logicalPath,
+            "import QtQuick\nItem { property string origin: 'logical' }\n"));
+        QVERIFY(writeTextFile(
+            developmentPath,
+            "import QtQuick\nItem { property string origin: 'development' }\n"));
+
+        const QUrl logical = QUrl::fromLocalFile(logicalPath);
+        const QUrl development = QUrl::fromLocalFile(developmentPath);
+
+        TestHotReloadHost host;
+        host.setSource(logical);
+        host.setDevelopmentSource(development);
+        host.setController(&controller);
+        host.componentComplete();
+
+        QVERIFY(host.item());
+        QCOMPARE(host.item()->property("origin").toString(), QStringLiteral("development"));
+
+        controller.setEnabled(false);
+        QVERIFY(host.reload());
+        QVERIFY(host.item());
+        QCOMPARE(host.item()->property("origin").toString(), QStringLiteral("logical"));
+
+        controller.setEnabled(true);
+        QVERIFY(host.reload());
+        QVERIFY(host.item());
+        QCOMPARE(host.item()->property("origin").toString(), QStringLiteral("development"));
+    }
+
     void stateTransferUsesScopedStableKeys()
     {
         QObject oldRoot;
