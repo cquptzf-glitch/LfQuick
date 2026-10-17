@@ -5,8 +5,8 @@ Rectangle {
 
     property var coordinator
 
-    color: "#e61c1c1f"
-    border.color: "#707078"
+    color: DiagnosticsTokens.panel
+    border.color: DiagnosticsTokens.panelBorder
     radius: 8
     implicitWidth: 360
     implicitHeight: 280
@@ -18,7 +18,7 @@ Rectangle {
 
         Text {
             text: qsTr("Overlay Inspector")
-            color: "#f1f1f3"
+            color: DiagnosticsTokens.textStrong
             font.bold: true
             font.pixelSize: 12
         }
@@ -31,7 +31,7 @@ Rectangle {
                     .arg(root.coordinator.busyCount)
                     .arg(root.coordinator.busyCancelable ? "yes" : "no")
                 : qsTr("No coordinator")
-            color: "#cfd0d4"
+            color: DiagnosticsTokens.textSecondary
             font.pixelSize: 10
             elide: Text.ElideRight
         }
@@ -42,7 +42,7 @@ Rectangle {
             text: qsTr("Busy message: %1 · progress %2")
                 .arg(root.coordinator.busyMessage)
                 .arg(Number(root.coordinator.busyProgress).toFixed(2))
-            color: "#9fa1a7"
+            color: DiagnosticsTokens.textDim
             font.pixelSize: 10
             elide: Text.ElideRight
         }
@@ -54,7 +54,7 @@ Rectangle {
                     .arg(root.coordinator.toastCount)
                     .arg(root.coordinator.toastPosition)
                 : ""
-            color: "#cfd0d4"
+            color: DiagnosticsTokens.textSecondary
             font.pixelSize: 10
         }
 
@@ -72,7 +72,9 @@ Rectangle {
                 width: ListView.view.width
                 height: 30
                 radius: 4
-                color: index % 2 ? "#29292f" : "#242429"
+                color: index % 2
+                       ? DiagnosticsTokens.rowOdd
+                       : DiagnosticsTokens.rowEven
 
                 Text {
                     anchors.fill: parent
@@ -81,7 +83,7 @@ Rectangle {
                     verticalAlignment: Text.AlignVCenter
                     text: (modelData.severity ? "[" + modelData.severity + "] " : "")
                           + (modelData.message || "")
-                    color: "#aeb0b6"
+                    color: DiagnosticsTokens.textMuted
                     font.pixelSize: 9
                     elide: Text.ElideRight
                 }
@@ -96,7 +98,9 @@ Rectangle {
                     .arg(root.coordinator.pendingDialogCount)
                     .arg(root.coordinator.externalBackendActive ? "yes" : "no")
                 : ""
-            color: root.coordinator && root.coordinator.dialogActive ? "#ffcc80" : "#9fa1a7"
+            color: root.coordinator && root.coordinator.dialogActive
+                   ? DiagnosticsTokens.warningSoft
+                   : DiagnosticsTokens.textDim
             font.pixelSize: 10
             elide: Text.ElideRight
         }
@@ -105,7 +109,7 @@ Rectangle {
             width: parent.width
             visible: root.coordinator && root.coordinator.dialogActive
             text: root.coordinator.activeDialog.title + " · " + root.coordinator.activeDialog.message
-            color: "#cfd0d4"
+            color: DiagnosticsTokens.textSecondary
             font.pixelSize: 10
             elide: Text.ElideRight
         }
