@@ -177,6 +177,13 @@ QString OverlayCoordinator::bindOperation(QObject *object)
     if (!operation)
         return {};
 
+    const auto initialState = operation->state();
+    if (initialState == OperationHandle::State::Succeeded
+        || initialState == OperationHandle::State::Failed
+        || initialState == OperationHandle::State::Canceled) {
+        return {};
+    }
+
     const QString token = beginBusy(operation->message(), operation->cancelable());
     auto it = m_entries.find(token);
     it->operation = operation;
