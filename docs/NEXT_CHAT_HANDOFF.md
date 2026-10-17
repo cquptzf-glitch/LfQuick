@@ -1,348 +1,81 @@
-# LfQuick 新窗口开发交接
+# LfQuick 开发交接（当前权威版本）
 
-> 交接日期：2026-10-16  
+> 更新时间：2026-10-17  
 > 仓库：`https://github.com/cquptzf-glitch/LfQuick`  
-> Git 策略：**main-only**，不要创建普通 feature branch。  
-> 当前开发策略：**先完成功能，再统一收口 CI/CD、性能与 GUI stress**。
+> 分支策略：**main-only**，普通功能开发不要创建 feature branch。  
+> 当前策略：**先把功能与源码级 hardening 做完整，暂时不要恢复 GitHub Actions / CI / release workflow。**
 
 ## 1. 新窗口开场直接做什么
 
-不要重新做需求分析，也不要重新实现已经完成的 Permission / Validation / Overlay / Runtime cache 功能。
+不要重新做需求分析，也不要重复实现已经完成的 WindowRouter、Navigation、Charts、Diagnostics、Hot Reload。
 
-直接：
+直接执行：
 
 1. 读取 main 最新 HEAD；
-2. 读取：
-   - `docs/NEXT_CHAT_HANDOFF.md`
-   - `docs/IMPLEMENTATION_STATUS.md`
-   - `docs/LfQuick_详细开发计划.md`
-   - `docs/LfQuick_V2.1_架构审查与优化方案.md`
-   - `docs/REFERENCE_POLICY.md`
-3. 确认 main-only；
-4. 直接开始 **WindowRouter**；
-5. WindowRouter 纵向链路完成后，继续 **轻量 NavigationView / Application Shell**；
-6. 不要因为 GitHub Actions 自动失败而中断功能开发，除非用户明确改变“功能优先”指令。
+2. 读取本文件、`docs/IMPLEMENTATION_STATUS.md`、`docs/REFERENCE_POLICY.md`；
+3. 保持 main-only；
+4. **不要重新创建 `.github/workflows/build.yml` / `release.yml`**，除非用户明确要求恢复 CI；
+5. 从“功能 hardening / 手工可重复验证”继续推进；
+6. 功能完整后，再统一恢复 MSVC Build / CTest / deploy / artifact / release。
 
 ---
 
-# 2. 当前主线基线
+# 2. CI / GitHub Actions 当前约束
 
-本轮功能开发完成时 main 功能 HEAD：
-
-```text
-20cdd1bf318652f14a894d3369f9594321d4ff00
-feat(runtime): wire weighted cache state through quick runtime
-```
-
-随后交接文档提交：
+用户在 2026-10-17 明确要求：
 
 ```text
-a128f88 docs: update implementation status for permission overlay and runtime hardening
+先移除 CI / Action 功能
+先保证完成开发再说
 ```
 
-新窗口应重新读取 main HEAD，以最新提交为准。
-
----
-
-# 3. 本轮已经完成，不要重复做
-
-## 3.1 Permission Attached API
-
-已经完成：
-
-```qml
-Lf.permission
-```
-
-状态：
+因此已主动删除：
 
 ```text
-evaluator
-permissionId
-context
-active
-state
-allowed
-visible
-enabled
-editable
+.github/workflows/build.yml
+.github/workflows/release.yml
 ```
 
-关键提交：
+对应提交：
 
 ```text
-edd3750 feat(ui): add Lf attached permission context API
-ca5073a feat(ui): implement reactive attached permission state
-5324d53 feat(ui): register Lf attached permission context
-8cf55f7 feat(demo): use Lf.permission attached context in results review
+7305c6e chore: remove CI workflow during feature development
+61a5fe7 chore: remove release workflow during feature development
 ```
 
-规则：
+## 历史验证事实
 
-- attached permission 只做 UI experience mapping；
-- Command / Domain 层必须继续做权威权限校验；
-- 不允许把医疗 Permission ID 写进框架；
-- 未配置 permissionId 时不影响控件；
-- 配置后 evaluator/provider 缺失 fail-closed。
-
----
-
-## 3.2 Validation RuleTable / FormState
-
-已经完成：
+删除 Actions 之前，Windows Qt 6.8.3 / MSVC2022 曾有一次完整真实绿灯：
 
 ```text
-ValidationRuleTable
-ValidationFormState
-ValidationFieldState
+Architecture: PASS
+Configure: PASS
+Build: PASS
+CTest: 13/13 PASS
+Deploy: PASS
+Package validation: PASS
+Artifact upload: PASS
 ```
 
-支持：
+这只是历史基线，**不能用于宣称当前 HEAD 已编译通过**，因为之后又加入了 Diagnostics / Tooling / StyleKit / hardening 代码。
+
+当前准确表述：
 
 ```text
-QML local rules
-IValidationRuleProvider fallback
-field touched state
-rule error
-external business error
-aggregate form valid/errorCount
-rule change -> revalidate touched fields
-```
-
-继续复用 Core：
-
-```cpp
-validateValue(value, ValidationRule)
-```
-
-不要重新造 validator。
-
-Sample Register 已迁移，不再维护 barcode/sampleId/rack 三套独立 error string。
-
-关键提交：
-
-```text
-2c0b2c2 feat(validation): add reusable validation rule table
-0119415 feat(validation): implement rule lookup and provider fallback
-f09721e feat(validation): add field and form validation state
-5ff6e84 feat(validation): implement aggregate form feedback state
-f201ae7 feat(demo): migrate sample register to form validation state
+GitHub Actions intentionally removed: YES
+Current HEAD full MSVC build verified: NO
+Current HEAD full CTest verified: NO
+Current HEAD package/release verified: NO
+Reason: user explicitly requested feature completion first
 ```
 
 ---
 
-## 3.3 Toast / Dialog dual-stack
+# 3. 已完成主功能，不要重复做
 
-已经完成 backend-neutral contract：
+## Core / Runtime
 
-```text
-IOverlayBackend
-ToastRequest
-DialogRequest
-OverlayCoordinator
-```
-
-Toast：
-
-```text
-severity
-position
-duration
-dedup
-maxVisible
-explicit dismiss
-```
-
-Dialog：
-
-```text
-buttons
-default/destructive semantics
-serial queue
-result signal
-cancel fallback
-```
-
-QML：
-
-```text
-ToastPresenter
-DialogPresenter
-OverlayHost
-```
-
-QWidget：
-
-```text
-WidgetOverlayBackend
-QFrame toast
-non-blocking QMessageBox::open()
-```
-
-Medical Demo：
-
-- NavigationGuard confirm/hard-block 统一走 OverlayCoordinator；
-- Sample Register success / scanner reject 走 Toast。
-
-Hybrid Demo：
-
-- 同一 OverlayCoordinator 绑定 WidgetOverlayBackend；
-- legacy QWidget 验证同一 Toast/Dialog 协议。
-
-关键提交：
-
-```text
-c430291 feat(overlay): define backend-neutral toast and dialog contract
-bbac238 feat(overlay): add toast and dialog orchestration
-18d1ace feat(overlay): implement toast lifecycle and dialog queue
-2effb3b feat(overlay): add QML toast presenter
-3129e29 feat(overlay): add QML modal dialog presenter
-08b818f feat(widgetbridge): add QWidget overlay backend
-59edc0b test(overlay): cover toast policy and dialog backend queue
-7d066fe feat(demo): exercise shared overlay backend in hybrid app
-```
-
----
-
-## 3.4 NavigationGuard 多请求策略
-
-原来的潜在错误：已有 confirm dialog 时，后续导航会覆盖 pending request。
-
-现在已完成：
-
-```text
-KeepFirst      // default
-ReplaceLatest
-Queue
-```
-
-并有 bounded queue / origin route stale drop 语义。
-
-关键提交：
-
-```text
-d154e3e feat(runtime): add navigation guard pending request policies
-24bf4c7 feat(runtime): implement guarded navigation queue and drop semantics
-e9de201 test(runtime): cover navigation guard pending request policies
-```
-
-不要退回“每次 setPending 直接覆盖”的旧实现。
-
----
-
-## 3.5 Structured Provider Error
-
-`IPageProvider` 已兼容：
-
-```text
-lastError()       // legacy string
-lastErrorInfo()   // structured
-```
-
-结构：
-
-```text
-PageProviderError
-- code
-- message
-- details
-```
-
-QuickPageProvider / WidgetPageProvider 已接入。
-
-PageRouter diagnostics 同时提供：
-
-```text
-primaryError
-fallbackError
-errorFallbackError
-```
-
-和：
-
-```text
-primaryFailure
-fallbackFailure
-errorFallbackFailure
-```
-
-关键提交：
-
-```text
-24ea1c0 feat(runtime): add structured page provider errors
-30a17a8 feat(runtime): provide default structured provider error adapter
-a80f523 feat(ui): expose structured QML page provider errors
-761c7e5 feat(widgetbridge): expose structured widget provider errors
-98a300f feat(runtime): implement route-global singleton weighted LRU and structured provider diagnostics
-```
-
-后续 Diagnostics HUD 应直接消费这些结构化数据，不要再解析拼接字符串。
-
----
-
-## 3.6 Route-global Singleton + Weighted LRU
-
-已经完成真正的 route-global Singleton：
-
-```text
-route -> one shared instance
-history entries -> shared reference
-history pop != singleton destroy
-router reset -> destroy singleton cache
-```
-
-新增：
-
-```text
-IPageInstance::updateParameters()
-```
-
-Quick/Widget 内建实例都支持 singleton reuse 时刷新参数。
-
-Weighted LRU：
-
-```text
-maxRetainedLruPages
-maxRetainedLruWeight
-PageDescriptor.cacheWeight
-```
-
-淘汰条件：
-
-```text
-count > limit OR totalWeight > limit
-```
-
-按最旧 inactive LRU 淘汰。
-
-QuickRuntime 已暴露：
-
-```text
-maxRetainedLruPages
-maxRetainedLruWeight
-retainedLruWeight
-singletonCount
-registerPage(..., cacheWeight)
-```
-
-关键提交：
-
-```text
-450daf4 feat(runtime): add reusable page parameter update contract
-d995314 feat(runtime): add explicit page cache weight
-9c742bf feat(runtime): refresh QML singleton parameters on reuse
-5ae0417 feat(runtime): refresh widget singleton parameters on reuse
-98a300f feat(runtime): implement route-global singleton weighted LRU and structured provider diagnostics
-f095988 test(runtime): cover singleton weighted LRU and structured errors
-d45625d feat(runtime): expose weighted cache and singleton state to QML
-20cdd1b feat(runtime): wire weighted cache state through quick runtime
-```
-
----
-
-# 4. 当前已有框架能力总览
-
-## Core
+已有：
 
 ```text
 Error / Result
@@ -351,86 +84,431 @@ Permission contract
 Validation contract + validateValue
 Command
 Event / Dispatcher / Subscription
-Route contracts
-```
-
-Core 保持 QtCore only。
-
-## Runtime
-
-```text
-PageRegistry
-PageProviderRegistry
+PageRegistry / ProviderRegistry
 PageRouter
-Lifecycle
-History
-None / Singleton / KeepAlive / weighted LRU
+Lifecycle / History
+None / KeepAlive / Singleton / weighted LRU
 NavigationGuard
 cross-provider fallback
-provider structured diagnostics
-ErrorPage final fallback
+structured provider diagnostics
+WindowRouter
 ```
 
-Runtime 禁止 QWidget / QQuickItem。
-
-## UI
+关键边界：
 
 ```text
-QuickRuntime
-QuickPageProvider
-QmlErrorCollector
-PageLoadError
-OverlayCoordinator / Busy / Toast / Dialog
-FocusNavigator
-NavigationGuardController
-PermissionEvaluator
-Lf.permission attached context
-ValidationEvaluator
-ValidationRuleTable
-ValidationFormState
+LfQuickCore    -> QtCore only
+LfQuickRuntime -> 不允许 QWidget / QQuickItem / Qt Quick
 ```
 
-## WidgetBridge
+### Runtime hardening 已完成
 
 ```text
-QuickSurface
-WidgetPageProvider
-WidgetFocusBridge
-FocusTransferPolicy
-WidgetOverlayBackend
-```
-
-## DataView
-
-```text
-DataTableModel
-DataFilterProxyModel
-DataGrid
-stable column id
-ColumnStateModel / ColumnConfigStore
-width/order/visibility persistence
-DataEditTransaction
-typed delegates
-batch selection
-context menu
-keyboard/cross-table navigation
-proxy/source row mapping
-20k/50k benchmark matrix
-```
-
-## Platform
-
-```text
-ScannerSession
-KeyboardWedgeScanner
-InputRouter
+NavigationGuard: KeepFirst / ReplaceLatest / Queue
+route-global Singleton
+IPageInstance::updateParameters()
+weighted LRU: count + weight 双限制
+PageProviderError: code/message/details
+primary/fallback/errorFallback structured diagnostics
 ```
 
 ---
 
-# 5. Medical Demo 当前纵向验证
+# 4. WindowRouter 已完成
 
-页面：
+已建立技术栈无关 window contract：
+
+```text
+WindowDescriptor
+WindowOpenPolicy
+OwnerClosePolicy
+WindowState
+IWindowProvider
+IWindowInstance
+WindowProviderRegistry
+WindowRouter
+```
+
+支持：
+
+```text
+open / activate / close / closeAll
+single-instance / multi-instance
+owner relation
+owner close propagation
+close guard
+provider failure diagnostics
+```
+
+WidgetBridge 已有 `WidgetWindowProvider`，Hybrid Demo 有真实顶层 QWidget window 纵向验证。
+
+不要再回到“下一步实现 WindowRouter”的旧计划。
+
+---
+
+# 5. Navigation Shell 已完成
+
+已有：
+
+```text
+NavigationItemModel
+NavigationView
+ApplicationShell
+```
+
+支持：
+
+```text
+route id
+label / group / section
+badge
+selected route sync
+compact navigation
+back
+permission visible/enabled
+QuickRuntime integration
+NavigationGuard integration
+Overlay integration
+```
+
+Medical Demo 已从手写导航迁移到 model-driven shell。
+
+---
+
+# 6. Charts / Visualization MVP 已完成
+
+模块：
+
+```text
+LfQuick::Charts
+LfQuick.Charts
+```
+
+已有：
+
+```text
+ChartDataModel
+SeriesModel
+Axis / Series adapter
+ChartView.qml
+Qt Graphs adapter
+```
+
+Qt 6.8.3 Graphs 实际依赖链已确认：
+
+```text
+qtgraphs -> qtquick3d -> qtshadertools
+```
+
+Medical Demo 使用 synthetic curve 验证；框架中没有 QC / Calibration 业务算法。
+
+---
+
+# 7. Diagnostics / Telemetry 已完成主体
+
+模块：
+
+```text
+LfQuick::Diagnostics
+LfQuick.Diagnostics
+```
+
+它是**可选叶子模块**，Runtime/UI/DataView/Platform 不得反向依赖它。
+
+## DiagnosticsModel
+
+支持：
+
+```text
+bounded event history
+dropped event count
+generic metrics
+timing metrics
+snapshot
+JSON serialization
+atomic JSON export
+reset / clear
+```
+
+## DiagnosticsHud
+
+独立 QML HUD，可动态加载，不要求业务 QML 静态 import Diagnostics。
+
+## Medical Demo 已接入
+
+采集：
+
+```text
+route / depth
+cache / singleton / LRU weight
+navigation blocked / failed
+fallback attempted / activated / failed
+QML errors
+scanner accepted/rejected counts
+DataView row count/live mutation count
+DataGrid frame telemetry
+```
+
+scanner diagnostics **不记录原始扫码内容**，只记录长度和拒绝原因。
+
+## Hybrid Demo 已接入
+
+采集：
+
+```text
+QuickSurface load duration / first frame
+focus transfer
+route / fallback / QML errors
+WindowRouter open / close / blocked / failed
+JSON export
+```
+
+---
+
+# 8. DataGrid hardening 已推进
+
+新增：
+
+```text
+DataGridTelemetry.qml
+```
+
+基于 Qt 6.8 `FrameAnimation`，提供：
+
+```text
+fps
+frameTimeMs
+maxFrameTimeMs
+sampleCount
+slowFrameCount
+slowFrameThresholdMs
+firstVisibleMs
+snapshot()
+reset()
+```
+
+Sample Rack 已真实接入，1 Hz 写入 Diagnostics metrics，避免事件刷屏。
+
+20k / 50k benchmark 继续保留，同时新增进程 RSS：
+
+```text
+rss_before_bytes
+rss_after_populate_bytes
+rss_populate_delta_bytes
+```
+
+Windows 使用 Process Memory API / Psapi；Linux 使用 `/proc/self/statm`。
+
+---
+
+# 9. Hot Reload Tooling 已完成核心
+
+构建开关：
+
+```text
+LFQUICK_ENABLE_HOT_RELOAD=OFF   // 默认关闭
+```
+
+独立模块：
+
+```text
+LfQuick::Tooling
+LfQuick.Tooling
+```
+
+不要把 Hot Reload API 塞进 Core / Runtime。
+
+## QmlHotReloadController
+
+支持：
+
+```text
+logical resource URL -> local development file mapping
+QFileSystemWatcher file + directory watch
+atomic-save 文件替换恢复 watcher
+debounce
+QQmlEngine::clearComponentCache()
+revision
+manual reload
+explicit unwatch / clear watches
+```
+
+## QmlHotReloadHost
+
+采用“候选实例成功后再切换”的双实例策略：
+
+```text
+create candidate
+-> candidate success
+-> restore selected state
+-> attach/show candidate
+-> retire old item
+```
+
+失败：
+
+```text
+candidate syntax/create failure
+-> old UI remains alive
+-> status=Failed
+-> expose lastError
+```
+
+支持：
+
+```text
+initialProperties
+preservedProperties
+autoReload
+status / revision
+reloadSucceeded / reloadFailed
+```
+
+Controller 持有 watch registry；Host 不自动 unwatch，避免多个 Host 共享同一 logical source 时互相破坏映射。
+
+测试文件：
+
+```text
+tests/unit/tst_tooling.cpp
+```
+
+覆盖成功替换、状态保留、失败回滚。
+
+---
+
+# 10. Qt 6.12 feature gate / StyleKit adapter
+
+主基线继续：
+
+```text
+Qt 6.8.3
+```
+
+Qt 新版本能力通过 `cmake/LfQuickQtFeatures.cmake` 隔离：
+
+```text
+SafeArea                  >= Qt 6.9
+QRangeModel               >= Qt 6.10
+QCanvasPainter            >= Qt 6.11
+QRangeModel drag/drop     >= Qt 6.12
+qt_add_qml_preview        >= Qt 6.12
+StyleKit / QStyleKitStyle >= Qt 6.12
+```
+
+feature detection 已修正为在 `find_package(Qt6)` 之后执行，避免 `Qt6_VERSION` 尚未建立。
+
+## StyleKit adapter
+
+开关：
+
+```text
+LFQUICK_EXPERIMENTAL_STYLEKIT=OFF
+```
+
+仅 Qt 6.12+ 可打开。
+
+模块：
+
+```text
+LfQuick::StyleKit
+LfQuick.StyleKit
+StyleKitBridge
+```
+
+用途：
+
+```text
+同一份 Qt Labs StyleKit QML style
+-> Qt Quick Controls
+-> QStyleKitStyle / QWidget
+```
+
+`StyleKitBridge` 的公共头不暴露 `QStyleKitStyle` 类型，6.8 API 不被污染。
+
+采用 candidate-first：Style 加载/主题验证成功后才 `QApplication::setStyle()`，无效 style 不破坏当前 QWidget 样式。
+
+StyleKit 是 Qt 6.12 technology preview，不应成为默认生产依赖。
+
+---
+
+# 11. WidgetBridge hardening
+
+已有：
+
+```text
+QuickSurface
+WidgetPageProvider
+WidgetWindowProvider
+WidgetFocusBridge
+WidgetOverlayBackend
+```
+
+新增 GUI stress：
+
+```text
+tests/unit/tst_widgetbridge_stress.cpp
+```
+
+覆盖：
+
+```text
+30 轮 QWidget -> Quick -> QWidget Tab/Backtab roundtrip
+scanner isolation repeated toggles
+modal focus trap
+QuickSurface host load
+120 次 resize / root-size consistency
+metrics reset
+```
+
+如果测试环境无法获得真实窗口 focus，会明确 skip，而不是制造假失败。
+
+后续仍值得人工验证：
+
+```text
+multi-DPI / screen move
+native stacking / z-order
+复杂 modal/native child window 组合
+```
+
+---
+
+# 12. 架构守卫
+
+`tools/check_architecture.py` 已扩展：
+
+基础层：
+
+```text
+Core / Runtime 禁止 QQuick / QWidget / Qt6::Quick / Qt6::Widgets
+```
+
+可选叶子模块：
+
+```text
+Diagnostics
+Tooling
+StyleKit
+```
+
+以下模块禁止反向 include/link 这些叶子模块：
+
+```text
+core
+runtime
+ui
+dataview
+platform
+widgetbridge
+charts
+```
+
+Demo 可以组合它们；基础框架不可以被它们绑死。
+
+---
+
+# 13. Medical Demo 当前纵向能力
+
+页面包括：
 
 ```text
 Dashboard
@@ -439,6 +517,7 @@ Sample Register
 Sample Rack
 Results
 Results Review
+Charts（Graphs adapter 打开时）
 Instrument
 Alarms
 Developer
@@ -447,13 +526,12 @@ Developer
 ### Sample Register
 
 ```text
-Scanner
-+ InputRouter
-+ ValidationRuleTable / ValidationFormState
-+ duplicate external error
+Scanner/InputRouter
++ ValidationRuleTable/FormState
++ external business error
 + FocusNavigator
 + NavigationGuard
-+ Overlay Busy / Toast
++ Busy/Toast
 + DataTableModel append
 ```
 
@@ -467,6 +545,7 @@ Scanner
 + extended selection
 + proxy/source mapping
 + batch/context/keyboard
++ DataGrid FPS/slow-frame telemetry
 ```
 
 ### Results Review
@@ -477,327 +556,43 @@ DataGrid typed edit
 + Validation
 + NavigationGuard
 + Overlay/Dialog
-+ batch/context
 + persistence
 ```
 
-Demo 数据是 synthetic，不是医疗诊断软件。
+Demo 数据均为 synthetic，不是医疗诊断软件。
 
 ---
 
-# 6. 下一开发批次：严格顺序
+# 14. 当前下一步
 
-## Step 1 — WindowRouter
+当前已从“主要功能开发”进入源码级 hardening，但仍**不要恢复 CI**。
 
-这是下一窗口第一任务。
+优先顺序：
 
-目标：建立技术栈无关的 window routing / lifecycle contract。
-
-建议先实现：
-
-```text
-WindowDescriptor
-WindowId
-WindowOpenPolicy
-WindowState
-IWindowProvider
-IWindowInstance
-WindowProviderRegistry
-WindowRouter
-```
-
-至少考虑：
-
-```text
-open
-activate
-close
-closeAll
-find
-single-instance window
-multi-instance window
-owner / parent window relation
-route parameters
-window state restore hook
-close guard hook
-```
-
-架构要求：
-
-```text
-Runtime 层不能写 QWidget / QWindow / QQuickWindow
-```
-
-技术栈适配放：
-
-```text
-LfQuickUi / WidgetBridge / Integration.*
-```
-
-第一批不要直接做复杂 docking / MDI。
-
-应补测试：
-
-```text
-single instance reuse
-multi instance
-close lifecycle
-provider failure diagnostics
-owner close propagation policy
-```
-
-并在 Hybrid Demo 做最小纵向验证。
+1. 继续检查 DataGrid / QuickSurface / WidgetFocusBridge 的边界和可重复 stress；
+2. 增加 multi-DPI / z-order 的人工测试 harness/checklist，避免写脆弱的假自动化；
+3. 审查 Hot Reload 与 Diagnostics 的生命周期/内存边界；
+4. 补 README / 使用示例 / CMake option 文档；
+5. 做一次全仓静态 API/架构审查；
+6. 用户明确允许后，再恢复：
+   - Windows MSVC Build
+   - CTest
+   - Qt deploy
+   - package layout
+   - artifact
+   - release workflow
 
 ---
 
-## Step 2 — 轻量 NavigationView / Application Shell
-
-不要做巨大 FluentUI NavigationView clone。
-
-先做 model-driven shell：
-
-```text
-NavigationItemModel
-NavigationSection
-NavigationView
-ApplicationShell
-```
-
-优先能力：
-
-```text
-route id
-label/icon
-section/group
-selected route sync
-compact/expanded state
-back action
-badge
-permission-visible/enabled integration
-QuickRuntime push/back integration
-NavigationGuard integration
-Overlay integration
-```
-
-Medical Demo 当前手写 NavigationRail 可迁到新 model-driven API 做真实验证。
-
-不要把 Patient / Sample / Reagent 菜单写死在框架。
-
----
-
-## Step 3 — Charts / Visualization MVP
-
-先做 contract，再做 Qt Graphs adapter。
-
-建议：
-
-```text
-ChartDataModel / SeriesModel
-AxisDescriptor
-SeriesDescriptor
-ChartView adapter
-```
-
-不要把 QC/Calibration 算法写进 Charts。
-
-医疗 Demo 只使用 synthetic curve / histogram 做验证。
-
----
-
-## Step 4 — Diagnostics HUD / Telemetry
-
-直接利用已有：
-
-```text
-route
-fallback
-provider structured error
-cache state
-QML errors
-QuickSurface timing
-DataGrid telemetry
-scanner state
-```
-
-目标：
-
-```text
-DiagnosticsModel
-DiagnosticsOverlay / HUD
-runtime dump/export
-```
-
-不要让 Diagnostics 反向成为 Runtime 必需依赖。
-
----
-
-## Step 5 — Hot Reload tooling
-
-仅开发态：
-
-- 围绕 single QQmlEngine / QuickSurface；
-- 保持 production lifecycle 不变；
-- reload 失败必须可恢复；
-- 不允许 hot reload API 进入 Core。
-
----
-
-## Step 6 — Qt 6.12 adapter
-
-主基线继续 Qt 6.8.3。
-
-Qt 6.12-only 功能必须 feature-gate / adapter 化，禁止直接污染 6.8 public API。
-
----
-
-## Step 7 — 功能完成后统一 Hardening
-
-到这里再统一做：
-
-```text
-DataGrid FPS / first population / memory
-WidgetFocusBridge GUI stress
-QuickSurface DPI / resize / z-order
-full MSVC Build
-CTest
-Demo deploy
-artifact
-release
-```
-
----
-
-# 7. CI/CD 状态与下一窗口约束
-
-仓库公开后 runner 已经恢复真实 steps。
-
-之前已真实解决：
-
-```text
-MSVC vs MinGW toolchain
-shared DLL export/import library
-RouteResult / IPageProvider / IPermissionProvider ABI
-Qt 6.8 qmltyperegistrar include
-moc incomplete Q_PROPERTY types
-Qt 6.8 QTest API
-Windows test runtime DLL staging
-```
-
-最后一次已观察到：
-
-```text
-full Build: PASS
-CTest: 6/7 PASS
-tst_dataview: exit code 1, no useful assertion output yet
-```
-
-然后用户明确要求：
-
-```text
-先不管 CI/CD
-先确保所有功能开发完成
-最后再统一修改优化
-```
-
-因此下一窗口：
-
-- 不要自动把 CI 放回第一优先级；
-- 不要因为 push 自动触发 workflow 就停下新功能；
-- 不要宣称当前 HEAD CI Green；
-- 功能阶段完成后再集中解决 `tst_dataview` 和 package/release。
-
----
-
-# 8. Git / stale branch
-
-当前存在旧分支：
-
-```text
-feat/runtime-foundation
-```
-
-已比较：
-
-```text
-status: diverged
-ahead_by: 9
-behind_by: 145
-merge base: a4aee9f13f74d1327f3f28c46f9004ddf6e45921
-```
-
-它是早期 Runtime/Foundation 工作线，main 已经向前演进很多。
-
-规则：
-
-```text
-DO NOT merge entire feat/runtime-foundation into main
-```
-
-如确实需要清理：
-
-1. 单 commit 审查；
-2. 只迁移 main 真正缺失的内容；
-3. 优先做等价实现而不是把旧架构 merge 回来。
-
-仍然 main-only。
-
----
-
-# 9. 架构边界
-
-继续严格保持：
-
-```text
-LfQuickCore      -> QtCore only
-LfQuickRuntime   -> Core，不允许 QWidget/QQuickItem
-LfQuickUi        -> Core + Runtime + Qt Quick
-LfQuickDataView  -> Ui + Qt Model/View/Quick
-LfQuickPlatform  -> platform/input abstraction
-WidgetBridge     -> optional Qt Widgets / QuickWidgets
-Integration.*    -> legacy/product-specific adapters
-```
-
-禁止进入 Core：
-
-- EventFunc Adapter
-- LfWidget.dll Adapter
-- WindowManager Adapter
-- QXlsx
-- LimeReport
-- HookProc
-- ScanerHook
-- Patient/Sample/Reagent domain model
-- 医疗业务 Permission ID
-- QC/Calibration 业务算法
-
----
-
-# 10. External Reference
-
-继续遵守 `docs/REFERENCE_POLICY.md`：
-
-- FluentUI MIT 公开源码允许研究；
-- 实际复制/实质衍生保留 MIT 来源与许可证记录；
-- FluentUI2 / FluentUI Pro 仅基于公开 API、qmltypes、Demo、行为 clean-room 参考；
-- 不逆向 DLL；
-- 不还原私有 Pro 实现；
-- LfQuick 自身架构与混合迁移目标优先。
-
----
-
-# 11. 核心目标不要偏离
-
-LfQuick 当前最重要的不是“组件数量”，而是：
-
-```text
-旧 QWidget 医疗软件
-    ↓
-按页面逐步迁移到 QML
-    ↓
-QML 创建失败可 fallback 到 legacy QWidget
-    ↓
-路由 / 生命周期 / Focus / Overlay / DataGrid / Scanner / Permission / Validation
-行为保持一致
-```
-
-WindowRouter / NavigationView 也必须服务于这个目标，而不是为了模仿 FluentUI 做表面组件堆积。
+# 15. 不要做的事
+
+- 不要恢复 GitHub Actions，除非用户明确要求；
+- 不要整分支 merge 旧 `feat/runtime-foundation`；
+- 不要做巨大 FluentUI NavigationView clone；
+- 不要让 Diagnostics/Tooling/StyleKit 成为 Runtime 必需依赖；
+- 不要把 Patient/Sample/Reagent 领域模型写进框架；
+- 不要把医疗业务 Permission ID 写进框架；
+- 不要把 QC/Calibration 算法写进 Charts；
+- 不要逆向 FluentUI2/Pro DLL。
+
+外部参考继续遵守 `docs/REFERENCE_POLICY.md`。
