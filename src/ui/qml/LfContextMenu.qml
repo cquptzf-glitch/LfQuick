@@ -9,6 +9,14 @@ Controls.Menu {
 
     signal itemTriggered(int index, var value)
 
+    function valueAt(index) {
+        if (!model)
+            return undefined
+        if (typeof model.get === "function")
+            return model.get(index)
+        return model[index]
+    }
+
     function textFor(value) {
         if (typeof value === "string")
             return value
@@ -42,14 +50,14 @@ Controls.Menu {
 
         delegate: Controls.MenuItem {
             required property int index
-            required property var modelData
+            readonly property var value: root.valueAt(index)
 
-            text: root.textFor(modelData)
-            enabled: root.enabledFor(modelData)
-            checkable: root.checkableFor(modelData)
-            checked: root.checkedFor(modelData)
+            text: root.textFor(value)
+            enabled: root.enabledFor(value)
+            checkable: root.checkableFor(value)
+            checked: root.checkedFor(value)
 
-            onTriggered: root.itemTriggered(index, modelData)
+            onTriggered: root.itemTriggered(index, value)
         }
 
         onObjectAdded: function(index, object) {
