@@ -102,6 +102,12 @@ if(LFQUICK_BUILD_PLATFORM)
     target_link_libraries(tst_platform PRIVATE LfQuick::Platform Qt6::Test)
     lfquick_register_test(tst_platform)
 
+    qt_add_executable(tst_hotkey_router
+        unit/tst_hotkey_router.cpp
+    )
+    target_link_libraries(tst_hotkey_router PRIVATE LfQuick::Platform Qt6::Test)
+    lfquick_register_test(tst_hotkey_router)
+
     qt_add_executable(tst_scanner_stress
         unit/tst_scanner_stress.cpp
     )
