@@ -4,12 +4,20 @@
 
 #include <QByteArray>
 #include <QLayout>
+#include <QPointer>
 #include <QStackedWidget>
 #include <QWidget>
 
 #include <utility>
 
 namespace LfQuick {
+
+struct WidgetPageProviderState
+{
+    QPointer<QWidget> host;
+    quint64 generation = 0;
+};
+
 namespace {
 
 void invokeOptional(QObject *object, const char *method)
@@ -27,10 +35,14 @@ void invokeOptional(QObject *object, const char *method)
 class WidgetPageInstance final : public IPageInstance
 {
 public:
-    WidgetPageInstance(QString pageId, QWidget *widget, QWidget *host)
+    WidgetPageInstance(QString pageId,
+                       QWidget *widget,
+                       std::shared_ptr<WidgetPageProviderState> state)
         : m_pageId(std::move(pageId))
         , m_widget(widget)
-        , m_host(host)
+        , m_state(std::move(state))
+        , m_host(m_state ? m_state->host : nullptr)
+        , m_generation(m_state ? m_state->generation : 0)
     {
         if (!m_widget)
             return;
@@ -56,7 +68,13 @@ public:
     }
 
     QString pageId() const override { return m_pageId; }
-    bool isValid() const noexcept override { return !m_widget.isNull(); }
+    bool isValid() const noexcept override
+    {
+        return !m_widget.isNull()
+            && m_state
+            && m_state->generation == m_generation
+            && m_state->host == m_host;
+    }
 
     void activate() override
     {
@@ -122,7 +140,9 @@ public:
 private:
     QString m_pageId;
     QPointer<QWidget> m_widget;
+    std::shared_ptr<WidgetPageProviderState> m_state;
     QPointer<QWidget> m_host;
+    quint64 m_generation = 0;
 };
 
 QString factoryId(const PageDescriptor &descriptor)
@@ -133,9 +153,12 @@ QString factoryId(const PageDescriptor &descriptor)
 } // namespace
 
 WidgetPageProvider::WidgetPageProvider(QWidget *host)
-    : m_host(host)
+    : m_state(std::make_shared<WidgetPageProviderState>())
 {
+    m_state->host = host;
 }
+
+WidgetPageProvider::~WidgetPageProvider() = default;
 
 QString WidgetPageProvider::id() const
 {
@@ -164,7 +187,8 @@ std::unique_ptr<IPageInstance> WidgetPageProvider::create(
         return {};
     }
 
-    QWidget *widget = it.value()(m_host, parameters);
+    QWidget *currentHost = m_state ? m_state->host.data() : nullptr;
+    QWidget *widget = it.value()(currentHost, parameters);
     if (!widget) {
         m_lastErrorInfo.code = QStringLiteral("widget.factory-returned-null");
         m_lastErrorInfo.message = QStringLiteral("Widget factory '%1' returned null").arg(key);
@@ -176,17 +200,23 @@ std::unique_ptr<IPageInstance> WidgetPageProvider::create(
     }
 
     widget->setProperty("lfquickPageParameters", parameters);
-    return std::make_unique<WidgetPageInstance>(descriptor.route, widget, m_host);
+    return std::make_unique<WidgetPageInstance>(descriptor.route, widget, m_state);
 }
 
 void WidgetPageProvider::setHost(QWidget *host)
 {
-    m_host = host;
+    if (!m_state)
+        m_state = std::make_shared<WidgetPageProviderState>();
+    if (m_state->host == host)
+        return;
+
+    m_state->host = host;
+    ++m_state->generation;
 }
 
 QWidget *WidgetPageProvider::host() const
 {
-    return m_host;
+    return m_state ? m_state->host.data() : nullptr;
 }
 
 bool WidgetPageProvider::registerFactory(QString id, Factory factory)
