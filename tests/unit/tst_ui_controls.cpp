@@ -21,6 +21,14 @@ Item {
     width: 1000
     height: 800
 
+    PersistentState {
+        key: "smoke-state"
+        property int selectedIndex: 2
+    }
+
+    LifetimeLease { object: parent }
+    QmlObjectFactory { }
+
     LfButton { text: "Button" }
     LfTextField { text: "Text" }
     LfCheckBox { text: "Check"; checked: true }
