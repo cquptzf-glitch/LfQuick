@@ -79,6 +79,7 @@ signals:
 
 private:
     static QString normalizedPath(const QString &path);
+    bool writeDataToPath(const QString &path);
     void setDirty(bool dirty);
     void setExternalConflict(bool conflict);
     void setErrorString(const QString &error);
