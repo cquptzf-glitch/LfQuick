@@ -164,7 +164,6 @@ bool ObjectListModel::removeAtInternal(int index, bool notifyValues)
         return false;
 
     QObject *object = m_entries.at(index).object;
-    QObject *identity = m_entries.at(index).identity;
     beginRemoveRows({}, index, index);
     QObject::disconnect(m_entries.at(index).destroyedConnection);
     m_entries.removeAt(index);
@@ -173,9 +172,10 @@ bool ObjectListModel::removeAtInternal(int index, bool notifyValues)
     if (notifyValues)
         emit valuesChanged();
     emit countChanged();
-    // During QObject::destroyed, QPointer has already cleared. Preserve the
-    // identity address for observers, but never dereference it here.
-    emit objectRemoved(object ? object : identity, index);
+    // If this removal was triggered by QObject::destroyed, QPointer is already
+    // null. Never surface the stored address identity as a QObject* because it
+    // is no longer safe for signal consumers to dereference.
+    emit objectRemoved(object, index);
     return true;
 }
 
