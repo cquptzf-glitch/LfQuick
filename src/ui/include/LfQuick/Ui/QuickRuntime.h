@@ -79,6 +79,13 @@ public:
                                   qint64 cacheWeight = 1);
     Q_INVOKABLE bool unregisterPage(const QString &route);
 
+    // Starts provider-specific background preparation without mutating route
+    // history. Navigation remains synchronous and consumes the warmed candidate
+    // when provider/source/parameters still match.
+    Q_INVOKABLE bool prewarm(const QString &route,
+                             const QVariantMap &parameters = {});
+    Q_INVOKABLE void cancelPrewarm(const QString &route);
+
     Q_INVOKABLE bool push(const QString &route, const QVariantMap &parameters = {});
     Q_INVOKABLE bool replace(const QString &route, const QVariantMap &parameters = {});
     Q_INVOKABLE bool back();
@@ -96,6 +103,7 @@ signals:
                            const QString &toRoute,
                            const QString &reason);
     void cacheEntryEvicted(const QString &route);
+    void prewarmFailed(const QString &route, const QString &message);
     void pageFallbackAttempted(const QString &route,
                                const QString &primaryProvider,
                                const QString &fallbackProvider,
@@ -113,6 +121,9 @@ private:
                                  int cachePolicy,
                                  bool useErrorFallback,
                                  qint64 cacheWeight) const;
+    bool resolvePrewarmTarget(const QString &route,
+                              PageDescriptor &descriptor,
+                              std::shared_ptr<IPageProvider> &provider) const;
 
     QPointer<QQmlEngine> m_engine;
     QPointer<QQuickItem> m_host;
