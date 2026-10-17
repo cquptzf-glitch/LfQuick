@@ -127,6 +127,14 @@ qt_add_qml_module(LfQuickUi
         qml/LfCard.qml
         qml/LfTabBar.qml
         qml/LfTabButton.qml
+        qml/LfBreadcrumb.qml
+        qml/LfPagination.qml
+        qml/LfExpander.qml
+        qml/LfEmptyState.qml
+        qml/LfSkeleton.qml
+        qml/LfAvatar.qml
+        qml/LfTag.qml
+        qml/LfCommandBar.qml
         qml/LfNumberInput.qml
         qml/LfRangeInput.qml
         qml/LfProgressRing.qml

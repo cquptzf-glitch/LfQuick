@@ -70,6 +70,25 @@ Item {
         LfTabButton { text: "Overview" }
         LfTabButton { text: "Details" }
     }
+    LfBreadcrumb { model: ["Home", "Samples", "Review"] }
+    LfPagination { pageCount: 12; currentPage: 3 }
+    LfExpander {
+        title: "Details"
+        expanded: true
+        LfButton { text: "Inside" }
+    }
+    LfEmptyState {
+        title: "No samples"
+        message: "Register a sample to continue."
+        actionText: "Register"
+    }
+    LfSkeleton { width: 180; running: false }
+    LfAvatar { name: "Lf Quick" }
+    LfTag { text: "Priority"; tone: LfBadge.Warning; closable: true }
+    LfCommandBar {
+        LfToolButton { text: "Refresh" }
+        LfButton { text: "Run"; highlighted: true }
+    }
     LfNumberInput { from: 0; to: 100; value: 42 }
     LfRangeInput { from: 0; to: 100; first.value: 20; second.value: 80 }
     LfProgressRing { running: true }
@@ -125,6 +144,51 @@ LfInfoBar {
         QVERIFY(infoBar->setProperty("closed", false));
         QVERIFY(infoBar->property("visible").toBool());
         delete infoBar;
+    }
+
+    void paginationAndExpanderStateAreObservable()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"QML(
+import QtQuick
+import LfQuick
+
+Item {
+    LfPagination {
+        objectName: "pagination"
+        pageCount: 10
+        currentPage: 1
+        property int lastRequested: 0
+        onPageRequested: function(page) { lastRequested = page }
+        Component.onCompleted: requestPage(7)
+    }
+
+    LfExpander {
+        objectName: "expander"
+        title: "Advanced"
+        property int toggleCount: 0
+        onToggled: function(value) { toggleCount += 1 }
+        Component.onCompleted: toggle()
+        LfButton { text: "Action" }
+    }
+}
+)QML", QUrl(QStringLiteral("qrc:/tests/LfQuickBatch3State.qml")));
+
+        QObject *root = component.create();
+        QVERIFY2(root, qPrintable(component.errorString()));
+
+        QObject *pagination = root->findChild<QObject *>(QStringLiteral("pagination"));
+        QObject *expander = root->findChild<QObject *>(QStringLiteral("expander"));
+        QVERIFY(pagination);
+        QVERIFY(expander);
+
+        QCOMPARE(pagination->property("currentPage").toInt(), 7);
+        QCOMPARE(pagination->property("lastRequested").toInt(), 7);
+        QVERIFY(expander->property("expanded").toBool());
+        QCOMPARE(expander->property("toggleCount").toInt(), 1);
+
+        delete root;
     }
 
     void lazyLoaderCanForceBackgroundLoadAndUnload()
