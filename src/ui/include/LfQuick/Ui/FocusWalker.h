@@ -2,6 +2,7 @@
 
 #include <LfQuick/Ui/LfQuickUiGlobal.h>
 
+#include <QMetaObject>
 #include <QObject>
 #include <QPointer>
 #include <QQuickItem>
@@ -68,6 +69,7 @@ private:
     int explicitOrder(QQuickItem *item) const;
 
     QPointer<QQuickItem> m_scope;
+    QMetaObject::Connection m_scopeDestroyedConnection;
     qreal m_rowTolerance = 8.0;
     Qt::LayoutDirection m_layoutDirection = Qt::LeftToRight;
 };
