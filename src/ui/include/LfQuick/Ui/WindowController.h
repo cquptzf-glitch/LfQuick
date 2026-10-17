@@ -1,11 +1,14 @@
 #pragma once
 
+#include <LfQuick/Ui/IWindowBackend.h>
 #include <LfQuick/Ui/LfQuickUiGlobal.h>
 
 #include <QObject>
 #include <QPointer>
 #include <QWindow>
 #include <QtQmlIntegration/qqmlintegration.h>
+
+#include <memory>
 
 namespace LfQuick {
 
@@ -25,6 +28,9 @@ public:
 
     QWindow *window() const noexcept { return m_window; }
     void setWindow(QWindow *window);
+
+    std::shared_ptr<IWindowBackend> backend() const { return m_backend; }
+    void setBackend(std::shared_ptr<IWindowBackend> backend);
 
     bool active() const noexcept;
     bool minimized() const noexcept;
@@ -51,6 +57,7 @@ private:
     void reconnectWindow();
 
     QPointer<QWindow> m_window;
+    std::shared_ptr<IWindowBackend> m_backend;
     QMetaObject::Connection m_stateConnection;
     QMetaObject::Connection m_activeConnection;
     QMetaObject::Connection m_visibilityConnection;
