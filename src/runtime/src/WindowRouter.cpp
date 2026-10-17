@@ -277,8 +277,25 @@ WindowResult WindowRouter::closeAll()
         return WindowResult::success({}, {});
 
     QList<std::shared_ptr<Record>> records = m_instances.values();
-    std::sort(records.begin(), records.end(), [](const auto &left, const auto &right) {
-        return left->request.ownerInstanceId.isEmpty() && !right->request.ownerInstanceId.isEmpty();
+
+    const auto ownerDepth = [this](const std::shared_ptr<Record> &record) {
+        int depth = 0;
+        QSet<QString> visited;
+        QString ownerId = record ? record->request.ownerInstanceId : QString{};
+        while (!ownerId.isEmpty() && !visited.contains(ownerId)) {
+            visited.insert(ownerId);
+            ++depth;
+            const auto owner = findRecord(ownerId);
+            if (!owner)
+                break;
+            ownerId = owner->request.ownerInstanceId;
+        }
+        return depth;
+    };
+
+    std::stable_sort(records.begin(), records.end(),
+                     [&ownerDepth](const auto &left, const auto &right) {
+        return ownerDepth(left) > ownerDepth(right);
     });
 
     for (const auto &record : records) {
@@ -292,21 +309,20 @@ WindowResult WindowRouter::closeAll()
         }
     }
 
-    const QStringList ids = m_instances.keys();
-    for (const auto &id : ids) {
-        auto record = m_instances.value(id);
-        if (!record)
+    for (const auto &record : records) {
+        if (!record || !record->instance)
             continue;
+
+        const QString id = record->instance->instanceId();
         record->state = WindowState::Closing;
-        if (record->instance) {
-            record->instance->setCloseRequestHandler({});
-            record->instance->close();
-        }
+        clearActiveIf(id);
+        record->instance->setCloseRequestHandler({});
+        record->instance->close();
         record->state = WindowState::Closed;
+        m_instances.remove(id);
         emit windowClosed(record->descriptor.id, id);
     }
 
-    m_instances.clear();
     if (!m_activeInstanceId.isEmpty()) {
         m_activeInstanceId.clear();
         emit activeWindowChanged({});
