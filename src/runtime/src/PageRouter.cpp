@@ -615,7 +615,7 @@ RouteResult PageRouter::forward()
 void PageRouter::reset()
 {
     for (auto it = m_history.rbegin(); it != m_history.rend(); ++it) {
-        if (it == m_history.rbegin() && it->instance)
+        if (it == m_history.rbegin() && it->instance && it->instance->isValid())
             it->instance->deactivate();
         destroy(*it);
     }
@@ -702,6 +702,17 @@ void PageRouter::deactivateCurrent(bool suspend)
         return;
 
     Entry &entry = m_history.back();
+    if (!entry.instance->isValid()) {
+        if (entry.descriptor.cachePolicy == PageCachePolicy::Singleton)
+            invalidateSingleton(entry.descriptor.route, entry.instance);
+        else {
+            entry.instance->destroy();
+            entry.instance.reset();
+            entry.suspended = false;
+        }
+        return;
+    }
+
     entry.instance->deactivate();
 
     const bool singletonRetained = entry.descriptor.cachePolicy == PageCachePolicy::Singleton;
