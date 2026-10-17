@@ -61,6 +61,7 @@ private:
     FocusWalker m_walker;
     FocusWalker::Mode m_mode = FocusWalker::Mode::Native;
     bool m_wrap = true;
+    QMetaObject::Connection m_scopeWindowConnection;
     QMetaObject::Connection m_focusConnection;
     QMetaObject::Connection m_windowDestroyedConnection;
 };
