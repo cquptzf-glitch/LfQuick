@@ -1,5 +1,7 @@
 #include <LfQuick/Platform/ClipboardService.h>
 #include <LfQuick/Platform/FileWatcher.h>
+#include <LfQuick/Platform/InputRouter.h>
+#include <LfQuick/Platform/InputTarget.h>
 #include <LfQuick/Platform/KeyboardWedgeScanner.h>
 #include <LfQuick/Platform/RuntimeCapabilities.h>
 #include <LfQuick/Platform/ScannerSession.h>
@@ -57,6 +59,76 @@ private slots:
         QVERIFY(scanner.handleKeyEvent(&enter));
         QCOMPARE(accepted.count(), 1);
         QCOMPARE(accepted.at(0).at(0).toString(), QStringLiteral("S001"));
+    }
+
+    void inputRouterTracksScannerDestruction()
+    {
+        InputRouter router;
+        QSignalSpy scannerChanged(&router, &InputRouter::scannerChanged);
+        QSignalSpy sourcesChanged(&router, &InputRouter::sourcesChanged);
+
+        auto *scanner = new KeyboardWedgeScanner;
+        router.setScanner(scanner);
+        QCOMPARE(router.scanner(), scanner);
+        QCOMPARE(router.sourceCount(), 1);
+
+        scannerChanged.clear();
+        sourcesChanged.clear();
+        delete scanner;
+
+        QCOMPARE(router.scanner(), nullptr);
+        QCOMPARE(router.sourceCount(), 0);
+        QCOMPARE(scannerChanged.count(), 1);
+        QCOMPARE(sourcesChanged.count(), 1);
+    }
+
+    void inputRouterClearSourcesClearsCompatibilityScanner()
+    {
+        InputRouter router;
+        KeyboardWedgeScanner scanner;
+        router.setScanner(&scanner);
+        QCOMPARE(router.sourceCount(), 1);
+
+        QSignalSpy scannerChanged(&router, &InputRouter::scannerChanged);
+        router.clearSources();
+
+        QCOMPARE(router.scanner(), nullptr);
+        QCOMPARE(router.sourceCount(), 0);
+        QCOMPARE(scannerChanged.count(), 1);
+    }
+
+    void inputRouterTracksInstallTargetDestruction()
+    {
+        InputRouter router;
+        auto *target = new QObject;
+        QVERIFY(router.installOn(target));
+        QVERIFY(router.installed());
+
+        QSignalSpy installedChanged(&router, &InputRouter::installedChanged);
+        delete target;
+
+        QVERIFY(!router.installed());
+        QCOMPARE(installedChanged.count(), 1);
+    }
+
+    void inputRouterTargetRegistrationDoesNotAccumulateDestroyedCallbacks()
+    {
+        InputRouter router;
+        auto *target = new InputTarget;
+
+        for (int i = 0; i < 3; ++i) {
+            QVERIFY(router.registerTarget(target));
+            QCOMPARE(router.targetCount(), 1);
+            QVERIFY(router.unregisterTarget(target));
+            QCOMPARE(router.targetCount(), 0);
+        }
+        QVERIFY(router.registerTarget(target));
+
+        QSignalSpy targetsChanged(&router, &InputRouter::targetsChanged);
+        delete target;
+
+        QCOMPARE(router.targetCount(), 0);
+        QCOMPARE(targetsChanged.count(), 1);
     }
 
     void runtimeCapabilitiesExposeStableKeys()
