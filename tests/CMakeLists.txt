@@ -1,4 +1,5 @@
 find_package(Qt6 6.8.3 REQUIRED COMPONENTS Test)
+find_package(Python3 COMPONENTS Interpreter QUIET)
 
 function(lfquick_configure_test_runtime test_name)
     if(WIN32)
@@ -20,6 +21,13 @@ function(lfquick_register_test test_name)
     add_test(NAME ${test_name} COMMAND ${test_name})
     lfquick_configure_test_runtime(${test_name})
 endfunction()
+
+if(Python3_Interpreter_FOUND)
+    add_test(
+        NAME tooling_python_selftest
+        COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/test_tooling.py
+    )
+endif()
 
 qt_add_executable(tst_core
     unit/tst_core.cpp
