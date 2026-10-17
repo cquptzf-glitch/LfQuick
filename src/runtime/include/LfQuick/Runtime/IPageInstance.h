@@ -1,14 +1,16 @@
 #pragma once
 
+#include <LfQuick/Runtime/IStatefulInstance.h>
+
 #include <QString>
 #include <QVariantMap>
 
 namespace LfQuick {
 
-class IPageInstance
+class IPageInstance : public IStatefulInstance
 {
 public:
-    virtual ~IPageInstance() = default;
+    ~IPageInstance() override = default;
     virtual QString pageId() const = 0;
     virtual void activate() = 0;
     virtual void deactivate() = 0;
