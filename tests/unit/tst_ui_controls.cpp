@@ -320,6 +320,18 @@ Item {
         }
     }
 
+    ListModel {
+        id: listOptions
+        ListElement { text: "First"; value: "first" }
+        ListElement { text: "Second"; value: "second" }
+    }
+    LfMultiSelect {
+        objectName: "modelMulti"
+        model: listOptions
+        property bool toggledFromModel: false
+        Component.onCompleted: toggledFromModel = toggleIndex(1)
+    }
+
     LfSearchableComboBox {
         objectName: "searchable"
         model: ["Alpha", "Beta", "Gamma"]
@@ -345,6 +357,12 @@ Item {
         QVERIFY(multi->property("disabledRejected").toBool());
         QCOMPARE(searchable->property("filteredCount").toInt(), 1);
         QCOMPARE(searchable->property("firstSourceIndex").toInt(), 1);
+        QObject *modelMulti = root->findChild<QObject *>(QStringLiteral("modelMulti"));
+        QVERIFY(modelMulti);
+        QVERIFY(modelMulti->property("toggledFromModel").toBool());
+        const QVariantList modelKeys = modelMulti->property("selectedValues").toList();
+        QCOMPARE(modelKeys.size(), 1);
+        QCOMPARE(modelKeys.first().toString(), QStringLiteral("second"));
         delete root;
     }
 

@@ -38,6 +38,11 @@ TreeView {
     delegate: Controls.TreeViewDelegate {
         id: cell
 
+        required property int row
+        required property int column
+        required property var model
+        text: model && model.display !== undefined ? String(model.display) : ""
+
         implicitWidth: Math.max(root.width, 240)
         implicitHeight: root.rowHeight
         indentation: Units.iconSize
