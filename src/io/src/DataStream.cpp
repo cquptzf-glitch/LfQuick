@@ -39,7 +39,7 @@ void DelimitedStreamParser::parseBytes(QByteArray &incoming, QByteArray &buffer)
     incoming.clear();
 
     if (m_delimiter.isEmpty()) {
-        const QByteArray complete = std::exchange(buffer, {});
+        const QByteArray complete = std::exchange(buffer, QByteArray{});
         emit chunk(complete);
         emit read(QString::fromUtf8(complete));
         return;
@@ -60,7 +60,7 @@ void DelimitedStreamParser::parseBytes(QByteArray &incoming, QByteArray &buffer)
 void DelimitedStreamParser::streamEnded(QByteArray &buffer)
 {
     if (!buffer.isEmpty()) {
-        const QByteArray remaining = std::exchange(buffer, {});
+        const QByteArray remaining = std::exchange(buffer, QByteArray{});
         emit chunk(remaining);
         emit read(QString::fromUtf8(remaining));
     }
@@ -173,6 +173,11 @@ void DataStream::setParser(DataStreamParser *parser)
 QObject *DataStream::deviceObject() const
 {
     return m_device.data();
+}
+
+void DataStream::setDeviceObject(QObject *device)
+{
+    attach(device);
 }
 
 bool DataStream::attach(QObject *device)
