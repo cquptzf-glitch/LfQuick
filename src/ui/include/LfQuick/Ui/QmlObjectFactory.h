@@ -83,7 +83,7 @@ private:
 class LFQUICKUI_EXPORT QmlObjectFactory : public QObject
 {
     Q_OBJECT
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(LfObjectFactory)
     Q_PROPERTY(QQmlEngine* engine READ engine WRITE setEngine NOTIFY engineChanged FINAL)
     Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged FINAL)
 
