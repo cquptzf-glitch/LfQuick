@@ -38,7 +38,7 @@ private:
     QString m_id;
     QPointer<OverlayCoordinator> m_coordinator;
     bool m_active = true;
-    QMetaObject::Connection m_busyEndedConnection;
+    QMetaObject::Connection m_busyChangedConnection;
     QMetaObject::Connection m_coordinatorDestroyedConnection;
 };
 
