@@ -5,6 +5,7 @@ add_library(LfQuickCore
     src/Validation.cpp
     src/Permission.cpp
     src/Route.cpp
+    src/Telemetry.cpp
 )
 add_library(LfQuick::Core ALIAS LfQuickCore)
 
@@ -31,4 +32,5 @@ target_sources(LfQuickCore PUBLIC
         include/LfQuick/Core/Command.h
         include/LfQuick/Core/Event.h
         include/LfQuick/Core/Route.h
+        include/LfQuick/Core/Telemetry.h
 )
