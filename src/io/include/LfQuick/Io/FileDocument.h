@@ -25,6 +25,8 @@ class LFQUICKIO_EXPORT FileDocument : public QObject
     Q_PROPERTY(bool dirty READ dirty NOTIFY dirtyChanged FINAL)
     Q_PROPERTY(bool watch READ watch WRITE setWatch NOTIFY watchChanged FINAL)
     Q_PROPERTY(bool autoReload READ autoReload WRITE setAutoReload NOTIFY autoReloadChanged FINAL)
+    Q_PROPERTY(bool reloadWhenDirty READ reloadWhenDirty WRITE setReloadWhenDirty NOTIFY reloadWhenDirtyChanged FINAL)
+    Q_PROPERTY(bool externalConflict READ externalConflict NOTIFY externalConflictChanged FINAL)
     Q_PROPERTY(QString errorString READ errorString NOTIFY errorStringChanged FINAL)
 
 public:
@@ -47,6 +49,9 @@ public:
     void setWatch(bool watch);
     bool autoReload() const noexcept { return m_autoReload; }
     void setAutoReload(bool autoReload);
+    bool reloadWhenDirty() const noexcept { return m_reloadWhenDirty; }
+    void setReloadWhenDirty(bool reloadWhenDirty);
+    bool externalConflict() const noexcept { return m_externalConflict; }
 
     QString errorString() const { return m_errorString; }
 
@@ -55,6 +60,7 @@ public:
     Q_INVOKABLE bool save();
     Q_INVOKABLE bool saveAs(const QString &path);
     Q_INVOKABLE void clear();
+    Q_INVOKABLE void markDirty();
 
 signals:
     void pathChanged();
@@ -63,14 +69,18 @@ signals:
     void dirtyChanged();
     void watchChanged();
     void autoReloadChanged();
+    void reloadWhenDirtyChanged();
+    void externalConflictChanged();
     void errorStringChanged();
     void loaded();
     void saved();
     void externalChanged(const QString &path);
+    void externalConflictDetected(const QString &path);
 
 private:
     static QString normalizedPath(const QString &path);
     void setDirty(bool dirty);
+    void setExternalConflict(bool conflict);
     void setErrorString(const QString &error);
     void refreshWatch();
     void handleExternalChange(const QString &path);
@@ -80,6 +90,8 @@ private:
     bool m_dirty = false;
     bool m_watch = false;
     bool m_autoReload = false;
+    bool m_reloadWhenDirty = false;
+    bool m_externalConflict = false;
     QString m_errorString;
     FileWatcher *m_watcher = nullptr;
 };
