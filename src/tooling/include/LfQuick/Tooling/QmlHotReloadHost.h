@@ -85,6 +85,7 @@ protected:
 
 private:
     void registerWatch();
+    void releaseWatch();
     bool reloadInternal(qint64 attemptedRevision);
     QVariantMap preservedState() const;
     void setStatus(Status status);
@@ -92,8 +93,11 @@ private:
     QUrl effectiveSource() const;
 
     QPointer<QmlHotReloadController> m_controller;
+    QPointer<QmlHotReloadController> m_watchController;
     QUrl m_source;
     QUrl m_developmentSource;
+    QUrl m_watchedLogicalSource;
+    QUrl m_watchedDevelopmentSource;
     QVariantMap m_initialProperties;
     QStringList m_preservedProperties;
     bool m_autoReload = true;
