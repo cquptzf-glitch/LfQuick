@@ -8,6 +8,9 @@ LfPage {
     title: qsTr("Developer")
 
     property int demoProgress: 42
+    property string demoDeviceName: "Analyzer A"
+    property int demoThreshold: 40
+    property bool demoNotifications: true
     property int demoPage: 3
     property date demoDateTime: new Date(2026, 9, 17, 10, 30)
 
@@ -446,6 +449,32 @@ LfPage {
                         { text: qsTr("Calibration"), value: "calibration" }
                     ]
                     targetValues: ["qc"]
+                }
+            }
+
+            LfCard {
+                Layout.fillWidth: true
+                Layout.leftMargin: Tokens.spacingLarge
+                Layout.rightMargin: Tokens.spacingLarge
+                title: qsTr("Editable property grid")
+                subtitle: qsTr("Source data remains owned and validated by the application.")
+
+                LfPropertyGrid {
+                    Layout.fillWidth: true
+                    model: [
+                        { key: "name", label: qsTr("Display name"), value: root.demoDeviceName, type: "text" },
+                        { key: "threshold", label: qsTr("Alert threshold"), value: root.demoThreshold, type: "int", from: 0, to: 100 },
+                        { key: "enabled", label: qsTr("Notifications"), value: root.demoNotifications, type: "bool" },
+                        { key: "serial", label: qsTr("Serial"), value: "DEMO-0001", type: "text", readOnly: true }
+                    ]
+                    onValueEdited: function(index, key, value) {
+                        if (key === "name")
+                            root.demoDeviceName = value
+                        else if (key === "threshold")
+                            root.demoThreshold = value
+                        else if (key === "enabled")
+                            root.demoNotifications = value
+                    }
                 }
             }
 

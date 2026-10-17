@@ -144,6 +144,13 @@ Item {
         width: 500
         height: 240
     }
+    LfPropertyGrid {
+        model: [
+            { key: "name", label: "Name", value: "Analyzer", type: "text" },
+            { key: "enabled", label: "Enabled", value: true, type: "bool" },
+            { key: "threshold", label: "Threshold", value: 40, type: "int", from: 0, to: 100 }
+        ]
+    }
     LfNumberInput { from: 0; to: 100; value: 42 }
     LfRangeInput { from: 0; to: 100; first.value: 20; second.value: 80 }
     LfProgressRing { running: true }
@@ -404,6 +411,51 @@ LfTransferList {
         QVERIFY(transfer->property("rejectedDuplicate").toBool());
         QVERIFY(transfer->property("rejectedDisabled").toBool());
         delete transfer;
+    }
+
+    void propertyGridEmitsEditsAndHonorsReadOnly()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"QML(
+import QtQuick
+import LfQuick
+
+LfPropertyGrid {
+    objectName: "grid"
+    model: [
+        { key: "threshold", label: "Threshold", value: 3, type: "int" },
+        { key: "serial", label: "Serial", value: "X", readOnly: true }
+    ]
+    property int edits: 0
+    property int accepted: 0
+    property int rejected: 0
+    property string editedKey: ""
+    property int editedValue: -1
+
+    onValueEdited: function(index, key, value) {
+        ++edits
+        editedKey = key
+        editedValue = value
+    }
+    Component.onCompleted: {
+        if (editValue(0, 4))
+            ++accepted
+        if (!editValue(1, "Y"))
+            ++rejected
+    }
+}
+)QML", QUrl(QStringLiteral("qrc:/tests/LfQuickPropertyGrid.qml")));
+
+        QObject *grid = component.create();
+        QVERIFY2(grid, qPrintable(component.errorString()));
+        QCOMPARE(grid->property("entryCount").toInt(), 2);
+        QCOMPARE(grid->property("edits").toInt(), 1);
+        QCOMPARE(grid->property("accepted").toInt(), 1);
+        QCOMPARE(grid->property("rejected").toInt(), 1);
+        QCOMPARE(grid->property("editedKey").toString(), QStringLiteral("threshold"));
+        QCOMPARE(grid->property("editedValue").toInt(), 4);
+        delete grid;
     }
 
     void lazyLoaderCanForceBackgroundLoadAndUnload()

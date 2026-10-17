@@ -119,6 +119,7 @@ qt_add_qml_module(LfQuickUi
         qml/LfSearchableComboBox.qml
         qml/LfMultiSelect.qml
         qml/LfTransferList.qml
+        qml/LfPropertyGrid.qml
         qml/LfSlider.qml
         qml/LfProgressBar.qml
         qml/LfSearchBox.qml
