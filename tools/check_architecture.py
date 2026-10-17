@@ -32,14 +32,15 @@ RULES = {
     ],
 }
 
-# Diagnostics, development tooling, styles and version/technology-specific
-# adapters are leaves. Foundation modules must never depend back on them.
+# Diagnostics, development tooling, styles, cross-module integration and
+# version/technology-specific adapters are leaves. Foundation modules must
+# never depend back on them.
 LEAF_CPP_PATTERNS = [
-    r"LfQuick/(Diagnostics|Tooling|StyleKit|QtAdapters)/",
-    r"LfQuick::(Diagnostics|Tooling|StyleKit|RangeModelAdapter|CanvasPainterAdapter|SafeAreaAdapter|PlatformQml|CustomQuickCharts|LegacyQCustomPlotAdapter|FluentStyle|BrandTestStyle)",
+    r"LfQuick/(Diagnostics|Tooling|StyleKit|QtAdapters|Integration)/",
+    r"LfQuick::(Diagnostics|Tooling|StyleKit|Integration|RangeModelAdapter|CanvasPainterAdapter|SafeAreaAdapter|PlatformQml|CustomQuickCharts|LegacyQCustomPlotAdapter|FluentStyle|BrandTestStyle)",
 ]
 LEAF_QML_PATTERN = re.compile(
-    r"^\s*import\s+LfQuick\.(Diagnostics|Tooling|StyleKit|Platform|SafeArea|CanvasPainter|CustomQuickCharts|Fluent|BrandTest)\b",
+    r"^\s*import\s+LfQuick\.(Diagnostics|Tooling|StyleKit|Integration|Platform|SafeArea|CanvasPainter|CustomQuickCharts|Fluent|BrandTest)\b",
     re.MULTILINE,
 )
 
