@@ -47,12 +47,27 @@ public:
                          std::shared_ptr<WidgetWindowProviderState> state)
         : m_id(std::move(id)), m_widget(widget), m_state(std::move(state))
     {
-        if (m_widget)
+        if (m_widget) {
             m_widget->installEventFilter(this);
+            m_widgetDestroyedConnection = connect(m_widget, &QObject::destroyed, this, [this] {
+                m_widget = nullptr;
+                if (m_state)
+                    m_state->widgets.remove(m_id);
+
+                if (!m_closingFromRouter && m_closeRequestHandler) {
+                    const auto handler = m_closeRequestHandler;
+                    QMetaObject::invokeMethod(this, [handler] {
+                        if (handler)
+                            handler();
+                    }, Qt::QueuedConnection);
+                }
+            });
+        }
     }
 
     ~WidgetWindowInstance() override
     {
+        QObject::disconnect(m_widgetDestroyedConnection);
         if (m_widget)
             m_widget->removeEventFilter(this);
         if (m_state)
@@ -208,6 +223,8 @@ public:
         m_closingFromRouter = true;
         m_widget->close();
         m_widget->removeEventFilter(this);
+        QObject::disconnect(m_widgetDestroyedConnection);
+        m_widgetDestroyedConnection = {};
         m_widget->deleteLater();
         m_widget = nullptr;
         m_closingFromRouter = false;
@@ -236,6 +253,7 @@ private:
     QPointer<QWidget> m_widget;
     std::shared_ptr<WidgetWindowProviderState> m_state;
     CloseRequestHandler m_closeRequestHandler;
+    QMetaObject::Connection m_widgetDestroyedConnection;
     bool m_closingFromRouter = false;
 };
 
