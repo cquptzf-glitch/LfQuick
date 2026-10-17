@@ -18,20 +18,19 @@ QmlLazyLoader::QmlLazyLoader(QObject *parent)
 QmlLazyLoader::~QmlLazyLoader()
 {
     cancelHandle();
+    QObject::disconnect(m_componentDestroyedConnection);
 
     if (m_item) {
         QPointer<QObject> item = m_item;
         m_item = nullptr;
-        const bool immediate = LifetimeLease::requestDestroy(item);
-        if (!immediate && item && item->parent() == this)
-            item->setParent(nullptr);
+        LifetimeLease::requestDestroy(item);
     }
 }
 
 QObject *QmlLazyLoader::item()
 {
-    // Match Quickshell LazyLoader semantics: reading item while a background
-    // load is in progress explicitly accepts a foreground blocking completion.
+    // Match Quickshell LazyLoader semantics: foreground access is allowed to
+    // force an in-flight asynchronous load to completion.
     if (isLoading())
         setActive(true);
     return m_item;
@@ -100,9 +99,9 @@ void QmlLazyLoader::setActiveAsync(bool active)
     }
 }
 
-void QmlLazyLoader::setSource(const QUrl &source)
+void QmlLazyLoader::setComponent(QQmlComponent *component)
 {
-    if (m_source == source)
+    if (m_component == component)
         return;
 
     const bool restartActive = m_targetActive || isActive();
@@ -110,18 +109,43 @@ void QmlLazyLoader::setSource(const QUrl &source)
 
     cancelHandle();
     unloadItem();
+    QObject::disconnect(m_componentDestroyedConnection);
+    m_componentDestroyedConnection = {};
+
+    const bool sourceChanged = !m_source.isEmpty();
+    m_source = QUrl{};
+    m_component = component;
+    reconnectComponent();
+    setErrorString({});
+
+    emit componentChanged();
+    if (sourceChanged)
+        emit sourceChanged();
+    restartForInputChange(restartActive, restartLoading);
+}
+
+void QmlLazyLoader::setSource(const QUrl &source)
+{
+    if (m_source == source && !m_component)
+        return;
+
+    const bool restartActive = m_targetActive || isActive();
+    const bool restartLoading = !restartActive && (m_targetLoading || isLoading());
+
+    cancelHandle();
+    unloadItem();
+    QObject::disconnect(m_componentDestroyedConnection);
+    m_componentDestroyedConnection = {};
+
+    const bool componentChanged = !m_component.isNull();
+    m_component = nullptr;
     m_source = source;
     setErrorString({});
-    emit sourceChanged();
 
-    m_targetActive = restartActive;
-    m_targetLoading = restartLoading;
-    if (m_complete) {
-        if (m_targetActive)
-            startSync();
-        else if (m_targetLoading)
-            startAsync();
-    }
+    if (componentChanged)
+        emit this->componentChanged();
+    emit sourceChanged();
+    restartForInputChange(restartActive, restartLoading);
 }
 
 void QmlLazyLoader::setInitialProperties(const QVariantMap &properties)
@@ -148,14 +172,57 @@ void QmlLazyLoader::componentComplete()
         startAsync();
 }
 
-void QmlLazyLoader::startAsync()
+void QmlLazyLoader::restartForInputChange(bool restartActive, bool restartLoading)
 {
-    if (!m_complete || isActive() || m_handle || m_source.isEmpty())
+    m_targetActive = restartActive;
+    m_targetLoading = restartLoading;
+    if (!m_complete)
+        return;
+    if (m_targetActive)
+        startSync();
+    else if (m_targetLoading)
+        startAsync();
+}
+
+void QmlLazyLoader::reconnectComponent()
+{
+    if (!m_component)
         return;
 
-    QQmlEngine *engine = qmlEngine(this);
+    m_componentDestroyedConnection = connect(m_component, &QObject::destroyed, this, [this] {
+        m_componentDestroyedConnection = {};
+        m_component = nullptr;
+        m_targetActive = false;
+        m_targetLoading = false;
+        cancelHandle();
+        unloadItem();
+        setErrorString(QStringLiteral("LfLazyLoader component was destroyed"));
+        emit componentChanged();
+    });
+}
+
+bool QmlLazyLoader::hasLoadTarget() const noexcept
+{
+    return m_component || !m_source.isEmpty();
+}
+
+void QmlLazyLoader::startAsync()
+{
+    if (!m_complete || isActive() || m_handle || !hasLoadTarget())
+        return;
+
+    QQmlEngine *loaderEngine = qmlEngine(this);
+    QQmlEngine *engine = m_component ? m_component->engine() : loaderEngine;
+    if (!engine)
+        engine = loaderEngine;
+
     if (!engine) {
         setErrorString(QStringLiteral("LfLazyLoader requires a QQmlEngine"));
+        m_targetLoading = false;
+        return;
+    }
+    if (m_component && loaderEngine && m_component->engine() != loaderEngine) {
+        setErrorString(QStringLiteral("LfLazyLoader component belongs to a different QQmlEngine"));
         m_targetLoading = false;
         return;
     }
@@ -163,17 +230,17 @@ void QmlLazyLoader::startAsync()
     m_factory->setEngine(engine);
     setErrorString({});
 
-    QmlObjectLoadHandle *handle = m_factory->createAsync(
-        resolvedSource(), m_initialProperties);
+    QmlObjectLoadHandle *handle = m_component
+        ? m_factory->createAsyncComponent(m_component, m_initialProperties)
+        : m_factory->createAsync(resolvedSource(), m_initialProperties);
     m_handle = handle;
     connect(handle, &QmlObjectLoadHandle::finished,
             this, &QmlLazyLoader::finishHandle);
 
-    if (handle->status() == QmlObjectLoadHandle::Status::Loading) {
+    if (handle->status() == QmlObjectLoadHandle::Status::Loading)
         emit loadingChanged();
-    } else {
+    else
         finishHandle();
-    }
 }
 
 void QmlLazyLoader::startSync()
@@ -188,21 +255,33 @@ void QmlLazyLoader::startSync()
         return;
     }
 
-    QQmlEngine *engine = qmlEngine(this);
-    if (!engine) {
-        setErrorString(QStringLiteral("LfLazyLoader requires a QQmlEngine"));
+    if (!hasLoadTarget()) {
+        setErrorString(QStringLiteral("LfLazyLoader has no component or source"));
         m_targetActive = false;
         return;
     }
-    if (m_source.isEmpty()) {
-        setErrorString(QStringLiteral("LfLazyLoader source is empty"));
+
+    QQmlEngine *loaderEngine = qmlEngine(this);
+    if (m_component && loaderEngine && m_component->engine() != loaderEngine) {
+        setErrorString(QStringLiteral("LfLazyLoader component belongs to a different QQmlEngine"));
         m_targetActive = false;
         return;
     }
 
     QString error;
-    QObject *created = QmlObjectFactory::createSync(
-        engine, resolvedSource(), m_initialProperties, &error);
+    QObject *created = nullptr;
+    if (m_component) {
+        created = QmlObjectFactory::createSync(m_component, m_initialProperties, &error);
+    } else {
+        if (!loaderEngine) {
+            setErrorString(QStringLiteral("LfLazyLoader requires a QQmlEngine"));
+            m_targetActive = false;
+            return;
+        }
+        created = QmlObjectFactory::createSync(
+            loaderEngine, resolvedSource(), m_initialProperties, &error);
+    }
+
     if (!created) {
         setErrorString(error);
         m_targetActive = false;
