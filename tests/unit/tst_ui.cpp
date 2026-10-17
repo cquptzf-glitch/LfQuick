@@ -194,18 +194,49 @@ private slots:
         QCOMPARE(collector.count(), 0);
     }
 
+    void quickRuntimeHostSwitchResetsNavigation()
+    {
+        QQmlEngine engine;
+        QQuickItem firstHost;
+        QQuickItem secondHost;
+        QuickRuntime runtime(&engine);
+        auto provider = std::make_shared<TestProvider>();
+        QVERIFY(runtime.registerProvider(provider));
+        QVERIFY(runtime.registerDescriptor(guardTestPage(QStringLiteral("/a"))));
+
+        runtime.setHost(&firstHost);
+        QVERIFY(runtime.push(QStringLiteral("/a")));
+        QCOMPARE(runtime.currentRoute(), QStringLiteral("/a"));
+        QCOMPARE(runtime.depth(), 1);
+
+        runtime.setHost(&secondHost);
+        QCOMPARE(runtime.host(), &secondHost);
+        QCOMPARE(runtime.currentRoute(), QString{});
+        QCOMPARE(runtime.depth(), 0);
+        QVERIFY(!runtime.canGoBack());
+        QVERIFY(!runtime.canGoForward());
+    }
+
     void quickRuntimeTracksHostDestruction()
     {
         QQmlEngine engine;
         QuickRuntime runtime(&engine);
+        auto provider = std::make_shared<TestProvider>();
+        QVERIFY(runtime.registerProvider(provider));
+        QVERIFY(runtime.registerDescriptor(guardTestPage(QStringLiteral("/a"))));
+
         auto *host = new QQuickItem;
         runtime.setHost(host);
-        QCOMPARE(runtime.host(), host);
+        QVERIFY(runtime.push(QStringLiteral("/a")));
+        QCOMPARE(runtime.currentRoute(), QStringLiteral("/a"));
+        QCOMPARE(runtime.depth(), 1);
 
         QSignalSpy changed(&runtime, &QuickRuntime::hostChanged);
         delete host;
 
         QCOMPARE(runtime.host(), nullptr);
+        QCOMPARE(runtime.currentRoute(), QString{});
+        QCOMPARE(runtime.depth(), 0);
         QCOMPARE(changed.count(), 1);
     }
 
