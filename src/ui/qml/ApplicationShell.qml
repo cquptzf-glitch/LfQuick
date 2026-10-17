@@ -5,13 +5,42 @@ Item {
     id: root
 
     property var navigationModel
+    property var navigationController
     property var runtime
     property var overlayCoordinator
     property bool compactNavigation: false
+    property bool responsiveNavigation: false
+    property bool hideNavigationWhenNarrow: false
     property bool showBackButton: true
 
     property alias pageHost: pageHost
     property alias navigationView: navigationView
+    property alias navigationPolicy: responsivePolicy
+    readonly property var effectiveNavigationController: navigationController || internalNavigationController
+    readonly property bool navigationVisible: !responsiveNavigation || responsivePolicy.visible
+    readonly property bool navigationCompact: responsiveNavigation ? responsivePolicy.compact : compactNavigation
+
+    function syncControllerModel() {
+        if (effectiveNavigationController && effectiveNavigationController.model !== root.navigationModel)
+            effectiveNavigationController.model = root.navigationModel
+    }
+
+    function syncNavigationState() {
+        if (!effectiveNavigationController || !root.runtime)
+            return
+        effectiveNavigationController.syncCurrentRoute(root.runtime.currentRoute, root.runtime.canGoBack)
+    }
+
+    NavigationController {
+        id: internalNavigationController
+        model: root.navigationModel
+    }
+
+    NavigationResponsivePolicy {
+        id: responsivePolicy
+        width: root.width
+        allowHidden: root.hideNavigationWhenNarrow
+    }
 
     RowLayout {
         anchors.fill: parent
@@ -19,11 +48,12 @@ Item {
 
         NavigationView {
             id: navigationView
-            Layout.preferredWidth: navigationWidth
+            visible: root.navigationVisible
+            Layout.preferredWidth: visible ? navigationWidth : 0
             Layout.fillHeight: true
             model: root.navigationModel
-            runtime: root.runtime
-            compact: root.compactNavigation
+            controller: root.effectiveNavigationController
+            compact: root.navigationCompact
             showBackButton: root.showBackButton
         }
 
@@ -39,5 +69,39 @@ Item {
     OverlayHost {
         anchors.fill: parent
         coordinator: root.overlayCoordinator
+    }
+
+    Connections {
+        target: root.effectiveNavigationController
+        function onNavigateRequested(route, parameters) {
+            if (root.runtime)
+                root.runtime.push(route, parameters)
+            else
+                root.navigationView.routeRequested(route, parameters)
+        }
+        function onBackRequested() {
+            if (root.runtime)
+                root.runtime.back()
+            else
+                root.navigationView.backRequested()
+        }
+    }
+
+    Connections {
+        target: root.runtime
+        function onCurrentRouteChanged() { root.syncNavigationState() }
+        function onNavigationChanged() { root.syncNavigationState() }
+    }
+
+    onNavigationControllerChanged: {
+        syncControllerModel()
+        syncNavigationState()
+    }
+    onNavigationModelChanged: syncControllerModel()
+    onRuntimeChanged: syncNavigationState()
+
+    Component.onCompleted: {
+        syncControllerModel()
+        syncNavigationState()
     }
 }
