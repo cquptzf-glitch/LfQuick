@@ -477,10 +477,15 @@ QQmlEngine *QmlObjectFactory::effectiveEngine() const
 
 QQmlContext *QmlObjectFactory::effectiveCreationContext(QQmlComponent *component) const
 {
-    if (m_creationContext)
-        return m_creationContext;
+    // A QQmlComponent declared in QML owns its lexical creation context. That
+    // context must win even when a loader/factory itself lives in another QML
+    // context. The factory's configured context applies to URL-created
+    // components and to externally constructed components without a saved QML
+    // creation context.
     if (component && component->creationContext())
         return component->creationContext();
+    if (m_creationContext)
+        return m_creationContext;
     return QQmlEngine::contextForObject(const_cast<QmlObjectFactory *>(this));
 }
 
