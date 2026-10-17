@@ -48,7 +48,24 @@ jobs:
           -DLFQUICK_ENABLE_QMLTC=OFF
 
       - name: Build
-        run: cmake --build build --parallel 2
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake --build build --parallel 2 2>&1 | tee build.log
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        shell: bash
+        run: |
+          set -o pipefail
+          ctest --test-dir build --output-on-failure 2>&1 | tee test.log
+
+      - name: Upload runtime diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-phase1-logs-${{ github.run_id }}
+          path: |
+            build.log
+            test.log
+          if-no-files-found: ignore
+          retention-days: 7
