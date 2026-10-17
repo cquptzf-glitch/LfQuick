@@ -80,6 +80,12 @@ QVariantMap RuntimeCapabilities::capabilities() const
     result.insert(QStringLiteral("module.diagnostics"), false);
 #endif
 
+#ifdef LFQUICK_CAP_SCREENSHOT_TOOL
+    result.insert(QStringLiteral("tooling.screenshot"), true);
+#else
+    result.insert(QStringLiteral("tooling.screenshot"), false);
+#endif
+
 #ifdef LFQUICK_CAP_HOT_RELOAD
     result.insert(QStringLiteral("tooling.hotReload"), true);
 #else
