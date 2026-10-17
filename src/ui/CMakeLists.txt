@@ -49,6 +49,18 @@ qt_add_qml_module(LfQuickUi
         qml/PageLoadError.qml
         qml/Theme.qml
         qml/Tokens.qml
+        qml/LfButton.qml
+        qml/LfTextField.qml
+        qml/LfCheckBox.qml
+        qml/LfRadioButton.qml
+        qml/LfSwitch.qml
+        qml/LfComboBox.qml
+        qml/LfSlider.qml
+        qml/LfProgressBar.qml
+        qml/LfSearchBox.qml
+        qml/LfStatusIndicator.qml
+        qml/LfNumberInput.qml
+        qml/LfRangeInput.qml
         qml/OverlayHost.qml
         qml/BusyOverlay.qml
         qml/ToastStack.qml
