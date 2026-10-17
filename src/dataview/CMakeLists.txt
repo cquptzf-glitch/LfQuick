@@ -15,6 +15,7 @@ qt_add_qml_module(LfQuickDataView
     URI LfQuick.DataView
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
+    OUTPUT_TARGETS _lfquick_dataview_qml_output_targets
     SOURCES
         include/LfQuick/DataView/DataTableModel.h
         src/DataTableModel.cpp
@@ -48,6 +49,8 @@ qt_add_qml_module(LfQuickDataView
         qml/DataGridButtonDelegate.qml
         qml/DataGridCustomDelegate.qml
 )
+lfquick_register_qml_output_targets(
+    LfQuickDataView ${_lfquick_dataview_qml_output_targets})
 
 target_sources(LfQuickDataView PUBLIC
     FILE_SET HEADERS
