@@ -12,6 +12,7 @@ namespace {
 struct State {
     int created = 0;
     int closed = 0;
+    QStringList closeOrder;
 };
 
 class OwnerAwareWindow final : public LfQuick::IWindowInstance
@@ -36,11 +37,17 @@ public:
         return true;
     }
     bool updateParameters(const QVariantMap &) override { return true; }
-    void close() override { ++m_state->closed; }
+    QVariantMap saveState() const override { return savedState; }
+    void close() override
+    {
+        ++m_state->closed;
+        m_state->closeOrder.append(m_id);
+    }
 
     QString owner;
     int ownerUpdates = 0;
     bool acceptOwnerUpdates = true;
+    QVariantMap savedState;
 
 private:
     QString m_id;
@@ -175,6 +182,60 @@ private slots:
         QVERIFY(router.find(leaf.instanceId).has_value());
         QVERIFY(router.find(leaf.instanceId)->ownerInstanceId.isEmpty());
         QVERIFY(leafWindow->owner.isEmpty());
+    }
+
+    void closeAllClosesChildrenBeforeOwnersAndRemovesBeforeSignal()
+    {
+        auto provider = std::make_shared<OwnerAwareProvider>();
+        LfQuick::WindowProviderRegistry providers;
+        QVERIFY(providers.registerProvider(provider));
+
+        LfQuick::WindowRouter router(&providers);
+        QVERIFY(router.registerWindow(descriptor(QStringLiteral("root"))));
+        QVERIFY(router.registerWindow(descriptor(QStringLiteral("child"),
+                                                  LfQuick::WindowOpenPolicy::MultipleInstances)));
+        QVERIFY(router.registerWindow(descriptor(QStringLiteral("leaf"),
+                                                  LfQuick::WindowOpenPolicy::MultipleInstances)));
+
+        const auto root = router.open({QStringLiteral("root"), {}, {}, {}, {}});
+        const auto child = router.open({QStringLiteral("child"), {}, root.instanceId, {}, {}});
+        const auto leaf = router.open({QStringLiteral("leaf"), {}, child.instanceId, {}, {}});
+        QVERIFY(root.accepted && child.accepted && leaf.accepted);
+
+        QList<int> countsDuringClose;
+        connect(&router, &LfQuick::WindowRouter::windowClosed,
+                &router, [&router, &countsDuringClose](const QString &, const QString &) {
+            countsDuringClose.append(router.count());
+        });
+
+        QVERIFY(router.closeAll().accepted);
+        QCOMPARE(provider->state->closeOrder,
+                 QStringList({leaf.instanceId, child.instanceId, root.instanceId}));
+        QCOMPARE(countsDuringClose, QList<int>({2, 1, 0}));
+        QCOMPARE(router.count(), 0);
+    }
+
+    void saveStateUsesProviderNativeState()
+    {
+        auto provider = std::make_shared<OwnerAwareProvider>();
+        LfQuick::WindowProviderRegistry providers;
+        QVERIFY(providers.registerProvider(provider));
+
+        LfQuick::WindowRouter router(&providers);
+        QVERIFY(router.registerWindow(descriptor(QStringLiteral("stateful"))));
+        const auto opened = router.open({QStringLiteral("stateful"), {}, {}, {}, {}});
+        QVERIFY(opened.accepted);
+
+        provider->lastCreated->savedState = {
+            {QStringLiteral("geometry"), QStringLiteral("saved-geometry")},
+            {QStringLiteral("maximized"), true}
+        };
+
+        const auto state = router.saveState(opened.instanceId);
+        QVERIFY(state.has_value());
+        QCOMPARE(state->value(QStringLiteral("geometry")).toString(), QStringLiteral("saved-geometry"));
+        QVERIFY(state->value(QStringLiteral("maximized")).toBool());
+        QVERIFY(!router.saveState(QStringLiteral("missing-window")).has_value());
     }
 };
 
