@@ -9,8 +9,13 @@
 #include <LfQuick/WidgetBridge/WidgetPageProvider.h>
 #include <LfQuick/WidgetBridge/WidgetWindowProvider.h>
 
+#ifdef LFQUICK_HAS_DIAGNOSTICS
+#include <LfQuick/Diagnostics/DiagnosticsModel.h>
+#endif
+
 #include <QApplication>
 #include <QCheckBox>
+#include <QDir>
 #include <QHeaderView>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -19,6 +24,7 @@
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QStackedWidget>
+#include <QStandardPaths>
 #include <QTableWidget>
 #include <QVariant>
 #include <QVBoxLayout>
@@ -133,6 +139,16 @@ int main(int argc, char *argv[])
     WidgetOverlayBackend overlayBackend(&window);
     overlayCoordinator.setBackend(&overlayBackend);
 
+#ifdef LFQUICK_HAS_DIAGNOSTICS
+    DiagnosticsModel diagnosticsModel;
+    diagnosticsModel.setMaxEvents(500);
+    diagnosticsModel.recordEvent(QStringLiteral("app"),
+                                 QStringLiteral("startup"),
+                                 {{QStringLiteral("stack"), QStringLiteral("widget-quick")}},
+                                 QStringLiteral("info"),
+                                 QStringLiteral("Hybrid demo diagnostics initialized"));
+#endif
+
     auto *rootLayout = new QVBoxLayout(&window);
     auto *toolbar = new QHBoxLayout;
     auto *quickButton = new QPushButton(QStringLiteral("QML Page"), &window);
@@ -144,6 +160,9 @@ int main(int argc, char *argv[])
     auto *inspectorButton = new QPushButton(QStringLiteral("Inspector Window"), &window);
     auto *ownedToolButton = new QPushButton(QStringLiteral("Owned Tool Window"), &window);
     auto *closeWindowsButton = new QPushButton(QStringLiteral("Close Routed Windows"), &window);
+#ifdef LFQUICK_HAS_DIAGNOSTICS
+    auto *diagnosticsButton = new QPushButton(QStringLiteral("Export Diagnostics"), &window);
+#endif
     auto *routeLabel = new QLabel(QStringLiteral("Route: -"), &window);
     auto *windowLabel = new QLabel(QStringLiteral("Windows: 0"), &window);
     auto *metricsLabel = new QLabel(QStringLiteral("QuickSurface: loading"), &window);
@@ -164,6 +183,9 @@ int main(int argc, char *argv[])
     toolbar->addWidget(inspectorButton);
     toolbar->addWidget(ownedToolButton);
     toolbar->addWidget(closeWindowsButton);
+#ifdef LFQUICK_HAS_DIAGNOSTICS
+    toolbar->addWidget(diagnosticsButton);
+#endif
     toolbar->addSpacing(16);
     toolbar->addWidget(routeLabel);
     toolbar->addWidget(windowLabel);
@@ -202,6 +224,12 @@ int main(int argc, char *argv[])
         focusBridge.restoreFocus();
     });
 
+#ifdef LFQUICK_HAS_DIAGNOSTICS
+    diagnosticsModel.setMetric(QStringLiteral("runtime.route"), runtime.currentRoute());
+    diagnosticsModel.setMetric(QStringLiteral("runtime.depth"), runtime.depth());
+    diagnosticsModel.setMetric(QStringLiteral("quickSurface.ready"), quickSurface->isReady());
+#endif
+
     QVariantMap quickPageParameters;
     quickPageParameters.insert(
         QStringLiteral("navigationGuard"),
@@ -223,6 +251,10 @@ int main(int argc, char *argv[])
     widgetWindowProvider->registerFactory(QStringLiteral("routed-tool"), createRoutedToolWindow);
     windowProviders.registerProvider(widgetWindowProvider);
     WindowRouter windowRouter(&windowProviders);
+
+#ifdef LFQUICK_HAS_DIAGNOSTICS
+    diagnosticsModel.setMetric(QStringLiteral("windows.count"), windowRouter.count());
+#endif
 
     WindowDescriptor inspectorDescriptor;
     inspectorDescriptor.id = QStringLiteral("hybrid.inspector");
@@ -248,6 +280,13 @@ int main(int argc, char *argv[])
         auto *hostItem = qobject_cast<QQuickItem *>(quickSurface->rootObject());
         if (!hostItem) {
             metricsLabel->setText(QStringLiteral("QuickSurface: root is not QQuickItem"));
+#ifdef LFQUICK_HAS_DIAGNOSTICS
+            diagnosticsModel.recordEvent(QStringLiteral("quickSurface"),
+                                         QStringLiteral("invalidRoot"),
+                                         {},
+                                         QStringLiteral("error"),
+                                         QStringLiteral("QuickSurface root is not QQuickItem"));
+#endif
             return;
         }
 
@@ -275,6 +314,13 @@ int main(int argc, char *argv[])
 
         if (!registered || !runtime.registerDescriptor(std::move(fallbackDescriptor))) {
             metricsLabel->setText(QStringLiteral("QuickSurface: route registration failed"));
+#ifdef LFQUICK_HAS_DIAGNOSTICS
+            diagnosticsModel.recordEvent(QStringLiteral("navigation"),
+                                         QStringLiteral("routeRegistrationFailed"),
+                                         {},
+                                         QStringLiteral("error"),
+                                         QStringLiteral("Hybrid routes could not be registered"));
+#endif
             return;
         }
 
@@ -319,6 +365,80 @@ int main(int argc, char *argv[])
         metricsLabel->setText(
             QStringLiteral("Fallback failed: %1 via %2 — %3").arg(route, provider, message));
     });
+
+#ifdef LFQUICK_HAS_DIAGNOSTICS
+    QObject::connect(quickSurface, &QuickSurface::readyChanged,
+                     &diagnosticsModel, [&] {
+        diagnosticsModel.setMetric(QStringLiteral("quickSurface.ready"), quickSurface->isReady());
+        diagnosticsModel.setMetric(QStringLiteral("quickSurface.loadDurationMs"), quickSurface->loadDurationMs());
+    });
+    QObject::connect(quickSurface, &QuickSurface::firstFrameRendered,
+                     &diagnosticsModel, [&](qint64 firstFrameMs) {
+        diagnosticsModel.setMetric(QStringLiteral("quickSurface.loadDurationMs"), quickSurface->loadDurationMs());
+        diagnosticsModel.recordTiming(QStringLiteral("quickSurface.firstFrameMs"), firstFrameMs,
+                                      {{QStringLiteral("loadDurationMs"), quickSurface->loadDurationMs()}});
+    });
+    QObject::connect(quickSurface, &QuickSurface::loadFailed,
+                     &diagnosticsModel, [&](const QString &message) {
+        diagnosticsModel.incrementMetric(QStringLiteral("quickSurface.loadFailureCount"));
+        diagnosticsModel.recordEvent(QStringLiteral("quickSurface"),
+                                     QStringLiteral("loadFailed"),
+                                     {},
+                                     QStringLiteral("error"),
+                                     message);
+    });
+    QObject::connect(&focusBridge, &WidgetFocusBridge::focusTransferred,
+                     &diagnosticsModel, [&](const QString &direction) {
+        diagnosticsModel.incrementMetric(QStringLiteral("focus.transferCount"));
+        diagnosticsModel.recordEvent(QStringLiteral("focus"),
+                                     QStringLiteral("transferred"),
+                                     {{QStringLiteral("direction"), direction}},
+                                     QStringLiteral("info"),
+                                     direction);
+    });
+    QObject::connect(&runtime, &QuickRuntime::currentRouteChanged,
+                     &diagnosticsModel, [&] {
+        diagnosticsModel.setMetric(QStringLiteral("runtime.route"), runtime.currentRoute());
+        diagnosticsModel.setMetric(QStringLiteral("runtime.depth"), runtime.depth());
+        diagnosticsModel.recordEvent(QStringLiteral("navigation"),
+                                     QStringLiteral("routeChanged"),
+                                     {{QStringLiteral("route"), runtime.currentRoute()},
+                                      {QStringLiteral("depth"), runtime.depth()}},
+                                     QStringLiteral("info"),
+                                     runtime.currentRoute());
+    });
+    QObject::connect(&runtime, &QuickRuntime::pageFallbackActivated,
+                     &diagnosticsModel,
+                     [&](const QString &route, const QString &provider, const QString &strategy) {
+        diagnosticsModel.incrementMetric(QStringLiteral("fallback.activatedCount"));
+        diagnosticsModel.recordEvent(QStringLiteral("fallback"),
+                                     QStringLiteral("activated"),
+                                     {{QStringLiteral("route"), route},
+                                      {QStringLiteral("provider"), provider},
+                                      {QStringLiteral("strategy"), strategy}},
+                                     QStringLiteral("warning"),
+                                     strategy);
+    });
+    QObject::connect(&runtime, &QuickRuntime::pageFallbackFailed,
+                     &diagnosticsModel,
+                     [&](const QString &route, const QString &provider, const QString &message) {
+        diagnosticsModel.recordEvent(QStringLiteral("fallback"),
+                                     QStringLiteral("failed"),
+                                     {{QStringLiteral("route"), route},
+                                      {QStringLiteral("provider"), provider}},
+                                     QStringLiteral("error"),
+                                     message);
+    });
+    QObject::connect(runtime.errorCollector(), &QmlErrorCollector::errorRecorded,
+                     &diagnosticsModel, [&](const QVariantMap &entry) {
+        diagnosticsModel.incrementMetric(QStringLiteral("qml.errorCount"));
+        diagnosticsModel.recordEvent(QStringLiteral("qml"),
+                                     QStringLiteral("error"),
+                                     entry,
+                                     QStringLiteral("error"),
+                                     entry.value(QStringLiteral("message")).toString());
+    });
+#endif
 
     QObject::connect(quickButton, &QPushButton::clicked,
                      &window, [&runtime, quickPageParameters] {
@@ -431,6 +551,65 @@ int main(int argc, char *argv[])
                      &window, [metricsLabel](const QString &windowId, const QString &message) {
         metricsLabel->setText(QStringLiteral("Open failed: %1 — %2").arg(windowId, message));
     });
+
+#ifdef LFQUICK_HAS_DIAGNOSTICS
+    QObject::connect(&windowRouter, &WindowRouter::windowsChanged,
+                     &diagnosticsModel, [&] {
+        diagnosticsModel.setMetric(QStringLiteral("windows.count"), windowRouter.count());
+    });
+    QObject::connect(&windowRouter, &WindowRouter::windowOpened,
+                     &diagnosticsModel, [&](const QString &windowId, const QString &instanceId) {
+        diagnosticsModel.incrementMetric(QStringLiteral("windows.openedCount"));
+        diagnosticsModel.recordEvent(QStringLiteral("window"),
+                                     QStringLiteral("opened"),
+                                     {{QStringLiteral("windowId"), windowId},
+                                      {QStringLiteral("instanceId"), instanceId}},
+                                     QStringLiteral("info"),
+                                     windowId);
+    });
+    QObject::connect(&windowRouter, &WindowRouter::windowClosed,
+                     &diagnosticsModel, [&](const QString &windowId, const QString &instanceId) {
+        diagnosticsModel.incrementMetric(QStringLiteral("windows.closedCount"));
+        diagnosticsModel.recordEvent(QStringLiteral("window"),
+                                     QStringLiteral("closed"),
+                                     {{QStringLiteral("windowId"), windowId},
+                                      {QStringLiteral("instanceId"), instanceId}},
+                                     QStringLiteral("info"),
+                                     windowId);
+    });
+    QObject::connect(&windowRouter, &WindowRouter::windowCloseBlocked,
+                     &diagnosticsModel,
+                     [&](const QString &windowId, const QString &instanceId, const QString &reason) {
+        diagnosticsModel.recordEvent(QStringLiteral("window"),
+                                     QStringLiteral("closeBlocked"),
+                                     {{QStringLiteral("windowId"), windowId},
+                                      {QStringLiteral("instanceId"), instanceId},
+                                      {QStringLiteral("reason"), reason}},
+                                     QStringLiteral("warning"),
+                                     reason);
+    });
+    QObject::connect(&windowRouter, &WindowRouter::windowOpenFailed,
+                     &diagnosticsModel, [&](const QString &windowId, const QString &message) {
+        diagnosticsModel.recordEvent(QStringLiteral("window"),
+                                     QStringLiteral("openFailed"),
+                                     {{QStringLiteral("windowId"), windowId}},
+                                     QStringLiteral("error"),
+                                     message);
+    });
+
+    QObject::connect(diagnosticsButton, &QPushButton::clicked,
+                     &window, [&] {
+        const QString exportPath = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
+                                       .filePath(QStringLiteral("lfquick-hybrid-diagnostics.json"));
+        const bool exported = diagnosticsModel.exportJson(exportPath);
+        metricsLabel->setText(exported
+                                  ? QStringLiteral("Diagnostics: %1 events exported to %2")
+                                        .arg(diagnosticsModel.count())
+                                        .arg(exportPath)
+                                  : QStringLiteral("Diagnostics export failed: %1")
+                                        .arg(diagnosticsModel.lastExportError()));
+    });
+#endif
 
     const auto updateNavigationUi = [&] {
         routeLabel->setText(QStringLiteral("Route: %1").arg(runtime.currentRoute()));
