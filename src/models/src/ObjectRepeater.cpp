@@ -2,11 +2,14 @@
 
 #include <QAbstractItemModel>
 #include <QJSValue>
+#include <QMetaType>
+#include <QQmlContext>
 #include <QQmlEngine>
 #include <QQmlListReference>
 #include <QtQml/qqml.h>
 
 #include <algorithm>
+#include <utility>
 
 namespace LfQuick {
 namespace {
@@ -268,6 +271,9 @@ QObject *ObjectRepeater::createInstance(const QVariant &modelData, QString *erro
     }
 
     QQmlContext *context = QQmlEngine::contextForObject(m_delegate);
+    if (!context)
+        context = qmlContext(this);
+
     QObject *instance = m_delegate->createWithInitialProperties(
         {{QStringLiteral("modelData"), modelData}}, context);
     if (!instance) {
@@ -404,7 +410,7 @@ void ObjectRepeater::reconnectModel()
     if (!model)
         return;
 
-    const auto queueRefresh = [this] {
+    const auto queueRefresh = [this](auto &&...) {
         if (m_complete)
             refresh();
     };
@@ -423,7 +429,7 @@ void ObjectRepeater::reconnectModel()
                                          this, queueRefresh));
     m_modelConnections.push_back(connect(model, &QObject::destroyed, this, [this] {
         disconnectModel();
-        m_model = {};
+        m_model = QVariant{};
         clear();
         emit modelChanged();
     }));
