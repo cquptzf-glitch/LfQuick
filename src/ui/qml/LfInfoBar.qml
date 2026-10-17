@@ -18,6 +18,7 @@ Controls.Control {
     property string message: ""
     property bool closable: false
     property bool autoHideOnClose: true
+    property bool closed: false
 
     signal closeRequested()
 
@@ -27,6 +28,7 @@ Controls.Control {
         : severity === LfInfoBar.Critical ? Tokens.critical
         : Tokens.info
 
+    visible: !closed
     leftPadding: Units.md
     rightPadding: Units.md
     topPadding: Units.md
@@ -35,10 +37,14 @@ Controls.Control {
     implicitWidth: Math.max(240, contentItem.implicitWidth + leftPadding + rightPadding)
     implicitHeight: contentItem.implicitHeight + topPadding + bottomPadding
 
-    function requestClose() {
+    function close() {
         closeRequested()
         if (autoHideOnClose)
-            visible = false
+            closed = true
+    }
+
+    function requestClose() {
+        close()
     }
 
     contentItem: RowLayout {
@@ -83,7 +89,7 @@ Controls.Control {
             compact: true
             text: qsTr("×")
             Accessible.name: qsTr("Close")
-            onClicked: root.requestClose()
+            onClicked: root.close()
         }
     }
 
