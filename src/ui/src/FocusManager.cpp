@@ -15,13 +15,22 @@ void FocusManager::setScope(QQuickItem *scope)
     if (m_scope == scope)
         return;
 
+    QObject::disconnect(m_scopeWindowConnection);
     QObject::disconnect(m_focusConnection);
     QObject::disconnect(m_windowDestroyedConnection);
+    m_scopeWindowConnection = {};
     m_focusConnection = {};
     m_windowDestroyedConnection = {};
 
     m_scope = scope;
     m_walker.setScope(scope);
+    if (m_scope) {
+        m_scopeWindowConnection = connect(m_scope, &QQuickItem::windowChanged,
+                                          this, [this](QQuickWindow *) {
+            reconnectWindow();
+            emit currentFocusChanged();
+        });
+    }
     reconnectWindow();
     emit scopeChanged();
     emit currentFocusChanged();
@@ -128,6 +137,11 @@ bool FocusManager::moveDirectional(FocusWalker::Direction direction)
 
 void FocusManager::reconnectWindow()
 {
+    QObject::disconnect(m_focusConnection);
+    QObject::disconnect(m_windowDestroyedConnection);
+    m_focusConnection = {};
+    m_windowDestroyedConnection = {};
+
     QQuickWindow *window = m_scope ? m_scope->window() : nullptr;
     if (!window)
         return;
