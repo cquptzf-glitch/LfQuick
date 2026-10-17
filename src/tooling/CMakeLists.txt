@@ -17,8 +17,10 @@ qt_add_qml_module(LfQuickTooling
     SOURCES
         include/LfQuick/Tooling/QmlHotReloadController.h
         include/LfQuick/Tooling/QmlHotReloadHost.h
+        include/LfQuick/Tooling/HotReloadStateTransfer.h
         src/QmlHotReloadController.cpp
         src/QmlHotReloadHost.cpp
+        src/HotReloadStateTransfer.cpp
 )
 lfquick_register_qml_output_targets(
     LfQuickTooling ${_lfquick_tooling_qml_output_targets})
@@ -30,6 +32,7 @@ target_sources(LfQuickTooling PUBLIC
         include/LfQuick/Tooling/LfQuickToolingGlobal.h
         include/LfQuick/Tooling/QmlHotReloadController.h
         include/LfQuick/Tooling/QmlHotReloadHost.h
+        include/LfQuick/Tooling/HotReloadStateTransfer.h
 )
 
 target_link_libraries(LfQuickTooling
