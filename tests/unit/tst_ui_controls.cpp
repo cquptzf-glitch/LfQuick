@@ -297,6 +297,7 @@ Item {
         QQmlComponent component(&engine);
         component.setData(R"QML(
 import QtQuick
+import QtQml.Models
 import LfQuick
 
 Item {
