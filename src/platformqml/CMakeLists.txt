@@ -9,6 +9,7 @@ qt_add_qml_module(LfQuickPlatformQml
         PlatformQmlTypes.h
     QML_FILES
         ScannerTarget.qml
+        InputSourceRegistration.qml
 )
 
 target_link_libraries(LfQuickPlatformQml
