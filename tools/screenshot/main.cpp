@@ -5,6 +5,7 @@
 #include <QGuiApplication>
 #include <QImage>
 #include <QQmlEngine>
+#include <QQmlError>
 #include <QQuickView>
 #include <QTimer>
 
