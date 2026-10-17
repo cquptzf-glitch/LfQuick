@@ -207,10 +207,7 @@ RouteResult PageRouter::createEntry(const RouteRequest &request, Entry &entry)
         auto cached = m_singletons.find(descriptor->route);
         if (cached != m_singletons.end() && cached.value()) {
             if (!cached.value()->isValid()) {
-                const auto invalid = cached.value();
-                m_singletons.erase(cached);
-                invalid->destroy();
-                emit cacheStateChanged();
+                invalidateSingleton(descriptor->route, cached.value());
             } else {
                 if (!request.parameters.isEmpty()
                     && !cached.value()->updateParameters(request.parameters)) {
@@ -634,17 +631,13 @@ void PageRouter::reset()
 bool PageRouter::ensureInstance(Entry &entry)
 {
     if (entry.instance && !entry.instance->isValid()) {
-        const auto invalid = entry.instance;
         if (entry.descriptor.cachePolicy == PageCachePolicy::Singleton) {
-            auto cached = m_singletons.find(entry.descriptor.route);
-            if (cached != m_singletons.end() && cached.value() == invalid) {
-                m_singletons.erase(cached);
-                emit cacheStateChanged();
-            }
+            invalidateSingleton(entry.descriptor.route, entry.instance);
+        } else {
+            entry.instance->destroy();
+            entry.instance.reset();
+            entry.suspended = false;
         }
-        invalid->destroy();
-        entry.instance.reset();
-        entry.suspended = false;
     }
 
     if (entry.instance)
@@ -654,10 +647,7 @@ bool PageRouter::ensureInstance(Entry &entry)
         auto cached = m_singletons.find(entry.descriptor.route);
         if (cached != m_singletons.end() && cached.value()) {
             if (!cached.value()->isValid()) {
-                const auto invalid = cached.value();
-                m_singletons.erase(cached);
-                invalid->destroy();
-                emit cacheStateChanged();
+                invalidateSingleton(entry.descriptor.route, cached.value());
             } else {
                 entry.instance = cached.value();
                 entry.suspended = true;
@@ -753,6 +743,39 @@ void PageRouter::destroy(Entry &entry)
     entry.instance->destroy();
     entry.instance.reset();
     entry.suspended = false;
+}
+
+void PageRouter::invalidateSingleton(const QString &route,
+                                     const std::shared_ptr<IPageInstance> &instance)
+{
+    if (!instance)
+        return;
+
+    bool removedFromCache = false;
+    auto cached = m_singletons.find(route);
+    if (cached != m_singletons.end() && cached.value() == instance) {
+        m_singletons.erase(cached);
+        removedFromCache = true;
+    }
+
+    const auto clearReferences = [&route, &instance](auto &entries) {
+        for (auto &candidate : entries) {
+            if (candidate.descriptor.cachePolicy != PageCachePolicy::Singleton
+                || candidate.descriptor.route != route
+                || candidate.instance != instance) {
+                continue;
+            }
+            candidate.instance.reset();
+            candidate.suspended = false;
+        }
+    };
+
+    clearReferences(m_history);
+    clearReferences(m_forwardHistory);
+    instance->destroy();
+
+    if (removedFromCache)
+        emit cacheStateChanged();
 }
 
 void PageRouter::clearForwardHistory()
