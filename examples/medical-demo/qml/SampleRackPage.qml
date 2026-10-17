@@ -57,10 +57,24 @@ LfPage {
         root.actionStatus = qsTr("%1: updated %2 samples.").arg(label).arg(changed)
     }
 
+    function publishGridTelemetry() {
+        if (!diagnosticsAvailable || !diagnosticsModel)
+            return
+        diagnosticsModel.setMetric("datagrid.sampleRack.fps", rackTelemetry.fps)
+        diagnosticsModel.setMetric("datagrid.sampleRack.frameTimeMs", rackTelemetry.frameTimeMs)
+        diagnosticsModel.setMetric("datagrid.sampleRack.maxFrameTimeMs", rackTelemetry.maxFrameTimeMs)
+        diagnosticsModel.setMetric("datagrid.sampleRack.sampleCount", rackTelemetry.sampleCount)
+        diagnosticsModel.setMetric("datagrid.sampleRack.slowFrameCount", rackTelemetry.slowFrameCount)
+        diagnosticsModel.setMetric("datagrid.sampleRack.firstVisibleMs", rackTelemetry.firstVisibleMs)
+        diagnosticsModel.setMetric("datagrid.sampleRack.filteredRows", rackModel.count)
+        diagnosticsModel.setMetric("datagrid.sampleRack.selectedRows", rackGrid.selectionController.selectedRowCount)
+    }
+
     onActivated: {
         root.pageActive = true
         root.previousScannerMinimumLength = scanner.session.minimumLength
         scanner.session.minimumLength = 2
+        rackTelemetry.reset()
         Qt.callLater(function() {
             rackField.forceActiveFocus()
             root.updateScanner()
@@ -71,6 +85,7 @@ LfPage {
         root.pageActive = false
         scanner.enabled = false
         scanner.session.minimumLength = root.previousScannerMinimumLength
+        root.publishGridTelemetry()
     }
 
     DataFilterProxyModel {
@@ -100,6 +115,13 @@ LfPage {
         interval: 250
         repeat: false
         onTriggered: rackColumnStore.save("medical-sample-rack", 1, "SampleModel.v1", rackColumns.snapshot())
+    }
+
+    Timer {
+        interval: 1000
+        repeat: true
+        running: root.pageActive && diagnosticsAvailable && diagnosticsModel !== null
+        onTriggered: root.publishGridTelemetry()
     }
 
     Component {
@@ -214,6 +236,12 @@ LfPage {
                 root.actionStatus = qsTr("Current rack row %1, column %2").arg(row + 1).arg(modelColumn + 1)
             }
         }
+    }
+
+    DataGridTelemetry {
+        id: rackTelemetry
+        target: rackGrid
+        enabled: root.pageActive
     }
 
     Menu {
