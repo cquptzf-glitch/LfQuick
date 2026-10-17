@@ -18,6 +18,8 @@ class LFQUICKIO_EXPORT JsonDocument : public QObject
     Q_PROPERTY(bool dirty READ dirty NOTIFY dirtyChanged FINAL)
     Q_PROPERTY(bool watch READ watch WRITE setWatch NOTIFY watchChanged FINAL)
     Q_PROPERTY(bool autoReload READ autoReload WRITE setAutoReload NOTIFY autoReloadChanged FINAL)
+    Q_PROPERTY(bool reloadWhenDirty READ reloadWhenDirty WRITE setReloadWhenDirty NOTIFY reloadWhenDirtyChanged FINAL)
+    Q_PROPERTY(bool externalConflict READ externalConflict NOTIFY externalConflictChanged FINAL)
     Q_PROPERTY(bool compact READ compact WRITE setCompact NOTIFY compactChanged FINAL)
     Q_PROPERTY(QString errorString READ errorString NOTIFY errorStringChanged FINAL)
     Q_PROPERTY(FileDocument* fileDocument READ fileDocument CONSTANT FINAL)
@@ -36,6 +38,9 @@ public:
     void setWatch(bool watch);
     bool autoReload() const;
     void setAutoReload(bool autoReload);
+    bool reloadWhenDirty() const;
+    void setReloadWhenDirty(bool reloadWhenDirty);
+    bool externalConflict() const;
 
     bool compact() const noexcept { return m_compact; }
     void setCompact(bool compact);
@@ -55,11 +60,14 @@ signals:
     void dirtyChanged();
     void watchChanged();
     void autoReloadChanged();
+    void reloadWhenDirtyChanged();
+    void externalConflictChanged();
     void compactChanged();
     void errorStringChanged();
     void loaded();
     void saved();
     void externalChanged(const QString &path);
+    void externalConflictDetected(const QString &path);
 
 private:
     bool parseData(const QByteArray &data);
