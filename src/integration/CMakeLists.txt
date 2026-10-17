@@ -13,10 +13,13 @@ qt_add_qml_module(LfQuickIntegration
     URI LfQuick.Integration
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
+    OUTPUT_TARGETS _lfquick_integration_qml_output_targets
     SOURCES
         include/LfQuick/Integration/LfScannerTarget.h
         src/LfScannerTarget.cpp
 )
+lfquick_register_qml_output_targets(
+    LfQuickIntegration ${_lfquick_integration_qml_output_targets})
 
 target_sources(LfQuickIntegration PUBLIC
     FILE_SET HEADERS
