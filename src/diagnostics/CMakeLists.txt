@@ -16,8 +16,15 @@ qt_add_qml_module(LfQuickDiagnostics
     SOURCES
         include/LfQuick/Diagnostics/DiagnosticsModel.h
         src/DiagnosticsModel.cpp
+        include/LfQuick/Diagnostics/ObjectInspectorModel.h
+        src/ObjectInspectorModel.cpp
     QML_FILES
         qml/DiagnosticsHud.qml
+        qml/DiagnosticsObjectInspector.qml
+        qml/DiagnosticsFpsHud.qml
+        qml/DiagnosticsFocusInspector.qml
+        qml/DiagnosticsOverlayInspector.qml
+        qml/DiagnosticsRouteInspector.qml
 )
 
 target_sources(LfQuickDiagnostics PUBLIC
@@ -26,6 +33,7 @@ target_sources(LfQuickDiagnostics PUBLIC
     FILES
         include/LfQuick/Diagnostics/LfQuickDiagnosticsGlobal.h
         include/LfQuick/Diagnostics/DiagnosticsModel.h
+        include/LfQuick/Diagnostics/ObjectInspectorModel.h
 )
 
 target_link_libraries(LfQuickDiagnostics
