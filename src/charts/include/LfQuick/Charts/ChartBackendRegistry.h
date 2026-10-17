@@ -7,7 +7,6 @@
 #include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
-#include <QtQmlIntegration/qqmlintegration.h>
 
 namespace LfQuick {
 
@@ -30,7 +29,6 @@ struct LFQUICKCHARTS_EXPORT ChartBackendDescriptor
 class LFQUICKCHARTS_EXPORT ChartBackendRegistry : public QObject
 {
     Q_OBJECT
-    QML_ELEMENT
     Q_PROPERTY(int count READ count NOTIFY backendsChanged FINAL)
     Q_PROPERTY(QVariantList backends READ backends NOTIFY backendsChanged FINAL)
 
