@@ -1,6 +1,7 @@
 #include <LfQuick/StyleKit/StyleKitBridge.h>
 
 #include <QApplication>
+#include <QCoreApplication>
 #include <QFile>
 #include <QStyle>
 #include <QStyleKitStyle>
@@ -45,8 +46,9 @@ void StyleKitBridge::setThemeName(const QString &name)
 
 bool StyleKitBridge::isApplied() const
 {
-    return m_styleObject && QApplication::instance()
-        && QApplication::style() == m_styleObject.data();
+    auto *application = qobject_cast<QApplication *>(QCoreApplication::instance());
+    auto *style = qobject_cast<QStyle *>(m_styleObject.data());
+    return application && style && QApplication::style() == style;
 }
 
 QStringList StyleKitBridge::availableThemeNames() const
@@ -58,7 +60,7 @@ QStringList StyleKitBridge::availableThemeNames() const
 
 bool StyleKitBridge::applyToApplication()
 {
-    if (!QApplication::instance()) {
+    if (!qobject_cast<QApplication *>(QCoreApplication::instance())) {
         setLastError(QStringLiteral("StyleKitBridge requires QApplication"));
         return false;
     }
@@ -98,13 +100,11 @@ bool StyleKitBridge::applyToApplication()
                 emit themeNameChanged();
             });
 
-    const bool wasApplied = isApplied();
     QApplication::setStyle(candidate);
     m_styleObject = candidate;
     setLastError({});
 
-    if (!wasApplied || isApplied())
-        emit appliedChanged();
+    emit appliedChanged();
     emit availableThemeNamesChanged();
     return true;
 }
