@@ -15,6 +15,7 @@ qt_add_qml_module(LfQuickDiagnostics
     URI LfQuick.Diagnostics
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
+    OUTPUT_TARGETS _lfquick_diagnostics_qml_output_targets
     SOURCES
         include/LfQuick/Diagnostics/DiagnosticsModel.h
         src/DiagnosticsModel.cpp
@@ -33,6 +34,8 @@ qt_add_qml_module(LfQuickDiagnostics
         qml/DiagnosticsOverlayInspector.qml
         qml/DiagnosticsRouteInspector.qml
 )
+lfquick_register_qml_output_targets(
+    LfQuickDiagnostics ${_lfquick_diagnostics_qml_output_targets})
 
 target_sources(LfQuickDiagnostics PUBLIC
     FILE_SET HEADERS
