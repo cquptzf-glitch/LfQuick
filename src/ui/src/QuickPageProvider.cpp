@@ -1,9 +1,10 @@
 #include <LfQuick/Ui/QuickPageProvider.h>
 
 #include <LfQuick/Runtime/IPageInstance.h>
+#include <LfQuick/Ui/LifetimeLease.h>
 #include <LfQuick/Ui/QmlErrorCollector.h>
+#include <LfQuick/Ui/QmlObjectFactory.h>
 
-#include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QUrl>
@@ -109,9 +110,17 @@ public:
     {
         if (!m_item)
             return;
-        m_item->setParentItem(nullptr);
-        m_item->deleteLater();
+
+        // Logical page destruction happens immediately, while physical QObject
+        // destruction may be delayed by LifetimeLease holders. This mirrors the
+        // retain/release lifecycle used by Quickshell and makes teardown safe for
+        // asynchronous cleanup and future exit transitions.
+        QPointer<QQuickItem> item = m_item;
         m_item = nullptr;
+
+        const bool destroyScheduledImmediately = LifetimeLease::requestDestroy(item);
+        if (destroyScheduledImmediately && item)
+            item->setParentItem(nullptr);
     }
 
 private:
@@ -142,22 +151,9 @@ QQuickItem *createItem(QQmlEngine *engine,
                        const QVariantMap &properties,
                        QString &error)
 {
-    if (!engine || url.isEmpty() || !url.isValid()) {
-        error = QStringLiteral("Invalid QML source URL");
+    QObject *object = QmlObjectFactory::createSync(engine, url, properties, &error);
+    if (!object)
         return nullptr;
-    }
-
-    QQmlComponent component(engine, url);
-    if (component.status() == QQmlComponent::Error) {
-        error = component.errorString();
-        return nullptr;
-    }
-
-    QObject *object = component.createWithInitialProperties(properties);
-    if (!object) {
-        error = component.errorString();
-        return nullptr;
-    }
 
     auto *item = qobject_cast<QQuickItem *>(object);
     if (!item) {
