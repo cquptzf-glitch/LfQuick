@@ -1,7 +1,9 @@
 #include <QDebug>
+#include <QFile>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQmlError>
+#include <QTemporaryDir>
 #include <QTest>
 
 class UiControlsSmokeTest : public QObject
@@ -67,6 +69,56 @@ Item {
         }
         QVERIFY2(object, qPrintable(component.errorString()));
         delete object;
+    }
+
+    void lazyLoaderCanForceBackgroundLoadAndUnload()
+    {
+        QTemporaryDir temporary;
+        QVERIFY(temporary.isValid());
+        const QString childPath = temporary.filePath(QStringLiteral("LazyChild.qml"));
+
+        QFile child(childPath);
+        QVERIFY(child.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        const QByteArray childQml =
+            "import QtQml\n"
+            "QtObject { property int answer: 42 }\n";
+        QCOMPARE(child.write(childQml), qint64(childQml.size()));
+        child.close();
+
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"QML(
+import QtQml
+import LfQuick
+
+QtObject {
+    property LfLazyLoader loader: LfLazyLoader {
+        objectName: "loader"
+    }
+}
+)QML", QUrl(QStringLiteral("qrc:/tests/LfQuickLazyLoader.qml")));
+
+        QObject *root = component.create();
+        QVERIFY2(root, qPrintable(component.errorString()));
+        QObject *loader = root->findChild<QObject *>(QStringLiteral("loader"));
+        QVERIFY(loader);
+
+        QVERIFY(loader->setProperty("source", QUrl::fromLocalFile(childPath)));
+        QVERIFY(loader->setProperty(
+            "initialProperties",
+            QVariantMap{{QStringLiteral("answer"), 17}}));
+        QVERIFY(loader->setProperty("loading", true));
+
+        // Reading item intentionally forces any remaining incubation to finish.
+        QObject *loaded = loader->property("item").value<QObject *>();
+        QVERIFY2(loaded, qPrintable(loader->property("errorString").toString()));
+        QCOMPARE(loaded->property("answer").toInt(), 17);
+        QVERIFY(loader->property("active").toBool());
+
+        QVERIFY(loader->setProperty("active", false));
+        QCOMPARE(loader->property("item").value<QObject *>(), nullptr);
+
+        delete root;
     }
 };
 
