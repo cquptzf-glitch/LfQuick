@@ -61,6 +61,8 @@ qt_add_qml_module(LfQuickUi
         src/PersistentState.cpp
         include/LfQuick/Ui/PopupAnchor.h
         src/PopupAnchor.cpp
+        include/LfQuick/Ui/WindowRuntime.h
+        src/WindowRuntime.cpp
         include/LfQuick/Ui/HelpContextRegistry.h
         src/HelpContextRegistry.cpp
         include/LfQuick/Ui/DpiHelper.h
@@ -175,6 +177,7 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/LifetimeLease.h
         include/LfQuick/Ui/PersistentState.h
         include/LfQuick/Ui/PopupAnchor.h
+        include/LfQuick/Ui/WindowRuntime.h
         include/LfQuick/Ui/HelpContextRegistry.h
         include/LfQuick/Ui/DpiHelper.h
         include/LfQuick/Ui/ValidationEvaluator.h
