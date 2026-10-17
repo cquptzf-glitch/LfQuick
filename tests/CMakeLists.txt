@@ -63,6 +63,9 @@ if(LFQUICK_BUILD_DATAVIEW)
             performance/dataview_benchmark.cpp
         )
         target_link_libraries(lfquick_dataview_benchmark PRIVATE LfQuick::DataView Qt6::Core)
+        if(WIN32)
+            target_link_libraries(lfquick_dataview_benchmark PRIVATE Psapi)
+        endif()
     endif()
 endif()
 
