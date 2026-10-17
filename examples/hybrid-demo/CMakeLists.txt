@@ -14,6 +14,11 @@ target_link_libraries(LfQuickHybridDemo
         Qt6::QuickControls2
 )
 
+if(LFQUICK_BUILD_DIAGNOSTICS)
+    target_link_libraries(LfQuickHybridDemo PRIVATE LfQuick::Diagnostics)
+    target_compile_definitions(LfQuickHybridDemo PRIVATE LFQUICK_HAS_DIAGNOSTICS=1)
+endif()
+
 qt_add_qml_module(LfQuickHybridDemo
     URI LfQuick.HybridDemo
     VERSION 1.0
