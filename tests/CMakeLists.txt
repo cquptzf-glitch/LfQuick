@@ -128,6 +128,12 @@ if(LFQUICK_BUILD_UI)
     target_link_libraries(tst_focus_lifecycle PRIVATE LfQuick::Ui Qt6::Test)
     lfquick_register_test(tst_focus_lifecycle)
 
+    qt_add_executable(tst_busy_token
+        unit/tst_busy_token.cpp
+    )
+    target_link_libraries(tst_busy_token PRIVATE LfQuick::Ui Qt6::Test)
+    lfquick_register_test(tst_busy_token)
+
     qt_add_executable(tst_navigation_guard_policy
         unit/tst_navigation_guard_policy.cpp
     )
