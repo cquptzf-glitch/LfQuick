@@ -386,6 +386,41 @@ private slots:
         QVERIFY(!window.findChild<QFrame *>(QStringLiteral("lfquickToast")));
     }
 
+    void widgetOverlayBackendReconcilesDestroyedParent()
+    {
+        auto *window = new QWidget;
+        window->resize(640, 360);
+
+        OverlayCoordinator coordinator;
+        WidgetOverlayBackend backend(window);
+        coordinator.setBackend(&backend);
+
+        const QString toastId = coordinator.showToast(
+            QStringLiteral("Transient notification"),
+            {{QStringLiteral("durationMs"), 0}});
+        const QString dialogId = coordinator.requestDialog(
+            QStringLiteral("Confirm"),
+            QStringLiteral("Synthetic dialog"),
+            {{QStringLiteral("buttons"), QStringList{QStringLiteral("ok"), QStringLiteral("cancel")}},
+             {QStringLiteral("defaultButton"), QStringLiteral("ok")}});
+        QVERIFY(!toastId.isEmpty());
+        QVERIFY(!dialogId.isEmpty());
+        QCOMPARE(coordinator.toastCount(), 1);
+        QVERIFY(coordinator.dialogActive());
+        QCOMPARE(coordinator.pendingDialogCount(), 1);
+
+        QSignalSpy resolved(&coordinator, &OverlayCoordinator::dialogResolved);
+        delete window;
+
+        QCOMPARE(backend.parentWidget(), nullptr);
+        QTRY_COMPARE(coordinator.toastCount(), 0);
+        QTRY_VERIFY(!coordinator.dialogActive());
+        QCOMPARE(coordinator.pendingDialogCount(), 0);
+        QCOMPARE(resolved.count(), 1);
+        QCOMPARE(resolved.at(0).at(0).toString(), dialogId);
+        QCOMPARE(resolved.at(0).at(1).toString(), QStringLiteral("cancel"));
+    }
+
     void focusBridgeTransfersWidgetTabIntoQuickBoundary()
     {
         QWidget window;
