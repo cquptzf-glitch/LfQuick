@@ -35,6 +35,18 @@ QtObject {
             _registeredRouter.unregisterTarget(registration)
     }
 
+    Connections {
+        target: root._registeredRouter
+        ignoreUnknownSignals: true
+
+        function onDestroyed() {
+            // InputRouter removes registered targets as part of its own
+            // destruction. Only clear the QML snapshot here so later teardown
+            // never calls back into a dying router.
+            root._registeredRouter = null
+        }
+    }
+
     InputTarget {
         id: registration
         targetId: root.targetId
