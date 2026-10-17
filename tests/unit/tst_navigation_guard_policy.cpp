@@ -1,6 +1,9 @@
 #include <LfQuick/Runtime/IPageInstance.h>
 #include <LfQuick/Runtime/IPageProvider.h>
 #include <LfQuick/Runtime/PageDescriptor.h>
+#include <LfQuick/Runtime/PageProviderRegistry.h>
+#include <LfQuick/Runtime/PageRegistry.h>
+#include <LfQuick/Runtime/PageRouter.h>
 #include <LfQuick/Ui/NavigationGuardController.h>
 #include <LfQuick/Ui/QuickRuntime.h>
 
@@ -157,6 +160,32 @@ private slots:
         QVERIFY(!guard->hasPending());
         QCOMPARE(dropped.count(), 1);
         QCOMPARE(dropped.at(0).at(1).toString(), QStringLiteral("/c"));
+    }
+
+    void routerDestructionClearsPendingSafely()
+    {
+        PageRegistry pages;
+        PageProviderRegistry providers;
+        auto *router = new PageRouter(&pages, &providers);
+        NavigationGuardController controller(router);
+        controller.state()->setDirty(true);
+        controller.state()->setConfirmRequired(true);
+
+        NavigationContext context;
+        context.action = NavigationAction::Push;
+        context.fromRoute = QStringLiteral("/a");
+        context.toRoute = QStringLiteral("/b");
+        const NavigationDecision decision = controller.evaluate(context);
+        QVERIFY(!decision.allowed);
+        QVERIFY(controller.hasPending());
+
+        QSignalSpy pendingChanged(&controller, &NavigationGuardController::pendingChanged);
+        delete router;
+
+        QVERIFY(!controller.hasPending());
+        QCOMPARE(controller.queuedRequestCount(), 0);
+        QCOMPARE(pendingChanged.count(), 1);
+        QVERIFY(!controller.confirmPending());
     }
 };
 
