@@ -9,6 +9,7 @@ namespace LfQuick {
 
 enum class PageCachePolicy { None, Singleton, KeepAlive, Lru };
 enum class FallbackPolicy { None, ErrorPage, LegacyBeforeActivate, LegacyIfStateless };
+enum class FeatureSwitch { Auto, Quick, Legacy };
 
 struct PageFallbackDescriptor
 {
@@ -24,6 +25,7 @@ struct PageDescriptor
     PageCachePolicy cachePolicy = PageCachePolicy::None;
     qint64 cacheWeight = 1;
     FallbackPolicy fallbackPolicy = FallbackPolicy::ErrorPage;
+    FeatureSwitch featureSwitch = FeatureSwitch::Auto;
     std::optional<PageFallbackDescriptor> fallback;
     QVariantMap metadata;
 };
