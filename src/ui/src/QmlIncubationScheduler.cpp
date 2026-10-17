@@ -33,15 +33,12 @@ void QmlIncubationScheduler::setEngine(QQmlEngine *engine)
 
     if (m_engine) {
         m_engineDestroyedConnection = connect(m_engine, &QObject::destroyed, this, [this] {
-            const bool hadController = m_timerId != 0 || pendingCount() > 0;
             cancelSchedule();
             m_engine = nullptr;
             m_engineDestroyedConnection = {};
             emit engineChanged();
-            // The engine can only destroy an engine-owned scheduler after the
-            // controller relationship ceased to be observable. Notify QML so
-            // cached `installed` bindings are invalidated either way.
-            Q_UNUSED(hadController);
+            // The engine/controller relationship is no longer observable once
+            // the engine starts destruction. Invalidate cached QML bindings.
             emit installedChanged();
         });
 
@@ -103,7 +100,14 @@ QmlIncubationScheduler *QmlIncubationScheduler::ensureForEngine(QQmlEngine *engi
 
     if (auto *existing = engine->findChild<QmlIncubationScheduler *>(
             QString::fromLatin1(kSchedulerObjectName), Qt::FindDirectChildrenOnly)) {
-        return existing;
+        // The helper may have been explicitly uninstalled earlier. If no other
+        // controller has taken ownership in the meantime, restore it so
+        // callers of ensureForEngine() can rely on async incubation progressing.
+        // If Qt/the application installed another controller, that controller
+        // remains authoritative and no LfQuick scheduler is needed.
+        if (!existing->isInstalled() && !engine->incubationController())
+            existing->install();
+        return existing->isInstalled() ? existing : nullptr;
     }
 
     // A controller installed by QQuickWindow or by the application is already
