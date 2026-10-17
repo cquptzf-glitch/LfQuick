@@ -3,6 +3,7 @@
 #include <LfQuick/DataView/LfQuickDataViewGlobal.h>
 
 #include <QAbstractListModel>
+#include <QVariant>
 #include <QVariantList>
 #include <QtQmlIntegration/qqmlintegration.h>
 
@@ -21,7 +22,9 @@ public:
         TitleRole,
         WidthRole,
         VisibleRole,
-        OrderRole
+        OrderRole,
+        SortOrderRole,
+        FilterRole
     };
     Q_ENUM(Role)
 
@@ -42,9 +45,17 @@ public:
     Q_INVOKABLE QString titleForModelColumn(int modelColumn) const;
     Q_INVOKABLE qreal widthForModelColumn(int modelColumn, qreal fallback = 140.0) const;
     Q_INVOKABLE bool isModelColumnVisible(int modelColumn) const;
+    Q_INVOKABLE int sortOrderForModelColumn(int modelColumn) const;
+    Q_INVOKABLE QVariant filterForModelColumn(int modelColumn) const;
     Q_INVOKABLE bool setWidth(const QString &id, qreal width);
     Q_INVOKABLE bool setWidthByModelColumn(int modelColumn, qreal width);
     Q_INVOKABLE bool setVisible(const QString &id, bool visible);
+    Q_INVOKABLE bool setSortOrder(const QString &id, int sortOrder);
+    Q_INVOKABLE bool setSortOrderByModelColumn(int modelColumn, int sortOrder);
+    Q_INVOKABLE bool setFilter(const QString &id, const QVariant &filter);
+    Q_INVOKABLE bool setFilterByModelColumn(int modelColumn, const QVariant &filter);
+    Q_INVOKABLE void clearSort();
+    Q_INVOKABLE void clearFilters();
     Q_INVOKABLE bool moveModelColumn(int modelColumn, int visualIndex);
 
 signals:
@@ -58,10 +69,13 @@ private:
         QString title;
         qreal width = 140.0;
         bool visible = true;
+        int sortOrder = -1;
+        QVariant filter;
     };
 
     int indexOfModelColumn(int modelColumn) const;
     static bool parseColumn(const QVariantMap &map, ColumnState &state);
+    static int normalizeSortOrder(int sortOrder);
 
     QList<ColumnState> m_columns;
 };
