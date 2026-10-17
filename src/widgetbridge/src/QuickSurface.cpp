@@ -1,7 +1,11 @@
 #include <LfQuick/WidgetBridge/QuickSurface.h>
 
+#include <QEvent>
 #include <QQmlEngine>
 #include <QPaintEvent>
+#include <QResizeEvent>
+#include <QScreen>
+#include <QWindow>
 
 namespace LfQuick {
 
@@ -31,6 +35,15 @@ bool QuickSurface::isReady() const noexcept
     return status() == QQuickWidget::Ready;
 }
 
+QString QuickSurface::screenName() const
+{
+    if (const QWindow *window = windowHandle()) {
+        if (const QScreen *screen = window->screen())
+            return screen->name();
+    }
+    return {};
+}
+
 void QuickSurface::loadHost(const QUrl &url)
 {
     m_lastError.clear();
@@ -47,9 +60,28 @@ void QuickSurface::resetMetrics()
 {
     m_loadDurationMs = -1;
     m_firstFrameMs = -1;
+    m_resizeCount = 0;
     m_waitingForFirstFrame = false;
     m_loadTimer.invalidate();
     emit metricsChanged();
+    emit surfaceMetricsChanged();
+}
+
+bool QuickSurface::event(QEvent *event)
+{
+    const bool result = QQuickWidget::event(event);
+    if (!event)
+        return result;
+
+    switch (event->type()) {
+    case QEvent::ScreenChangeInternal:
+    case QEvent::DevicePixelRatioChange:
+        emit surfaceMetricsChanged();
+        break;
+    default:
+        break;
+    }
+    return result;
 }
 
 void QuickSurface::paintEvent(QPaintEvent *event)
@@ -63,6 +95,13 @@ void QuickSurface::paintEvent(QPaintEvent *event)
     m_firstFrameMs = m_loadTimer.elapsed();
     emit metricsChanged();
     emit firstFrameRendered(m_firstFrameMs);
+}
+
+void QuickSurface::resizeEvent(QResizeEvent *event)
+{
+    QQuickWidget::resizeEvent(event);
+    ++m_resizeCount;
+    emit surfaceMetricsChanged();
 }
 
 void QuickSurface::handleStatusChanged(QQuickWidget::Status statusValue)
