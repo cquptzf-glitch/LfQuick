@@ -46,6 +46,7 @@ public:
 
     std::optional<WindowInfo> find(QStringView instanceId) const;
     QList<WindowInfo> instances(QStringView windowId = {}) const;
+    std::optional<QVariantMap> saveState(QStringView instanceId) const;
     int count() const noexcept { return m_instances.size(); }
     QString activeInstanceId() const { return m_activeInstanceId; }
 
