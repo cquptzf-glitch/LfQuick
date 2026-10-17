@@ -1,9 +1,11 @@
 #include <LfQuick/Tooling/HotReloadStateTransfer.h>
+#include <LfQuick/Ui/LifetimeLease.h>
 #include <LfQuick/Ui/PersistentState.h>
 #include <LfQuick/Ui/QmlObjectFactory.h>
 
 #include <QFile>
 #include <QQmlEngine>
+#include <QPointer>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -36,14 +38,14 @@ private:
     int m_counter = 0;
 };
 
-bool writeQml(const QString &path)
+bool writeQml(const QString &path, bool required = false)
 {
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
         return false;
-    const QByteArray data =
-        "import QtQml\n"
-        "QtObject { property int answer: 1 }\n";
+    const QByteArray data = required
+        ? QByteArray("import QtQml\nQtObject { required property int answer }\n")
+        : QByteArray("import QtQml\nQtObject { property int answer: 1 }\n");
     return file.write(data) == data.size();
 }
 
@@ -76,6 +78,24 @@ private slots:
         QCOMPARE(stats.skippedProperties, 0);
         QCOMPARE(loaded.count(), 1);
         QCOMPARE(reloaded.count(), 1);
+    }
+
+    void lifetimeLeaseDetachesRetainedObjectFromQObjectOwner()
+    {
+        QObject owner;
+        auto *target = new QObject(&owner);
+        QPointer<QObject> guarded = target;
+
+        LifetimeLease lease;
+        lease.setObject(target);
+        lease.setHeld(true);
+
+        QVERIFY(!LifetimeLease::requestDestroy(target));
+        QCOMPARE(target->parent(), nullptr);
+        QVERIFY(LifetimeLease::isRetained(target));
+
+        lease.setHeld(false);
+        QTRY_VERIFY(guarded.isNull());
     }
 
     void objectFactoryCreatesSynchronouslyWithInitialProperties()
@@ -121,6 +141,34 @@ private slots:
         QVERIFY(object);
         QCOMPARE(object->property("answer").toInt(), 23);
         delete object;
+    }
+
+    void asyncObjectFactoryHonorsRequiredInitialProperties()
+    {
+        QTemporaryDir temporary;
+        QVERIFY(temporary.isValid());
+        const QString path = temporary.filePath(QStringLiteral("RequiredObject.qml"));
+        QVERIFY(writeQml(path, true));
+
+        QQmlEngine engine;
+        QmlObjectFactory factory;
+        factory.setEngine(&engine);
+
+        QmlObjectLoadHandle *valid = factory.createAsync(
+            QUrl::fromLocalFile(path),
+            {{QStringLiteral("answer"), 31}});
+        valid->forceCompletion();
+        QCOMPARE(valid->status(), QmlObjectLoadHandle::Status::Ready);
+        QPointer<QObject> validObject = valid->takeObject();
+        QVERIFY(validObject);
+        QCOMPARE(validObject->property("answer").toInt(), 31);
+        delete validObject;
+
+        QmlObjectLoadHandle *invalid = factory.createAsync(
+            QUrl::fromLocalFile(path), {});
+        invalid->forceCompletion();
+        QCOMPARE(invalid->status(), QmlObjectLoadHandle::Status::Error);
+        QVERIFY(!invalid->errorString().isEmpty());
     }
 };
 
