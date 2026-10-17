@@ -3,6 +3,10 @@
 #include <LfQuick/Platform/MockScanner.h>
 #include <LfQuick/Ui/LfAttached.h>
 
+#include <QDebug>
+#include <QQmlComponent>
+#include <QQmlEngine>
+#include <QQmlError>
 #include <QQuickItem>
 #include <QSignalSpy>
 #include <QTest>
@@ -84,6 +88,45 @@ private slots:
         QCOMPARE(scannerTarget.target(), nullptr);
         QCOMPARE(scannerTarget.inputTarget()->target(), nullptr);
         QCOMPARE(changed.count(), 1);
+    }
+
+    void integrationModuleInstantiatesWithoutPlatformQml()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"QML(
+import QtQuick
+import LfQuick
+import LfQuick.Integration
+
+Item {
+    id: root
+    width: 100
+    height: 40
+    Lf.acceptScanner: true
+
+    property LfScannerTarget scannerTarget: LfScannerTarget {
+        target: root
+        followActiveFocus: false
+        active: true
+        targetId: "qml-integration-target"
+        priority: 10
+    }
+}
+)QML", QUrl(QStringLiteral("qrc:/tests/LfQuickIntegrationSmoke.qml")));
+
+        if (component.isError()) {
+            for (const QQmlError &error : component.errors())
+                qWarning().noquote() << error.toString();
+        }
+
+        QObject *object = component.create();
+        if (!object) {
+            for (const QQmlError &error : component.errors())
+                qWarning().noquote() << error.toString();
+        }
+        QVERIFY2(object, qPrintable(component.errorString()));
+        delete object;
     }
 };
 
