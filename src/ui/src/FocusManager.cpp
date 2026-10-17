@@ -15,9 +15,11 @@ void FocusManager::setScope(QQuickItem *scope)
     if (m_scope == scope)
         return;
 
+    QObject::disconnect(m_scopeDestroyedConnection);
     QObject::disconnect(m_scopeWindowConnection);
     QObject::disconnect(m_focusConnection);
     QObject::disconnect(m_windowDestroyedConnection);
+    m_scopeDestroyedConnection = {};
     m_scopeWindowConnection = {};
     m_focusConnection = {};
     m_windowDestroyedConnection = {};
@@ -25,6 +27,17 @@ void FocusManager::setScope(QQuickItem *scope)
     m_scope = scope;
     m_walker.setScope(scope);
     if (m_scope) {
+        m_scopeDestroyedConnection = connect(m_scope, &QObject::destroyed, this, [this] {
+            m_scope = nullptr;
+            m_scopeDestroyedConnection = {};
+            m_scopeWindowConnection = {};
+            QObject::disconnect(m_focusConnection);
+            QObject::disconnect(m_windowDestroyedConnection);
+            m_focusConnection = {};
+            m_windowDestroyedConnection = {};
+            emit scopeChanged();
+            emit currentFocusChanged();
+        });
         m_scopeWindowConnection = connect(m_scope, &QQuickItem::windowChanged,
                                           this, [this](QQuickWindow *) {
             reconnectWindow();
