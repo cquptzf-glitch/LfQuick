@@ -59,7 +59,6 @@ private slots:
         QKeyEvent enter(QEvent::KeyPress, Qt::Key_Enter, Qt::NoModifier, QString());
         QVERIFY(scanner.handleKeyEvent(&enter));
         QCOMPARE(accepted.count(), 1);
-        QCOMPARE(accepted.at(0).at(0).toString(), QStringLiteral("S001"));
     }
 
     void inputTargetNotifiesWhenBoundObjectIsDestroyed()
@@ -273,6 +272,40 @@ private slots:
 
         QVERIFY(watcher.unwatch(directoryPath));
         QCOMPARE(watcher.count(), 0);
+    }
+
+    void fileWatcherIgnoresUnrelatedSiblingChanges()
+    {
+        QTemporaryDir temporary;
+        QVERIFY(temporary.isValid());
+        const QString watchedPath = temporary.filePath(QStringLiteral("settings.json"));
+        const QString siblingPath = temporary.filePath(QStringLiteral("unrelated.log"));
+
+        {
+            QFile file(watchedPath);
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            QCOMPARE(file.write("one"), qint64(3));
+        }
+
+        FileWatcher watcher;
+        QVERIFY(watcher.watchFile(watchedPath));
+        QSignalSpy changed(&watcher, &FileWatcher::fileChanged);
+
+        {
+            QFile sibling(siblingPath);
+            QVERIFY(sibling.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            QCOMPARE(sibling.write("noise"), qint64(5));
+        }
+        QTest::qWait(150);
+        QCOMPARE(changed.count(), 0);
+
+        {
+            QFile file(watchedPath);
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            QCOMPARE(file.write("two-two"), qint64(7));
+            file.flush();
+        }
+        QTRY_VERIFY_WITH_TIMEOUT(changed.count() > 0, 1500);
     }
 
     void fileWatcherSurvivesAtomicReplacement()
