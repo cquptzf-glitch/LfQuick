@@ -26,14 +26,36 @@ void FocusNavigator::setScope(QQuickItem *scope)
     if (m_scope == scope)
         return;
 
+    QObject::disconnect(m_scopeDestroyedConnection);
+    QObject::disconnect(m_scopeWindowConnection);
     QObject::disconnect(m_focusConnection);
-    m_scope = scope;
+    QObject::disconnect(m_windowDestroyedConnection);
+    m_scopeDestroyedConnection = {};
+    m_scopeWindowConnection = {};
+    m_focusConnection = {};
+    m_windowDestroyedConnection = {};
 
-    if (auto *window = m_scope ? m_scope->window() : nullptr) {
-        m_focusConnection = connect(window, &QQuickWindow::activeFocusItemChanged,
-                                    this, &FocusNavigator::currentFocusChanged);
+    m_scope = scope;
+    if (m_scope) {
+        m_scopeDestroyedConnection = connect(m_scope, &QObject::destroyed, this, [this] {
+            m_scope = nullptr;
+            m_scopeDestroyedConnection = {};
+            m_scopeWindowConnection = {};
+            QObject::disconnect(m_focusConnection);
+            QObject::disconnect(m_windowDestroyedConnection);
+            m_focusConnection = {};
+            m_windowDestroyedConnection = {};
+            emit scopeChanged();
+            emit currentFocusChanged();
+        });
+        m_scopeWindowConnection = connect(m_scope, &QQuickItem::windowChanged,
+                                          this, [this](QQuickWindow *) {
+            reconnectWindow();
+            emit currentFocusChanged();
+        });
     }
 
+    reconnectWindow();
     emit scopeChanged();
     emit currentFocusChanged();
 }
@@ -346,6 +368,26 @@ int FocusNavigator::explicitOrder(QQuickItem *item) const
     if (auto *attached = qmlAttachedPropertiesObject<Lf>(item, false))
         return attached->focusOrder();
     return 0;
+}
+
+void FocusNavigator::reconnectWindow()
+{
+    QObject::disconnect(m_focusConnection);
+    QObject::disconnect(m_windowDestroyedConnection);
+    m_focusConnection = {};
+    m_windowDestroyedConnection = {};
+
+    QQuickWindow *window = m_scope ? m_scope->window() : nullptr;
+    if (!window)
+        return;
+
+    m_focusConnection = connect(window, &QQuickWindow::activeFocusItemChanged,
+                                this, &FocusNavigator::currentFocusChanged);
+    m_windowDestroyedConnection = connect(window, &QObject::destroyed, this, [this] {
+        m_focusConnection = {};
+        m_windowDestroyedConnection = {};
+        emit currentFocusChanged();
+    });
 }
 
 } // namespace LfQuick
