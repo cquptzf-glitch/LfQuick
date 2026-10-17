@@ -4,6 +4,7 @@
 #include <LfQuick/Ui/LifetimeLease.h>
 #include <LfQuick/Ui/QmlErrorCollector.h>
 #include <LfQuick/Ui/QmlObjectFactory.h>
+#include <LfQuick/Ui/QmlStateSnapshot.h>
 
 #include <QQmlEngine>
 #include <QQuickItem>
@@ -56,9 +57,6 @@ public:
         if (m_activationCallback)
             m_activationCallback();
 
-        // Activation callbacks are external and may synchronously switch/reset
-        // the host, which destroys the current routed item. Re-check the
-        // guarded pointer before touching the page again.
         if (!m_item)
             return;
 
@@ -71,8 +69,6 @@ public:
         if (!m_item)
             return;
         QMetaObject::invokeMethod(m_item, "onPageDeactivated", Qt::DirectConnection);
-
-        // QML lifecycle hooks can destroy their own root object.
         if (m_item)
             m_item->setVisible(false);
     }
@@ -106,15 +102,26 @@ public:
         return accepted && !m_item.isNull();
     }
 
+    QVariantMap saveState() const override
+    {
+        return m_item ? QmlStateSnapshot::capture(m_item) : QVariantMap{};
+    }
+
+    bool restoreState(const QVariantMap &state) override
+    {
+        if (!m_item)
+            return state.isEmpty();
+        if (state.isEmpty())
+            return true;
+        QmlStateSnapshot::restore(m_item, state);
+        return true;
+    }
+
     void destroy() override
     {
         if (!m_item)
             return;
 
-        // Logical page destruction happens immediately, while physical QObject
-        // destruction may be delayed by LifetimeLease holders. This mirrors the
-        // retain/release lifecycle used by Quickshell and makes teardown safe for
-        // asynchronous cleanup and future exit transitions.
         QPointer<QQuickItem> item = m_item;
         m_item = nullptr;
 
