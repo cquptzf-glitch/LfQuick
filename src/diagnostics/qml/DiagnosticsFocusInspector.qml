@@ -7,8 +7,8 @@ Rectangle {
     property int refreshInterval: 300
     property var focusEntries: []
 
-    color: "#e61c1c1f"
-    border.color: "#707078"
+    color: DiagnosticsTokens.panel
+    border.color: DiagnosticsTokens.panelBorder
     radius: 8
     implicitWidth: 360
     implicitHeight: 360
@@ -36,7 +36,7 @@ Rectangle {
             text: root.focusNavigator
                 ? qsTr("Focus Inspector · %1 items").arg(root.focusEntries.length)
                 : qsTr("Focus Inspector · no navigator")
-            color: "#f1f1f3"
+            color: DiagnosticsTokens.textStrong
             font.bold: true
             font.pixelSize: 12
             elide: Text.ElideRight
@@ -48,7 +48,7 @@ Rectangle {
                 ? qsTr("Current: %1").arg(root.focusNavigator.currentFocus.objectName
                     || String(root.focusNavigator.currentFocus))
                 : qsTr("Current: none")
-            color: "#9fa1a7"
+            color: DiagnosticsTokens.textDim
             font.pixelSize: 10
             elide: Text.ElideRight
         }
@@ -66,7 +66,9 @@ Rectangle {
                 width: ListView.view.width
                 height: 42
                 radius: 4
-                color: modelData.active ? "#34475d" : (index % 2 ? "#29292f" : "#242429")
+                color: modelData.active
+                       ? DiagnosticsTokens.rowActive
+                       : (index % 2 ? DiagnosticsTokens.rowOdd : DiagnosticsTokens.rowEven)
 
                 Text {
                     anchors.left: parent.left
@@ -76,7 +78,9 @@ Rectangle {
                     width: parent.width - 16
                     text: (modelData.index + 1) + ". " + modelData.name
                           + (modelData.focusOrder ? "  order=" + modelData.focusOrder : "")
-                    color: modelData.active ? "#ffffff" : "#e1e1e4"
+                    color: modelData.active
+                           ? DiagnosticsTokens.onActive
+                           : DiagnosticsTokens.textPrimary
                     font.pixelSize: 10
                     font.bold: modelData.active
                     elide: Text.ElideRight
@@ -91,7 +95,7 @@ Rectangle {
                           + " y=" + Math.round(modelData.y)
                           + "  " + Math.round(modelData.width)
                           + "×" + Math.round(modelData.height)
-                    color: "#8d8f96"
+                    color: DiagnosticsTokens.textGeometry
                     font.pixelSize: 9
                 }
             }
