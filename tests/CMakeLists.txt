@@ -109,6 +109,12 @@ if(LFQUICK_BUILD_WIDGET_BRIDGE)
     )
     target_link_libraries(tst_widgetbridge PRIVATE LfQuick::WidgetBridge Qt6::Test)
     lfquick_register_test(tst_widgetbridge)
+
+    qt_add_executable(tst_widgetbridge_stress
+        unit/tst_widgetbridge_stress.cpp
+    )
+    target_link_libraries(tst_widgetbridge_stress PRIVATE LfQuick::WidgetBridge Qt6::Test)
+    lfquick_register_test(tst_widgetbridge_stress)
 endif()
 
 if(LFQUICK_BUILD_CHARTS)
