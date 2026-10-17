@@ -15,8 +15,14 @@ JsonDocument::JsonDocument(QObject *parent)
     connect(m_file, &FileDocument::watchChanged, this, &JsonDocument::watchChanged);
     connect(m_file, &FileDocument::autoReloadChanged,
             this, &JsonDocument::autoReloadChanged);
+    connect(m_file, &FileDocument::reloadWhenDirtyChanged,
+            this, &JsonDocument::reloadWhenDirtyChanged);
+    connect(m_file, &FileDocument::externalConflictChanged,
+            this, &JsonDocument::externalConflictChanged);
     connect(m_file, &FileDocument::externalChanged,
             this, &JsonDocument::externalChanged);
+    connect(m_file, &FileDocument::externalConflictDetected,
+            this, &JsonDocument::externalConflictDetected);
     connect(m_file, &FileDocument::loaded, this, [this] {
         if (parseData(m_file->data()))
             emit loaded();
@@ -40,6 +46,8 @@ void JsonDocument::setValue(const QVariant &value)
         return;
     m_value = value;
     setDirty(true);
+    if (m_file)
+        m_file->markDirty();
     setErrorString({});
     emit valueChanged();
 }
@@ -64,6 +72,22 @@ void JsonDocument::setAutoReload(bool autoReload)
 {
     if (m_file)
         m_file->setAutoReload(autoReload);
+}
+
+bool JsonDocument::reloadWhenDirty() const
+{
+    return m_file && m_file->reloadWhenDirty();
+}
+
+void JsonDocument::setReloadWhenDirty(bool reloadWhenDirty)
+{
+    if (m_file)
+        m_file->setReloadWhenDirty(reloadWhenDirty);
+}
+
+bool JsonDocument::externalConflict() const
+{
+    return m_file && m_file->externalConflict();
 }
 
 void JsonDocument::setCompact(bool compact)
@@ -131,6 +155,8 @@ void JsonDocument::clear()
         return;
     m_value = {};
     setDirty(true);
+    if (m_file)
+        m_file->markDirty();
     setErrorString({});
     emit valueChanged();
 }
