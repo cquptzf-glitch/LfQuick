@@ -16,6 +16,8 @@ qt_add_qml_module(LfQuickDiagnostics
     SOURCES
         include/LfQuick/Diagnostics/DiagnosticsModel.h
         src/DiagnosticsModel.cpp
+        include/LfQuick/Diagnostics/DiagnosticsLogSink.h
+        src/DiagnosticsLogSink.cpp
         include/LfQuick/Diagnostics/ObjectInspectorModel.h
         src/ObjectInspectorModel.cpp
         include/LfQuick/Diagnostics/AccessibilityAudit.h
@@ -35,12 +37,14 @@ target_sources(LfQuickDiagnostics PUBLIC
     FILES
         include/LfQuick/Diagnostics/LfQuickDiagnosticsGlobal.h
         include/LfQuick/Diagnostics/DiagnosticsModel.h
+        include/LfQuick/Diagnostics/DiagnosticsLogSink.h
         include/LfQuick/Diagnostics/ObjectInspectorModel.h
         include/LfQuick/Diagnostics/AccessibilityAudit.h
 )
 
 target_link_libraries(LfQuickDiagnostics
     PUBLIC
+        LfQuick::Core
         Qt6::Core
         Qt6::Gui
         Qt6::Qml
