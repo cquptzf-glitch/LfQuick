@@ -122,6 +122,9 @@ public:
         detachWidgetHooks();
         if (widget && m_state && m_state->widgets.value(m_id) == widget)
             m_state->widgets.remove(m_id);
+        m_widget = nullptr;
+        if (widget)
+            widget->deleteLater();
     }
 
     WindowInstanceId instanceId() const override { return m_id; }
@@ -461,8 +464,6 @@ std::unique_ptr<IWindowInstance> WidgetWindowProvider::create(
 
     auto instance = std::make_unique<WidgetWindowInstance>(instanceId, widget, m_state);
     if (!request.ownerInstanceId.isEmpty() && !instance->updateOwner(request.ownerInstanceId)) {
-        m_state->widgets.remove(instanceId);
-        widget->deleteLater();
         m_lastErrorInfo.code = QStringLiteral("widget-window.owner-bind-failed");
         m_lastErrorInfo.message = QStringLiteral("Widget window could not bind its native owner");
         m_lastErrorInfo.details = {
