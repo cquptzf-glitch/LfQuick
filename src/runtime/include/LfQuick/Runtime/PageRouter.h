@@ -98,6 +98,8 @@ private:
     bool activate(Entry &entry);
     void deactivateCurrent(bool suspend);
     void destroy(Entry &entry);
+    void invalidateSingleton(const QString &route,
+                             const std::shared_ptr<IPageInstance> &instance);
     void clearForwardHistory();
     void destroySingletonCache();
     void touch(Entry &entry);
