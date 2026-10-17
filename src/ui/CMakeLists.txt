@@ -18,6 +18,9 @@ target_include_directories(LfQuickUi
 
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 set_source_files_properties(qml/Tokens.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(qml/Units.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(qml/Typography.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(qml/Motion.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_qml_module(LfQuickUi
     URI LfQuick
@@ -37,6 +40,8 @@ qt_add_qml_module(LfQuickUi
         src/LfAttached.cpp
         include/LfQuick/Ui/HelpContextRegistry.h
         src/HelpContextRegistry.cpp
+        include/LfQuick/Ui/DpiHelper.h
+        src/DpiHelper.cpp
         include/LfQuick/Ui/ValidationEvaluator.h
         src/ValidationEvaluator.cpp
         include/LfQuick/Ui/ValidationRuleTable.h
@@ -59,6 +64,10 @@ qt_add_qml_module(LfQuickUi
         qml/PageLoadError.qml
         qml/Theme.qml
         qml/Tokens.qml
+        qml/Units.qml
+        qml/Typography.qml
+        qml/Motion.qml
+        qml/IconLoader.qml
         qml/LfButton.qml
         qml/LfTextField.qml
         qml/LfCheckBox.qml
@@ -123,6 +132,7 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/PermissionEvaluator.h
         include/LfQuick/Ui/LfAttached.h
         include/LfQuick/Ui/HelpContextRegistry.h
+        include/LfQuick/Ui/DpiHelper.h
         include/LfQuick/Ui/ValidationEvaluator.h
         include/LfQuick/Ui/ValidationRuleTable.h
         include/LfQuick/Ui/ValidationFormState.h
