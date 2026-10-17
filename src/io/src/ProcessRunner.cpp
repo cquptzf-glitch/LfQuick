@@ -1,7 +1,5 @@
 #include <LfQuick/Io/ProcessRunner.h>
 
-#include <LfQuick/Io/DataStream.h>
-
 #include <QDir>
 #include <QProcess>
 #include <QProcessEnvironment>
@@ -127,7 +125,7 @@ void ProcessRunner::setStdoutParser(DataStreamParser *parser)
 {
     if (m_stdoutParser == parser)
         return;
-    if (m_stdoutParser && !m_stdoutParserBuffer.isEmpty())
+    if (m_stdoutParser)
         m_stdoutParser->streamEnded(m_stdoutParserBuffer);
     m_stdoutParserBuffer.clear();
     m_stdoutParser = parser;
@@ -138,7 +136,7 @@ void ProcessRunner::setStderrParser(DataStreamParser *parser)
 {
     if (m_stderrParser == parser)
         return;
-    if (m_stderrParser && !m_stderrParserBuffer.isEmpty())
+    if (m_stderrParser)
         m_stderrParser->streamEnded(m_stderrParserBuffer);
     m_stderrParserBuffer.clear();
     m_stderrParser = parser;
@@ -208,8 +206,6 @@ void ProcessRunner::clearOutput()
     const bool changed = !m_stdout.isEmpty() || !m_stderr.isEmpty();
     m_stdout.clear();
     m_stderr.clear();
-    m_stdoutParserBuffer.clear();
-    m_stderrParserBuffer.clear();
     if (changed)
         emit outputChanged();
 }
@@ -281,13 +277,11 @@ void ProcessRunner::finishParsers()
 {
     if (m_stdoutParser)
         m_stdoutParser->streamEnded(m_stdoutParserBuffer);
-    else
-        m_stdoutParserBuffer.clear();
+    m_stdoutParserBuffer.clear();
 
     if (m_stderrParser)
         m_stderrParser->streamEnded(m_stderrParserBuffer);
-    else
-        m_stderrParserBuffer.clear();
+    m_stderrParserBuffer.clear();
 }
 
 } // namespace LfQuick
