@@ -1,14 +1,17 @@
 #include <LfQuick/Tooling/HotReloadStateTransfer.h>
+#include <LfQuick/Ui/LfAttached.h>
 #include <LfQuick/Ui/LifetimeLease.h>
 #include <LfQuick/Ui/PersistentState.h>
 #include <LfQuick/Ui/QmlIncubationScheduler.h>
 #include <LfQuick/Ui/QmlObjectFactory.h>
+#include <LfQuick/Ui/QmlStateSnapshot.h>
 
 #include <QFile>
 #include <QQmlEngine>
 #include <QPointer>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QtQml/qqml.h>
 #include <QtTest>
 
 using namespace LfQuick;
@@ -38,6 +41,15 @@ signals:
 private:
     int m_counter = 0;
 };
+
+LfAttached *reloadMetadata(QObject *object, const QString &key)
+{
+    auto *attached = qobject_cast<LfAttached *>(
+        qmlAttachedPropertiesObject<Lf>(object, true));
+    if (attached)
+        attached->setReloadKey(key);
+    return attached;
+}
 
 bool writeQml(const QString &path, bool required = false)
 {
@@ -79,6 +91,82 @@ private slots:
         QCOMPARE(stats.skippedProperties, 0);
         QCOMPARE(loaded.count(), 1);
         QCOMPARE(reloaded.count(), 1);
+    }
+
+    void duplicateReloadScopeInvalidatesEntireDescendantSubtree()
+    {
+        QObject oldRoot;
+        auto *oldPanelA = new QObject(&oldRoot);
+        auto *oldPanelB = new QObject(&oldRoot);
+        QVERIFY(reloadMetadata(oldPanelA, QStringLiteral("panel")));
+        QVERIFY(reloadMetadata(oldPanelB, QStringLiteral("panel")));
+
+        auto *oldLeft = new TestPersistentState(oldPanelA);
+        oldLeft->setKey(QStringLiteral("left"));
+        oldLeft->setCounter(11);
+        auto *oldRight = new TestPersistentState(oldPanelB);
+        oldRight->setKey(QStringLiteral("right"));
+        oldRight->setCounter(22);
+
+        const QVariantMap snapshot = QmlStateSnapshot::capture(&oldRoot);
+        const QStringList ambiguous =
+            snapshot.value(QStringLiteral("ambiguousKeys")).toStringList();
+        QVERIFY(ambiguous.contains(QStringLiteral("panel")));
+        QVERIFY(ambiguous.contains(QStringLiteral("panel/left")));
+        QVERIFY(ambiguous.contains(QStringLiteral("panel/right")));
+
+        QObject newRoot;
+        auto *newPanelA = new QObject(&newRoot);
+        auto *newPanelB = new QObject(&newRoot);
+        QVERIFY(reloadMetadata(newPanelA, QStringLiteral("panel")));
+        QVERIFY(reloadMetadata(newPanelB, QStringLiteral("panel")));
+
+        auto *newLeft = new TestPersistentState(newPanelA);
+        newLeft->setKey(QStringLiteral("left"));
+        newLeft->setCounter(1);
+        auto *newRight = new TestPersistentState(newPanelB);
+        newRight->setKey(QStringLiteral("right"));
+        newRight->setCounter(2);
+
+        QSignalSpy leftLoaded(newLeft, &PersistentState::loaded);
+        QSignalSpy rightLoaded(newRight, &PersistentState::loaded);
+        const QmlStateRestoreStats stats =
+            QmlStateSnapshot::restore(&newRoot, snapshot);
+
+        // A unique child key cannot repair an ambiguous parent identity.
+        QCOMPARE(newLeft->counter(), 1);
+        QCOMPARE(newRight->counter(), 2);
+        QCOMPARE(stats.restoredProperties, 0);
+        QVERIFY(stats.ambiguousKeys.contains(QStringLiteral("panel/left")));
+        QVERIFY(stats.ambiguousKeys.contains(QStringLiteral("panel/right")));
+        QCOMPARE(leftLoaded.count(), 1);
+        QCOMPARE(rightLoaded.count(), 1);
+    }
+
+    void persistentStateStopsIfLoadedCallbackDestroysInstance()
+    {
+        QObject oldRoot;
+        auto *oldState = new TestPersistentState(&oldRoot);
+        oldState->setKey(QStringLiteral("state"));
+        oldState->setCounter(7);
+
+        QObject newRoot;
+        auto *newState = new TestPersistentState(&newRoot);
+        newState->setKey(QStringLiteral("state"));
+        newState->setCounter(1);
+        QPointer<TestPersistentState> guarded = newState;
+        QSignalSpy reloaded(newState, &PersistentState::reloaded);
+
+        connect(newState, &PersistentState::loaded, &newRoot, [newState] {
+            delete newState;
+        }, Qt::DirectConnection);
+
+        const QmlStateRestoreStats stats =
+            QmlStateSnapshot::transfer(&newRoot, &oldRoot);
+
+        QVERIFY(guarded.isNull());
+        QCOMPARE(stats.restoredProperties, 1);
+        QCOMPARE(reloaded.count(), 0);
     }
 
     void lifetimeLeaseDetachesRetainedObjectFromQObjectOwner()
