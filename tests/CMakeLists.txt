@@ -142,6 +142,13 @@ if(LFQUICK_BUILD_UI)
     target_link_libraries(tst_ui_controls PRIVATE LfQuick::Ui Qt6::Test)
     lfquick_register_test(tst_ui_controls)
 
+    qt_add_executable(tst_quick_page_lifecycle
+        unit/tst_quick_page_lifecycle.cpp
+    )
+    target_link_libraries(tst_quick_page_lifecycle
+        PRIVATE LfQuick::Ui Qt6::Qml Qt6::Quick Qt6::Test)
+    lfquick_register_test(tst_quick_page_lifecycle)
+
     qt_add_executable(tst_focus_lifecycle
         unit/tst_focus_lifecycle.cpp
     )
