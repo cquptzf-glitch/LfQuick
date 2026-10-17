@@ -17,10 +17,18 @@ Controls.Control {
     implicitWidth: 380
     implicitHeight: Tokens.controlHeight
 
+    function syncChildren() {
+        if (!startPicker || !endPicker)
+            return
+        startPicker.value = new Date(startDate.getTime())
+        endPicker.value = new Date(endDate.getTime())
+    }
+
     function acceptStart(dateValue) {
         startDate = dateValue
         if (startDate.getTime() > endDate.getTime())
             endDate = new Date(startDate.getTime())
+        syncChildren()
         rangeAccepted(startDate, endDate)
     }
 
@@ -28,15 +36,20 @@ Controls.Control {
         endDate = dateValue
         if (endDate.getTime() < startDate.getTime())
             startDate = new Date(endDate.getTime())
+        syncChildren()
         rangeAccepted(startDate, endDate)
     }
+
+    onStartDateChanged: syncChildren()
+    onEndDateChanged: syncChildren()
+    Component.onCompleted: syncChildren()
 
     contentItem: RowLayout {
         spacing: Tokens.spacingSmall
 
         LfDatePicker {
+            id: startPicker
             Layout.fillWidth: true
-            value: control.startDate
             minimumDate: control.minimumDate
             maximumDate: control.endDate.getTime() < control.maximumDate.getTime()
                          ? control.endDate : control.maximumDate
@@ -52,8 +65,8 @@ Controls.Control {
         }
 
         LfDatePicker {
+            id: endPicker
             Layout.fillWidth: true
-            value: control.endDate
             minimumDate: control.startDate.getTime() > control.minimumDate.getTime()
                          ? control.startDate : control.minimumDate
             maximumDate: control.maximumDate
