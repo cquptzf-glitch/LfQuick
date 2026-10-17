@@ -52,6 +52,8 @@ qt_add_qml_module(LfQuickUi
         src/QmlObjectFactory.cpp
         include/LfQuick/Ui/QmlLazyLoader.h
         src/QmlLazyLoader.cpp
+        include/LfQuick/Ui/QmlStateSnapshot.h
+        src/QmlStateSnapshot.cpp
         include/LfQuick/Ui/LifetimeLease.h
         src/LifetimeLease.cpp
         include/LfQuick/Ui/PersistentState.h
@@ -160,6 +162,7 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/QmlIncubationScheduler.h
         include/LfQuick/Ui/QmlObjectFactory.h
         include/LfQuick/Ui/QmlLazyLoader.h
+        include/LfQuick/Ui/QmlStateSnapshot.h
         include/LfQuick/Ui/LifetimeLease.h
         include/LfQuick/Ui/PersistentState.h
         include/LfQuick/Ui/HelpContextRegistry.h
