@@ -259,6 +259,46 @@ lfquick_append_package_smoke_component(LfQuickBrandTestStyle BrandTestStyle)
 list(REMOVE_DUPLICATES LFQUICK_PACKAGE_SMOKE_COMPONENTS)
 list(JOIN LFQUICK_PACKAGE_SMOKE_COMPONENTS " " LFQUICK_PACKAGE_SMOKE_COMPONENTS_ARGS)
 
+# Static QML plugins are link-time SDK artifacts. lfquick_install_target()
+# gives each one a stable <Component>QmlPlugin export name; collect the ones
+# that exist in this build and require the downstream fixture to link them.
+set(LFQUICK_PACKAGE_SMOKE_QML_PLUGINS)
+if(NOT BUILD_SHARED_LIBS)
+    macro(lfquick_append_package_smoke_qml_plugin backing_target)
+        if(TARGET ${backing_target})
+            get_target_property(_lfquick_plugin_target
+                ${backing_target} QT_QML_MODULE_PLUGIN_TARGET)
+            if(_lfquick_plugin_target
+               AND NOT _lfquick_plugin_target MATCHES "-NOTFOUND$"
+               AND TARGET ${_lfquick_plugin_target})
+                get_target_property(_lfquick_plugin_export_name
+                    ${_lfquick_plugin_target} EXPORT_NAME)
+                if(_lfquick_plugin_export_name
+                   AND NOT _lfquick_plugin_export_name MATCHES "-NOTFOUND$")
+                    list(APPEND LFQUICK_PACKAGE_SMOKE_QML_PLUGINS
+                        ${_lfquick_plugin_export_name})
+                endif()
+            endif()
+        endif()
+    endmacro()
+
+    lfquick_append_package_smoke_qml_plugin(LfQuickPlatformQml)
+    lfquick_append_package_smoke_qml_plugin(LfQuickUi)
+    lfquick_append_package_smoke_qml_plugin(LfQuickIntegration)
+    lfquick_append_package_smoke_qml_plugin(LfQuickDataView)
+    lfquick_append_package_smoke_qml_plugin(LfQuickCharts)
+    lfquick_append_package_smoke_qml_plugin(LfQuickDiagnostics)
+    lfquick_append_package_smoke_qml_plugin(LfQuickTooling)
+    lfquick_append_package_smoke_qml_plugin(LfQuickStyleKit)
+    lfquick_append_package_smoke_qml_plugin(LfQuickSafeAreaAdapter)
+    lfquick_append_package_smoke_qml_plugin(LfQuickCanvasPainterAdapter)
+    lfquick_append_package_smoke_qml_plugin(LfQuickCustomQuickCharts)
+    lfquick_append_package_smoke_qml_plugin(LfQuickFluentStyle)
+    lfquick_append_package_smoke_qml_plugin(LfQuickBrandTestStyle)
+endif()
+list(REMOVE_DUPLICATES LFQUICK_PACKAGE_SMOKE_QML_PLUGINS)
+list(JOIN LFQUICK_PACKAGE_SMOKE_QML_PLUGINS " " LFQUICK_PACKAGE_SMOKE_QML_PLUGIN_ARGS)
+
 set(_lfquick_package_consumer_source_dir
     "${CMAKE_CURRENT_BINARY_DIR}/package-consumer-source")
 set(_lfquick_package_consumer_build_dir
