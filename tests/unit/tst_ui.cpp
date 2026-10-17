@@ -117,6 +117,26 @@ private slots:
         QVERIFY(!coordinator.busy());
     }
 
+    void busyOverlayRejectsAlreadyTerminalOperation()
+    {
+        const OperationHandle::State terminalStates[] = {
+            OperationHandle::State::Succeeded,
+            OperationHandle::State::Failed,
+            OperationHandle::State::Canceled
+        };
+
+        for (const auto state : terminalStates) {
+            OverlayCoordinator coordinator;
+            OperationHandle operation;
+            operation.setState(state);
+
+            const QString token = coordinator.bindOperation(&operation);
+            QVERIFY(token.isEmpty());
+            QVERIFY(!coordinator.busy());
+            QCOMPARE(coordinator.busyCount(), 0);
+        }
+    }
+
     void busyOverlayReleasesDestroyedOperation()
     {
         OverlayCoordinator coordinator;
