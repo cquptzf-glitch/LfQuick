@@ -38,6 +38,13 @@ NavigationGuardController::NavigationGuardController(PageRouter *router, QObject
         if (!m_state.shouldBlock())
             clearPendingRequests();
     });
+
+    if (m_router) {
+        connect(m_router, &QObject::destroyed, this, [this] {
+            m_router = nullptr;
+            clearPendingRequests();
+        });
+    }
 }
 
 NavigationGuardController::~NavigationGuardController() = default;
