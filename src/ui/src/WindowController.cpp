@@ -1,9 +1,12 @@
 #include <LfQuick/Ui/WindowController.h>
 
+#include <utility>
+
 namespace LfQuick {
 
 WindowController::WindowController(QObject *parent)
     : QObject(parent)
+    , m_backend(std::make_shared<QtWindowBackend>())
 {
 }
 
@@ -25,6 +28,13 @@ void WindowController::setWindow(QWindow *window)
     reconnectWindow();
     emit windowChanged();
     emit stateChanged();
+}
+
+void WindowController::setBackend(std::shared_ptr<IWindowBackend> backend)
+{
+    if (!backend)
+        backend = std::make_shared<QtWindowBackend>();
+    m_backend = std::move(backend);
 }
 
 bool WindowController::active() const noexcept
@@ -54,35 +64,26 @@ bool WindowController::alwaysOnTop() const noexcept
 
 void WindowController::setAlwaysOnTop(bool enabled)
 {
-    if (!m_window || alwaysOnTop() == enabled)
+    if (!m_window || !m_backend || alwaysOnTop() == enabled)
         return;
 
-    m_window->setFlag(Qt::WindowStaysOnTopHint, enabled);
-    emit stateChanged();
+    if (m_backend->setAlwaysOnTop(m_window, enabled))
+        emit stateChanged();
 }
 
 bool WindowController::minimize()
 {
-    if (!m_window)
-        return false;
-    m_window->showMinimized();
-    return true;
+    return m_backend && m_backend->minimize(m_window);
 }
 
 bool WindowController::maximize()
 {
-    if (!m_window)
-        return false;
-    m_window->showMaximized();
-    return true;
+    return m_backend && m_backend->maximize(m_window);
 }
 
 bool WindowController::restore()
 {
-    if (!m_window)
-        return false;
-    m_window->showNormal();
-    return true;
+    return m_backend && m_backend->restore(m_window);
 }
 
 bool WindowController::toggleMaximized()
@@ -92,40 +93,32 @@ bool WindowController::toggleMaximized()
 
 bool WindowController::toggleFullScreen()
 {
-    if (!m_window)
+    if (!m_window || !m_backend)
         return false;
-    if (fullScreen())
-        m_window->showNormal();
-    else
-        m_window->showFullScreen();
-    return true;
+    return fullScreen() ? m_backend->restore(m_window)
+                        : m_backend->showFullScreen(m_window);
 }
 
 bool WindowController::close()
 {
-    return m_window ? m_window->close() : false;
+    return m_backend && m_backend->close(m_window);
 }
 
 bool WindowController::requestActivate()
 {
-    if (!m_window)
-        return false;
-    m_window->requestActivate();
-    return true;
+    return m_backend && m_backend->requestActivate(m_window);
 }
 
 bool WindowController::startSystemMove()
 {
-    return m_window ? m_window->startSystemMove() : false;
+    return m_backend && m_backend->startSystemMove(m_window);
 }
 
 bool WindowController::startSystemResize(int edges)
 {
-    if (!m_window || edges == 0)
+    if (!m_backend || !m_window || edges == 0)
         return false;
-
-    const Qt::Edges requested(static_cast<Qt::Edge>(edges));
-    return m_window->startSystemResize(requested);
+    return m_backend->startSystemResize(m_window, Qt::Edges::fromInt(edges));
 }
 
 void WindowController::reconnectWindow()
