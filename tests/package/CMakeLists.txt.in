@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(_lfquick_components @LFQUICK_PACKAGE_SMOKE_COMPONENTS_ARGS@)
+set(_lfquick_qml_plugins @LFQUICK_PACKAGE_SMOKE_QML_PLUGIN_ARGS@)
 find_package(LfQuick REQUIRED COMPONENTS ${_lfquick_components})
 
 add_executable(lfquick_package_smoke main.cpp)
@@ -18,6 +19,14 @@ foreach(_component IN LISTS _lfquick_components)
             "'LfQuick::${_component}' is unavailable")
     endif()
     target_link_libraries(lfquick_package_smoke PRIVATE "LfQuick::${_component}")
+endforeach()
+
+foreach(_plugin IN LISTS _lfquick_qml_plugins)
+    if(NOT TARGET "LfQuick::${_plugin}")
+        message(FATAL_ERROR
+            "Static LfQuick QML plugin target 'LfQuick::${_plugin}' is unavailable")
+    endif()
+    target_link_libraries(lfquick_package_smoke PRIVATE "LfQuick::${_plugin}")
 endforeach()
 
 set(_expected_qt_min_version "@LFQUICK_QT_MIN_VERSION@")
