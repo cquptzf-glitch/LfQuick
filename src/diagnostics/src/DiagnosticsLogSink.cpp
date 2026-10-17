@@ -29,6 +29,16 @@ void DiagnosticsLogSink::write(const TelemetryEvent &event)
     if (!event.isValid())
         return;
 
+    // ILogSink may be called by worker threads. Serialize access to the sink's
+    // QObject/QPointer state on the sink thread before resolving the model.
+    if (QThread::currentThread() != thread()) {
+        const TelemetryEvent copy = event;
+        QMetaObject::invokeMethod(this, [this, copy] {
+            write(copy);
+        }, Qt::QueuedConnection);
+        return;
+    }
+
     const QPointer<DiagnosticsModel> model = m_model;
     if (!model)
         return;
