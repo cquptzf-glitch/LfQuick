@@ -1,6 +1,7 @@
 #include <LfQuick/Tooling/HotReloadStateTransfer.h>
 #include <LfQuick/Ui/LifetimeLease.h>
 #include <LfQuick/Ui/PersistentState.h>
+#include <LfQuick/Ui/QmlIncubationScheduler.h>
 #include <LfQuick/Ui/QmlObjectFactory.h>
 
 #include <QFile>
@@ -96,6 +97,26 @@ private slots:
 
         lease.setHeld(false);
         QTRY_VERIFY(guarded.isNull());
+    }
+
+    void incubationSchedulerReinstallsExistingHelper()
+    {
+        QQmlEngine engine;
+        QmlIncubationScheduler *scheduler =
+            QmlIncubationScheduler::ensureForEngine(&engine);
+        QVERIFY(scheduler);
+        QVERIFY(scheduler->isInstalled());
+        QCOMPARE(engine.incubationController(), scheduler);
+
+        scheduler->uninstall();
+        QVERIFY(!scheduler->isInstalled());
+        QCOMPARE(engine.incubationController(), nullptr);
+
+        QmlIncubationScheduler *reused =
+            QmlIncubationScheduler::ensureForEngine(&engine);
+        QCOMPARE(reused, scheduler);
+        QVERIFY(reused->isInstalled());
+        QCOMPARE(engine.incubationController(), reused);
     }
 
     void objectFactoryCreatesSynchronouslyWithInitialProperties()
