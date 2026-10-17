@@ -32,6 +32,9 @@ class LFQUICKRUNTIME_EXPORT PageRouter : public QObject
     Q_PROPERTY(int singletonCount READ singletonCount NOTIFY cacheStateChanged FINAL)
 
 public:
+    // `pages` and `providers` are non-owning dependencies. They may be null,
+    // in which case navigation fails with structured diagnostics, but any
+    // non-null registry must outlive this router.
     explicit PageRouter(PageRegistry *pages,
                         PageProviderRegistry *providers,
                         QObject *parent = nullptr);
