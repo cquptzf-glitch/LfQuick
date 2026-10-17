@@ -5,6 +5,8 @@ add_library(LfQuickRuntime
     src/PageProviderRegistry.cpp
     src/PageLifecycle.cpp
     src/PageRouter.cpp
+    src/TelemetryPageProvider.cpp
+    src/RuntimeTelemetryObserver.cpp
     src/WindowProviderRegistry.cpp
     src/WindowRouter.cpp
 )
@@ -33,6 +35,8 @@ target_sources(LfQuickRuntime PUBLIC
         include/LfQuick/Runtime/PageProviderRegistry.h
         include/LfQuick/Runtime/PageLifecycle.h
         include/LfQuick/Runtime/PageRouter.h
+        include/LfQuick/Runtime/TelemetryPageProvider.h
+        include/LfQuick/Runtime/RuntimeTelemetryObserver.h
         include/LfQuick/Runtime/WindowDescriptor.h
         include/LfQuick/Runtime/IWindowInstance.h
         include/LfQuick/Runtime/IWindowProvider.h
