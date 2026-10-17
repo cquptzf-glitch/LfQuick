@@ -4,13 +4,13 @@
 
 #include <QObject>
 #include <QString>
+#include <QVariantMap>
 #include <QtQmlIntegration/qqmlintegration.h>
 
 namespace LfQuick {
 
 // A small QML state container whose QML-declared properties can be restored
-// across hot reloads. Its behavior is intentionally aligned with Quickshell's
-// PersistentProperties while using LfQuick's scoped reload runtime.
+// across hot reloads or instance recreation.
 class LFQUICKUI_EXPORT PersistentState : public QObject
 {
     Q_OBJECT
@@ -23,9 +23,14 @@ public:
     QString key() const { return m_key; }
     void setKey(const QString &key);
 
-    // Restores properties declared by the concrete QML type. Returns the
-    // number of properties successfully restored. Passing nullptr only marks
-    // the initial load as complete.
+    QVariantMap saveState() const;
+
+    // Restores a previously serialized state. loaded() is always emitted;
+    // reloaded() is emitted when the state originated from an older instance.
+    int restoreState(const QVariantMap &state, bool reloaded = true);
+    void markLoaded();
+
+    // Compatibility/convenience path for direct old/new object transfer.
     int restoreFrom(QObject *oldInstance);
 
 signals:
