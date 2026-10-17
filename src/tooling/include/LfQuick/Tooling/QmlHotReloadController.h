@@ -8,10 +8,10 @@
 #include <QSet>
 #include <QStringList>
 #include <QUrl>
+#include <QQmlEngine>
 #include <QtQmlIntegration/qqmlintegration.h>
 
 class QFileSystemWatcher;
-class QQmlEngine;
 class QTimer;
 
 namespace LfQuick {
