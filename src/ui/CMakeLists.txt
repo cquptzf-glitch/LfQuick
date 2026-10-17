@@ -64,6 +64,10 @@ qt_add_qml_module(LfQuickUi
         qml/LfNumberInput.qml
         qml/LfRangeInput.qml
         qml/LfProgressRing.qml
+        qml/LfDatePicker.qml
+        qml/LfTimePicker.qml
+        qml/LfDateTimePicker.qml
+        qml/LfDateRangePicker.qml
         qml/OverlayHost.qml
         qml/BusyOverlay.qml
         qml/ToastStack.qml
