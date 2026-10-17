@@ -1,5 +1,6 @@
 #include <LfQuick/Io/FileWatcher.h>
 
+#include <QDateTime>
 #include <QDir>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
@@ -9,6 +10,14 @@
 #include <utility>
 
 namespace LfQuick {
+namespace {
+
+qint64 timestampMs(const QDateTime &value)
+{
+    return value.isValid() ? value.toMSecsSinceEpoch() : -1;
+}
+
+} // namespace
 
 FileWatcher::FileWatcher(QObject *parent)
     : QObject(parent)
@@ -22,21 +31,28 @@ FileWatcher::FileWatcher(QObject *parent)
 
     connect(m_watcher, &QFileSystemWatcher::fileChanged,
             this, [this](const QString &path) {
-                emit fileChanged(QDir::cleanPath(path));
+                const QString normalized = normalizedPath(path);
+                if (!m_files.contains(normalized))
+                    return;
+                updateFileState(normalized);
+                emit fileChanged(normalized);
                 scheduleRebuild();
             });
 
     connect(m_watcher, &QFileSystemWatcher::directoryChanged,
             this, [this](const QString &path) {
-                const QString normalized = QDir::cleanPath(path);
+                const QString normalized = normalizedPath(path);
                 if (m_directories.contains(normalized))
                     emit directoryChanged(normalized);
 
-                // QFileSystemWatcher drops file watches after replace/rename on
-                // several platforms. Watching the parent directory lets a
-                // logical file watch survive atomic-save workflows.
+                // QFileSystemWatcher can drop a direct file watch after an
+                // atomic replace/rename. The parent-directory watch keeps the
+                // logical file watch alive, but unrelated directory activity
+                // must not be reported as a change to every watched file.
                 for (const QString &file : std::as_const(m_files)) {
-                    if (QFileInfo(file).absolutePath() == normalized && QFileInfo::exists(file))
+                    if (QFileInfo(file).absolutePath() != normalized)
+                        continue;
+                    if (updateFileState(file))
                         emit fileChanged(file);
                 }
                 scheduleRebuild();
@@ -79,6 +95,7 @@ bool FileWatcher::watchFile(const QString &path)
 
     m_directories.remove(normalized);
     m_files.insert(normalized);
+    m_fileStates.insert(normalized, snapshotFile(normalized));
     rebuildWatcher();
     emit watchesChanged();
     return true;
@@ -98,6 +115,7 @@ bool FileWatcher::watchDirectory(const QString &path)
         return true;
 
     m_files.remove(normalized);
+    m_fileStates.remove(normalized);
     m_directories.insert(normalized);
     rebuildWatcher();
     emit watchesChanged();
@@ -115,6 +133,8 @@ bool FileWatcher::unwatch(const QString &path)
     if (!removedFile && !removedDirectory)
         return false;
 
+    if (removedFile)
+        m_fileStates.remove(normalized);
     rebuildWatcher();
     emit watchesChanged();
     return true;
@@ -134,6 +154,7 @@ void FileWatcher::clear()
 
     m_files.clear();
     m_directories.clear();
+    m_fileStates.clear();
     rebuildWatcher();
     emit watchesChanged();
 }
@@ -144,6 +165,36 @@ QString FileWatcher::normalizedPath(const QString &path)
     if (trimmed.isEmpty())
         return {};
     return QDir::cleanPath(QFileInfo(trimmed).absoluteFilePath());
+}
+
+FileWatcher::FileState FileWatcher::snapshotFile(const QString &path)
+{
+    QFileInfo info(path);
+    info.setCaching(false);
+
+    FileState state;
+    state.exists = info.exists();
+    state.file = state.exists && info.isFile();
+    if (state.file) {
+        state.size = info.size();
+        state.lastModifiedMs = timestampMs(info.lastModified());
+        state.metadataChangedMs = timestampMs(info.metadataChangeTime());
+    }
+    return state;
+}
+
+bool FileWatcher::updateFileState(const QString &path)
+{
+    const FileState current = snapshotFile(path);
+    auto it = m_fileStates.find(path);
+    if (it == m_fileStates.end()) {
+        m_fileStates.insert(path, current);
+        return false;
+    }
+
+    const bool changed = it.value() != current;
+    it.value() = current;
+    return changed;
 }
 
 void FileWatcher::rebuildWatcher()
