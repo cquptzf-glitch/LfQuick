@@ -2,7 +2,6 @@
 
 #include <LfQuick/Ui/QmlIncubationScheduler.h>
 
-#include <QQmlComponent>
 #include <QQmlContext>
 #include <QQmlIncubator>
 #include <QtQml/qqml.h>
@@ -40,6 +39,15 @@ QmlObjectLoadHandle::QmlObjectLoadHandle(QUrl source,
 {
 }
 
+QmlObjectLoadHandle::QmlObjectLoadHandle(QQmlComponent *component,
+                                         QVariantMap initialProperties,
+                                         QObject *parent)
+    : QObject(parent)
+    , m_initialProperties(std::move(initialProperties))
+    , m_component(component)
+{
+}
+
 QmlObjectLoadHandle::~QmlObjectLoadHandle()
 {
     if (m_status == Status::Loading && m_incubator)
@@ -50,19 +58,38 @@ QmlObjectLoadHandle::~QmlObjectLoadHandle()
 
 void QmlObjectLoadHandle::begin(QQmlEngine *engine)
 {
+    if (!engine && m_component)
+        engine = m_component->engine();
     m_engine = engine;
+
     if (!m_engine) {
         fail(QStringLiteral("QML object creation requires a QQmlEngine"));
         return;
     }
-    if (!m_source.isValid() || m_source.isEmpty()) {
-        fail(QStringLiteral("QML source URL is empty or invalid"));
+
+    if (!m_component) {
+        if (!m_source.isValid() || m_source.isEmpty()) {
+            fail(QStringLiteral("QML source URL is empty or invalid"));
+            return;
+        }
+
+        m_ownedComponent = std::make_unique<QQmlComponent>(
+            m_engine, m_source, QQmlComponent::Asynchronous);
+        m_component = m_ownedComponent.get();
+    }
+
+    if (!m_component) {
+        fail(QStringLiteral("QML component is null"));
         return;
     }
 
-    m_component = std::make_unique<QQmlComponent>(
-        m_engine, m_source, QQmlComponent::Asynchronous);
-    connect(m_component.get(), &QQmlComponent::statusChanged,
+    m_componentDestroyedConnection = connect(m_component, &QObject::destroyed, this, [this] {
+        m_component = nullptr;
+        m_ownedComponent.release();
+        if (m_status == Status::Loading)
+            fail(QStringLiteral("QML component was destroyed while loading"));
+    });
+    connect(m_component, &QQmlComponent::statusChanged,
             this, &QmlObjectLoadHandle::onComponentStatusChanged);
     onComponentStatusChanged();
 }
@@ -135,7 +162,12 @@ void QmlObjectLoadHandle::cancel()
 
     if (m_incubator)
         m_incubator->clear();
-    m_component.reset();
+    if (m_component)
+        disconnect(m_component, nullptr, this, nullptr);
+    QObject::disconnect(m_componentDestroyedConnection);
+    m_componentDestroyedConnection = {};
+    m_component = nullptr;
+    m_ownedComponent.reset();
     setStatus(Status::Canceled);
     emit finished();
 }
@@ -160,9 +192,23 @@ void QmlObjectLoadHandle::forceCompletion()
         return;
     }
 
+    // URL-backed components can be recreated synchronously when foreground
+    // access requires completion. Externally supplied components keep their
+    // own loading contract; there is no safe public API to force their compile.
+    if (m_source.isEmpty()) {
+        if (m_component && m_component->status() == QQmlComponent::Error)
+            fail(m_component->errorString());
+        else
+            fail(QStringLiteral("External QML component is still loading"));
+        return;
+    }
+
     if (m_component)
-        disconnect(m_component.get(), nullptr, this, nullptr);
-    m_component.reset();
+        disconnect(m_component, nullptr, this, nullptr);
+    QObject::disconnect(m_componentDestroyedConnection);
+    m_componentDestroyedConnection = {};
+    m_component = nullptr;
+    m_ownedComponent.reset();
 
     QString error;
     QObject *created = QmlObjectFactory::createSync(
@@ -243,16 +289,38 @@ QObject *QmlObjectFactory::create(const QUrl &source,
     return object;
 }
 
+QObject *QmlObjectFactory::createComponent(QQmlComponent *component,
+                                           const QVariantMap &initialProperties)
+{
+    QString error;
+    QObject *object = createSync(component, initialProperties, &error);
+    setLastError(error);
+    return object;
+}
+
 QmlObjectLoadHandle *QmlObjectFactory::createAsync(
     const QUrl &source,
     const QVariantMap &initialProperties)
 {
+    return beginAsync(new QmlObjectLoadHandle(source, initialProperties, this),
+                      effectiveEngine());
+}
+
+QmlObjectLoadHandle *QmlObjectFactory::createAsyncComponent(
+    QQmlComponent *component,
+    const QVariantMap &initialProperties)
+{
+    QQmlEngine *engine = component ? component->engine() : effectiveEngine();
+    return beginAsync(new QmlObjectLoadHandle(component, initialProperties, this), engine);
+}
+
+QmlObjectLoadHandle *QmlObjectFactory::beginAsync(QmlObjectLoadHandle *handle,
+                                                   QQmlEngine *engine)
+{
     setLastError({});
-    QQmlEngine *engine = effectiveEngine();
     if (engine)
         QmlIncubationScheduler::ensureForEngine(engine);
 
-    auto *handle = new QmlObjectLoadHandle(source, initialProperties, this);
     handle->begin(engine);
     if (handle->status() == QmlObjectLoadHandle::Status::Error)
         setLastError(handle->errorString());
@@ -285,20 +353,40 @@ QObject *QmlObjectFactory::createSync(QQmlEngine *engine,
     }
 
     QQmlComponent component(engine, source, QQmlComponent::PreferSynchronous);
-    if (component.status() == QQmlComponent::Loading) {
-        setError(QStringLiteral("Synchronous QML creation cannot use a still-loading source"));
+    return createSync(&component, initialProperties, error);
+}
+
+QObject *QmlObjectFactory::createSync(QQmlComponent *component,
+                                      const QVariantMap &initialProperties,
+                                      QString *error)
+{
+    auto setError = [error](const QString &message) {
+        if (error)
+            *error = message;
+    };
+
+    if (!component) {
+        setError(QStringLiteral("QML component is null"));
         return nullptr;
     }
-    if (component.status() == QQmlComponent::Error) {
-        setError(component.errorString());
+    if (component->status() == QQmlComponent::Loading) {
+        setError(QStringLiteral("Synchronous QML creation cannot use a still-loading component"));
+        return nullptr;
+    }
+    if (component->status() == QQmlComponent::Error) {
+        setError(component->errorString());
+        return nullptr;
+    }
+    if (component->status() != QQmlComponent::Ready) {
+        setError(QStringLiteral("QML component is not ready"));
         return nullptr;
     }
 
-    QObject *object = component.createWithInitialProperties(initialProperties);
+    QObject *object = component->createWithInitialProperties(initialProperties);
     if (!object) {
-        setError(component.errorString().isEmpty()
+        setError(component->errorString().isEmpty()
                      ? QStringLiteral("QML component creation returned null")
-                     : component.errorString());
+                     : component->errorString());
         return nullptr;
     }
 
