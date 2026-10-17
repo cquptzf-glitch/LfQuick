@@ -63,6 +63,71 @@ private slots:
         QCOMPARE(controller.resolveSource(logical), logical);
     }
 
+    void sharedWatchOwnershipIsReferenceCounted()
+    {
+        QmlHotReloadController controller;
+        QTemporaryDir temporary;
+        QVERIFY(temporary.isValid());
+
+        const QString path = temporary.filePath(QStringLiteral("Shared.qml"));
+        const QString otherPath = temporary.filePath(QStringLiteral("Other.qml"));
+        QVERIFY(writeTextFile(path, "import QtQuick\nItem {}\n"));
+        QVERIFY(writeTextFile(otherPath, "import QtQuick\nItem {}\n"));
+
+        const QUrl logical(QStringLiteral("qrc:/demo/Shared.qml"));
+        const QUrl development = QUrl::fromLocalFile(path);
+        QVERIFY(controller.watchSource(logical, development));
+        QVERIFY(controller.watchSource(logical, development));
+        QCOMPARE(controller.watchedSourceCount(), 1);
+
+        QVERIFY(!controller.watchSource(logical, QUrl::fromLocalFile(otherPath)));
+        QVERIFY(!controller.lastError().isEmpty());
+        QCOMPARE(controller.resolveSource(logical), development);
+
+        QVERIFY(controller.unwatchSource(logical));
+        QCOMPARE(controller.watchedSourceCount(), 1);
+        QCOMPARE(controller.resolveSource(logical), development);
+
+        QVERIFY(controller.unwatchSource(logical));
+        QCOMPARE(controller.watchedSourceCount(), 0);
+        QCOMPARE(controller.resolveSource(logical), logical);
+        QVERIFY(!controller.unwatchSource(logical));
+    }
+
+    void hostsReleaseOnlyTheirOwnSharedWatch()
+    {
+        QmlHotReloadController controller;
+        QTemporaryDir temporary;
+        QVERIFY(temporary.isValid());
+        const QString path = temporary.filePath(QStringLiteral("SharedHost.qml"));
+        QVERIFY(writeTextFile(path, "import QtQuick\nItem {}\n"));
+
+        const QUrl logical(QStringLiteral("qrc:/demo/SharedHost.qml"));
+        const QUrl development = QUrl::fromLocalFile(path);
+
+        {
+            TestHotReloadHost first;
+            first.setSource(logical);
+            first.setDevelopmentSource(development);
+            first.setController(&controller);
+            QCOMPARE(controller.watchedSourceCount(), 1);
+
+            {
+                TestHotReloadHost second;
+                second.setSource(logical);
+                second.setDevelopmentSource(development);
+                second.setController(&controller);
+                QCOMPARE(controller.watchedSourceCount(), 1);
+            }
+
+            QCOMPARE(controller.watchedSourceCount(), 1);
+            QCOMPARE(controller.resolveSource(logical), development);
+        }
+
+        QCOMPARE(controller.watchedSourceCount(), 0);
+        QCOMPARE(controller.resolveSource(logical), logical);
+    }
+
     void hostSwapsOnlyAfterSuccessfulCreationAndPreservesSelectedState()
     {
         QQmlEngine engine;
