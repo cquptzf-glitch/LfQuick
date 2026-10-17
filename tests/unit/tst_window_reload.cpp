@@ -50,11 +50,13 @@ public:
     FakeReloadWindow(QString id,
                      std::shared_ptr<NativeSurface> surface,
                      std::shared_ptr<Counters> counters,
-                     bool rejectRestore = false)
+                     bool rejectRestore = false,
+                     bool releaseSupported = true)
         : m_id(std::move(id))
         , m_surface(std::move(surface))
         , m_counters(std::move(counters))
         , m_rejectRestore(rejectRestore)
+        , m_releaseSupported(releaseSupported)
     {
     }
 
@@ -87,12 +89,12 @@ public:
 
     bool canReleaseBacking() const noexcept override
     {
-        return bool(m_surface);
+        return m_releaseSupported && bool(m_surface);
     }
 
     std::unique_ptr<LfQuick::IWindowBacking> releaseBacking() override
     {
-        if (!m_surface)
+        if (!canReleaseBacking())
             return {};
         auto surface = std::exchange(m_surface, {});
         return std::make_unique<FakeBacking>(m_id, std::move(surface));
@@ -124,6 +126,7 @@ private:
     QVariantMap m_parameters;
     QVariantMap m_restoredState;
     bool m_rejectRestore = false;
+    bool m_releaseSupported = true;
 };
 
 class ReloadProvider final : public LfQuick::IWindowProvider
@@ -177,7 +180,11 @@ public:
         backing.reset();
 
         auto window = std::make_unique<FakeReloadWindow>(
-            instanceId, std::move(surface), counters, rejectReplacementRestore);
+            instanceId,
+            std::move(surface),
+            counters,
+            rejectReplacementRestore,
+            replacementReleaseSupported);
         lastWindow = window.get();
         return window;
     }
@@ -195,6 +202,61 @@ public:
     FakeReloadWindow *lastWindow = nullptr;
     bool failRecreate = false;
     bool rejectReplacementRestore = false;
+    bool replacementReleaseSupported = true;
+};
+
+class ChildWindow final : public LfQuick::IWindowInstance
+{
+public:
+    explicit ChildWindow(QString id)
+        : m_id(std::move(id)) {}
+
+    QString instanceId() const override { return m_id; }
+    void activate() override { active = true; }
+    void deactivate() override { active = false; }
+    void close() override { closed = true; }
+
+    bool canUpdateOwner(const LfQuick::WindowInstanceId &ownerInstanceId) const override
+    {
+        return ownerInstanceId.isEmpty();
+    }
+
+    bool updateOwner(const LfQuick::WindowInstanceId &ownerInstanceId) override
+    {
+        if (!ownerInstanceId.isEmpty())
+            return false;
+        detached = true;
+        return true;
+    }
+
+    bool active = false;
+    bool closed = false;
+    bool detached = false;
+
+private:
+    QString m_id;
+};
+
+class ChildProvider final : public LfQuick::IWindowProvider
+{
+public:
+    QString id() const override { return QStringLiteral("child-window"); }
+
+    bool canCreate(const LfQuick::WindowDescriptor &descriptor) const override
+    {
+        return descriptor.provider == id();
+    }
+
+    std::unique_ptr<LfQuick::IWindowInstance> create(
+        const LfQuick::WindowDescriptor &,
+        const LfQuick::WindowOpenRequest &) override
+    {
+        auto window = std::make_unique<ChildWindow>(QStringLiteral("child-instance"));
+        lastWindow = window.get();
+        return window;
+    }
+
+    ChildWindow *lastWindow = nullptr;
 };
 
 LfQuick::WindowDescriptor descriptor()
@@ -202,6 +264,15 @@ LfQuick::WindowDescriptor descriptor()
     LfQuick::WindowDescriptor result;
     result.id = QStringLiteral("reloadable");
     result.provider = QStringLiteral("reload-window");
+    return result;
+}
+
+LfQuick::WindowDescriptor childDescriptor()
+{
+    LfQuick::WindowDescriptor result;
+    result.id = QStringLiteral("child");
+    result.provider = QStringLiteral("child-window");
+    result.ownerClosePolicy = LfQuick::OwnerClosePolicy::CloseWithOwner;
     return result;
 }
 
@@ -289,6 +360,44 @@ private slots:
         const auto retry = router.reloadInstance(opened.instanceId);
         QVERIFY(retry.accepted);
         QCOMPARE(provider->lastWindow->surface().get(), surfaceAddress);
+    }
+
+    void fatalRollbackDetachesChildrenBeforeRemovingOwner()
+    {
+        auto provider = std::make_shared<ReloadProvider>();
+        auto childProvider = std::make_shared<ChildProvider>();
+        LfQuick::WindowProviderRegistry providers;
+        QVERIFY(providers.registerProvider(provider));
+        QVERIFY(providers.registerProvider(childProvider));
+
+        LfQuick::WindowRouter router(&providers);
+        QVERIFY(router.registerWindow(descriptor()));
+        QVERIFY(router.registerWindow(childDescriptor()));
+
+        const auto owner = router.open({QStringLiteral("reloadable"), {}, {}, {}, {}});
+        QVERIFY(owner.accepted);
+        const auto child = router.open({QStringLiteral("child"), {}, owner.instanceId, {}, {}});
+        QVERIFY(child.accepted);
+        QCOMPARE(router.count(), 2);
+        QCOMPARE(router.find(child.instanceId)->ownerInstanceId, owner.instanceId);
+        QVERIFY(childProvider->lastWindow);
+
+        // The candidate consumes the only backing, then rejects restore and is
+        // configured to be unable to release the backing for rollback. This
+        // forces WindowRouter's catastrophic rollback path.
+        provider->rejectReplacementRestore = true;
+        provider->replacementReleaseSupported = false;
+        const auto failed = router.reloadInstance(owner.instanceId);
+
+        QVERIFY(!failed.accepted);
+        QCOMPARE(failed.error.code(), 21);
+        QVERIFY(!router.find(owner.instanceId).has_value());
+        const auto childInfo = router.find(child.instanceId);
+        QVERIFY(childInfo.has_value());
+        QVERIFY(childInfo->ownerInstanceId.isEmpty());
+        QCOMPARE(router.count(), 1);
+        QCOMPARE(router.activeInstanceId(), child.instanceId);
+        QVERIFY(childProvider->lastWindow->detached);
     }
 };
 
