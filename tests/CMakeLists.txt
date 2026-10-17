@@ -158,6 +158,12 @@ if(LFQUICK_BUILD_UI)
     target_link_libraries(tst_ui_state PRIVATE LfQuick::Ui Qt6::Test)
     lfquick_register_test(tst_ui_state)
 
+    qt_add_executable(tst_post_reload_hook
+        unit/tst_post_reload_hook.cpp
+    )
+    target_link_libraries(tst_post_reload_hook PRIVATE LfQuick::Ui Qt6::Test)
+    lfquick_register_test(tst_post_reload_hook)
+
     qt_add_executable(tst_ui_controls
         unit/tst_ui_controls.cpp
     )
