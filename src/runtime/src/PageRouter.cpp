@@ -204,27 +204,34 @@ RouteResult PageRouter::createEntry(const RouteRequest &request, Entry &entry)
     entry.cacheWeight = std::max<qint64>(1, descriptor->cacheWeight);
 
     if (descriptor->cachePolicy == PageCachePolicy::Singleton) {
-        const auto cached = m_singletons.constFind(descriptor->route);
-        if (cached != m_singletons.cend() && cached.value()) {
-            if (!request.parameters.isEmpty()
-                && !cached.value()->updateParameters(request.parameters)) {
-                QVariantMap details{
-                    {QStringLiteral("route"), request.route},
-                    {QStringLiteral("cachePolicy"), QStringLiteral("singleton")},
-                    {QStringLiteral("parameters"), request.parameters}
-                };
-                return RouteResult::failure(
-                    request.route,
-                    Error(QStringLiteral("routing"), 7,
-                          QStringLiteral("Singleton page rejected updated navigation parameters"),
-                          details));
-            }
+        auto cached = m_singletons.find(descriptor->route);
+        if (cached != m_singletons.end() && cached.value()) {
+            if (!cached.value()->isValid()) {
+                const auto invalid = cached.value();
+                m_singletons.erase(cached);
+                invalid->destroy();
+                emit cacheStateChanged();
+            } else {
+                if (!request.parameters.isEmpty()
+                    && !cached.value()->updateParameters(request.parameters)) {
+                    QVariantMap details{
+                        {QStringLiteral("route"), request.route},
+                        {QStringLiteral("cachePolicy"), QStringLiteral("singleton")},
+                        {QStringLiteral("parameters"), request.parameters}
+                    };
+                    return RouteResult::failure(
+                        request.route,
+                        Error(QStringLiteral("routing"), 7,
+                              QStringLiteral("Singleton page rejected updated navigation parameters"),
+                              details));
+                }
 
-            entry.instance = cached.value();
-            entry.suspended = true;
-            touch(entry);
-            emit singletonReused(descriptor->route);
-            return RouteResult::success(request.route);
+                entry.instance = cached.value();
+                entry.suspended = true;
+                touch(entry);
+                emit singletonReused(descriptor->route);
+                return RouteResult::success(request.route);
+            }
         }
     }
 
@@ -626,17 +633,38 @@ void PageRouter::reset()
 
 bool PageRouter::ensureInstance(Entry &entry)
 {
+    if (entry.instance && !entry.instance->isValid()) {
+        const auto invalid = entry.instance;
+        if (entry.descriptor.cachePolicy == PageCachePolicy::Singleton) {
+            auto cached = m_singletons.find(entry.descriptor.route);
+            if (cached != m_singletons.end() && cached.value() == invalid) {
+                m_singletons.erase(cached);
+                emit cacheStateChanged();
+            }
+        }
+        invalid->destroy();
+        entry.instance.reset();
+        entry.suspended = false;
+    }
+
     if (entry.instance)
         return true;
 
     if (entry.descriptor.cachePolicy == PageCachePolicy::Singleton) {
-        const auto cached = m_singletons.constFind(entry.descriptor.route);
-        if (cached != m_singletons.cend() && cached.value()) {
-            entry.instance = cached.value();
-            entry.suspended = true;
-            touch(entry);
-            emit singletonReused(entry.descriptor.route);
-            return true;
+        auto cached = m_singletons.find(entry.descriptor.route);
+        if (cached != m_singletons.end() && cached.value()) {
+            if (!cached.value()->isValid()) {
+                const auto invalid = cached.value();
+                m_singletons.erase(cached);
+                invalid->destroy();
+                emit cacheStateChanged();
+            } else {
+                entry.instance = cached.value();
+                entry.suspended = true;
+                touch(entry);
+                emit singletonReused(entry.descriptor.route);
+                return true;
+            }
         }
     }
 
