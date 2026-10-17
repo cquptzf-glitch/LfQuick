@@ -1,14 +1,13 @@
 #pragma once
 
 #include <LfQuick/Core/Telemetry.h>
+#include <LfQuick/Diagnostics/DiagnosticsModel.h>
 #include <LfQuick/Diagnostics/LfQuickDiagnosticsGlobal.h>
 
 #include <QObject>
 #include <QPointer>
 
 namespace LfQuick {
-
-class DiagnosticsModel;
 
 class LFQUICKDIAGNOSTICS_EXPORT DiagnosticsLogSink final : public QObject, public ILogSink
 {
