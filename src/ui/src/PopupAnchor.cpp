@@ -1,5 +1,7 @@
 #include <LfQuick/Ui/PopupAnchor.h>
 
+#include <LfQuick/Ui/ItemTransformWatcher.h>
+
 #include <QQuickWindow>
 
 #include <algorithm>
@@ -21,7 +23,10 @@ QQuickItem *coordinateParent(QQuickItem *anchor, QQuickItem *explicitParent)
 
 PopupAnchor::PopupAnchor(QObject *parent)
     : QObject(parent)
+    , m_transformWatcher(new ItemTransformWatcher(this))
 {
+    connect(m_transformWatcher, &ItemTransformWatcher::transformChanged,
+            this, &PopupAnchor::refresh);
 }
 
 void PopupAnchor::setAnchorItem(QQuickItem *item)
@@ -31,6 +36,7 @@ void PopupAnchor::setAnchorItem(QQuickItem *item)
     disconnectAnchor();
     m_anchorItem = item;
     reconnectAnchor();
+    syncTransformWatcher();
     emit anchorItemChanged();
     refresh();
 }
@@ -42,6 +48,7 @@ void PopupAnchor::setParentItem(QQuickItem *item)
     disconnectParent();
     m_parentItem = item;
     reconnectParent();
+    syncTransformWatcher();
     emit parentItemChanged();
     refresh();
 }
@@ -132,6 +139,9 @@ void PopupAnchor::reconnectAnchor()
     if (!m_anchorItem)
         return;
 
+    // Direct geometry signals keep the fast path cheap. ItemTransformWatcher
+    // additionally covers every ancestor transform/reparent/window change that
+    // affects mapToItem() but is invisible on the anchor itself.
     const auto changed = [this] { refresh(); };
     m_anchorConnections.push_back(connect(m_anchorItem, &QQuickItem::xChanged,
                                           this, changed));
@@ -141,11 +151,15 @@ void PopupAnchor::reconnectAnchor()
                                           this, changed));
     m_anchorConnections.push_back(connect(m_anchorItem, &QQuickItem::heightChanged,
                                           this, changed));
-    m_anchorConnections.push_back(connect(m_anchorItem, &QQuickItem::windowChanged,
-                                          this, [this](QQuickWindow *) { refresh(); }));
+    m_anchorConnections.push_back(connect(
+        m_anchorItem, &QQuickItem::windowChanged, this, [this](QQuickWindow *) {
+            syncTransformWatcher();
+            refresh();
+        }));
     m_anchorConnections.push_back(connect(m_anchorItem, &QObject::destroyed, this, [this] {
         m_anchorConnections.clear();
         m_anchorItem = nullptr;
+        syncTransformWatcher();
         emit anchorItemChanged();
         refresh();
     }));
@@ -164,6 +178,7 @@ void PopupAnchor::reconnectParent()
     m_parentConnections.push_back(connect(m_parentItem, &QObject::destroyed, this, [this] {
         m_parentConnections.clear();
         m_parentItem = nullptr;
+        syncTransformWatcher();
         emit parentItemChanged();
         refresh();
     }));
@@ -181,6 +196,15 @@ void PopupAnchor::disconnectParent()
     for (const QMetaObject::Connection &connection : std::as_const(m_parentConnections))
         QObject::disconnect(connection);
     m_parentConnections.clear();
+}
+
+void PopupAnchor::syncTransformWatcher()
+{
+    if (!m_transformWatcher)
+        return;
+
+    m_transformWatcher->setSource(m_anchorItem);
+    m_transformWatcher->setTarget(coordinateParent(m_anchorItem, m_parentItem));
 }
 
 QRectF PopupAnchor::effectiveAvailableRect() const
