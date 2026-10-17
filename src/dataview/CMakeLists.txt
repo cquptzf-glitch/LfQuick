@@ -30,6 +30,7 @@ qt_add_qml_module(LfQuickDataView
         src/DataGridSelectionController.cpp
     QML_FILES
         qml/DataGrid.qml
+        qml/DataGridTelemetry.qml
         qml/DataGridEditorDelegate.qml
         qml/DataGridCheckDelegate.qml
         qml/DataGridCheckEditorDelegate.qml
