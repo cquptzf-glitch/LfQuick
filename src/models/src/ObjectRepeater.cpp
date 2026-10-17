@@ -260,7 +260,9 @@ int ObjectRepeater::findRecordByKey(const QList<Record> &records,
     return -1;
 }
 
-QObject *ObjectRepeater::createInstance(const QVariant &modelData, QString *error)
+QObject *ObjectRepeater::createInstance(const QVariant &modelData,
+                                        int modelIndex,
+                                        QString *error)
 {
     if (error)
         error->clear();
@@ -270,17 +272,64 @@ QObject *ObjectRepeater::createInstance(const QVariant &modelData, QString *erro
         return nullptr;
     }
 
-    QQmlContext *context = QQmlEngine::contextForObject(m_delegate);
-    if (!context)
-        context = qmlContext(this);
+    QQmlContext *baseContext = m_delegate->creationContext();
+    if (!baseContext)
+        baseContext = QQmlEngine::contextForObject(m_delegate);
+    if (!baseContext)
+        baseContext = qmlContext(this);
+    if (!baseContext && m_delegate->engine())
+        baseContext = m_delegate->engine()->rootContext();
 
-    QObject *instance = m_delegate->createWithInitialProperties(
-        {{QStringLiteral("modelData"), modelData}}, context);
+    if (!baseContext || !m_delegate->engine()) {
+        if (error)
+            *error = QStringLiteral("LfObjectRepeater delegate requires a QQmlEngine/context");
+        return nullptr;
+    }
+    if (baseContext->engine() != m_delegate->engine()) {
+        if (error)
+            *error = QStringLiteral("LfObjectRepeater delegate context belongs to a different QQmlEngine");
+        return nullptr;
+    }
+
+    // Provide both familiar context names and required root properties. The
+    // child context keeps unqualified modelData/modelIndex expressions working,
+    // while setInitialProperties satisfies required properties before
+    // component completion without warning about undeclared properties.
+    auto *instanceContext = new QQmlContext(baseContext);
+    instanceContext->setContextProperty(QStringLiteral("modelData"), modelData);
+    instanceContext->setContextProperty(QStringLiteral("modelIndex"), modelIndex);
+
+    QObject *instance = m_delegate->beginCreate(instanceContext);
     if (!instance) {
         if (error)
             *error = m_delegate->errorString().isEmpty()
-                ? QStringLiteral("LfObjectRepeater failed to create delegate")
+                ? QStringLiteral("LfObjectRepeater failed to begin delegate creation")
                 : m_delegate->errorString();
+        delete instanceContext;
+        return nullptr;
+    }
+
+    instanceContext->setParent(instance);
+
+    QVariantMap initialProperties;
+    const QMetaObject *meta = instance->metaObject();
+    const int modelDataProperty = meta->indexOfProperty("modelData");
+    if (modelDataProperty >= 0 && meta->property(modelDataProperty).isWritable())
+        initialProperties.insert(QStringLiteral("modelData"), modelData);
+    const int modelIndexProperty = meta->indexOfProperty("modelIndex");
+    if (modelIndexProperty >= 0 && meta->property(modelIndexProperty).isWritable())
+        initialProperties.insert(QStringLiteral("modelIndex"), modelIndex);
+
+    if (!initialProperties.isEmpty())
+        m_delegate->setInitialProperties(instance, initialProperties);
+    m_delegate->completeCreate();
+
+    if (m_delegate->isError()) {
+        if (error)
+            *error = m_delegate->errorString().isEmpty()
+                ? QStringLiteral("LfObjectRepeater failed to complete delegate creation")
+                : m_delegate->errorString();
+        instance->deleteLater();
         return nullptr;
     }
 
@@ -302,6 +351,24 @@ void ObjectRepeater::refresh()
     setLastError({});
     const QVariantList values = extractValues();
 
+    QList<QVariant> keys;
+    keys.reserve(values.size());
+    bool duplicateKeys = false;
+    for (const QVariant &value : values) {
+        const QVariant key = keyFor(value);
+        for (const QVariant &seen : std::as_const(keys)) {
+            if (keysEqual(seen, key)) {
+                duplicateKeys = true;
+                break;
+            }
+        }
+        keys.push_back(key);
+    }
+    if (duplicateKeys) {
+        setLastError(QStringLiteral(
+            "LfObjectRepeater model contains duplicate keys; falling back to positional reuse"));
+    }
+
     QList<QObject *> previousInstances;
     previousInstances.reserve(m_records.size());
     for (const Record &record : std::as_const(m_records))
@@ -311,27 +378,17 @@ void ObjectRepeater::refresh()
     m_records.clear();
     QList<Record> next;
     next.reserve(values.size());
-    QList<QVariant> seenKeys;
-    seenKeys.reserve(values.size());
 
     for (int modelIndex = 0; modelIndex < values.size(); ++modelIndex) {
         const QVariant modelData = values.at(modelIndex);
-        const QVariant key = keyFor(modelData);
+        const QVariant key = keys.at(modelIndex);
 
-        bool duplicate = false;
-        for (const QVariant &seen : std::as_const(seenKeys)) {
-            if (keysEqual(seen, key)) {
-                duplicate = true;
-                break;
-            }
-        }
-        if (duplicate) {
-            setLastError(QStringLiteral("LfObjectRepeater model contains duplicate keys"));
-            continue;
-        }
-        seenKeys.push_back(key);
-
-        const int oldIndex = findRecordByKey(remaining, key);
+        // If keys are ambiguous, preserving all rows is more important than
+        // pretending identity is known. Reuse by position for this refresh so
+        // no controller/UI object silently disappears.
+        const int oldIndex = duplicateKeys
+            ? (remaining.isEmpty() ? -1 : 0)
+            : findRecordByKey(remaining, key);
         if (oldIndex >= 0) {
             Record record = remaining.takeAt(oldIndex);
             record.key = key;
@@ -345,13 +402,18 @@ void ObjectRepeater::refresh()
         }
 
         QString error;
-        QObject *instance = createInstance(modelData, &error);
+        QObject *instance = createInstance(modelData, next.size(), &error);
         if (!instance) {
             setLastError(error);
             continue;
         }
 
+        // Context properties are immutable snapshots for expressions that use
+        // them unqualified. Root modelData/modelIndex properties, when present,
+        // are updated on reuse and remain the recommended mutable contract.
+        instance->setProperty("modelData", modelData);
         instance->setProperty("modelIndex", next.size());
+
         Record record;
         record.key = key;
         record.modelData = modelData;
