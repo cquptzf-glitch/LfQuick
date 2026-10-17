@@ -96,6 +96,48 @@ Item {
         Item { }
         Item { }
     }
+    LfFormField {
+        label: "Sample ID"
+        description: "Required identifier"
+        required: true
+        LfTextField { text: "S-001" }
+    }
+    LfFormSection {
+        title: "General"
+        description: "Application settings"
+        framed: true
+        LfSettingsItem {
+            title: "Notifications"
+            description: "Show runtime notifications"
+            LfSwitch { checked: true }
+        }
+    }
+    LfListItem {
+        title: "Sample A"
+        subtitle: "Ready for review"
+        leadingText: "A"
+        trailingText: "10:30"
+        selected: true
+    }
+    LfStepper {
+        model: ["Prepare", "Run", "Review"]
+        currentIndex: 1
+    }
+    LfTimeline {
+        width: 320
+        model: [
+            { title: "Queued", description: "Sample accepted", detail: "10:00" },
+            { title: "Running", description: "Analysis in progress", detail: "10:05" }
+        ]
+        currentIndex: 1
+    }
+    LfSideSheet {
+        title: "Details"
+        LfButton { text: "Sheet action" }
+    }
+    LfContextMenu {
+        model: ["Open", { text: "Disabled", enabled: false }]
+    }
     LfNumberInput { from: 0; to: 100; value: 42 }
     LfRangeInput { from: 0; to: 100; first.value: 20; second.value: 80 }
     LfProgressRing { running: true }
@@ -194,6 +236,51 @@ Item {
         QCOMPARE(pagination->property("lastRequested").toInt(), 7);
         QVERIFY(expander->property("expanded").toBool());
         QCOMPARE(expander->property("toggleCount").toInt(), 1);
+
+        delete root;
+    }
+
+    void stepperAndContextMenuContractsAreObservable()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"QML(
+import QtQuick
+import LfQuick
+
+Item {
+    LfStepper {
+        objectName: "stepper"
+        model: ["Prepare", "Run", "Review"]
+        currentIndex: 0
+        property int lastIndex: -1
+        property string lastValue: ""
+        onStepActivated: function(index, value) {
+            lastIndex = index
+            lastValue = String(value)
+        }
+        Component.onCompleted: activate(2)
+    }
+
+    LfContextMenu {
+        objectName: "contextMenu"
+        model: ["Open", { text: "Disabled", enabled: false }]
+    }
+}
+)QML", QUrl(QStringLiteral("qrc:/tests/LfQuickBatch4State.qml")));
+
+        QObject *root = component.create();
+        QVERIFY2(root, qPrintable(component.errorString()));
+
+        QObject *stepper = root->findChild<QObject *>(QStringLiteral("stepper"));
+        QObject *menu = root->findChild<QObject *>(QStringLiteral("contextMenu"));
+        QVERIFY(stepper);
+        QVERIFY(menu);
+
+        QCOMPARE(stepper->property("currentIndex").toInt(), 2);
+        QCOMPARE(stepper->property("lastIndex").toInt(), 2);
+        QCOMPARE(stepper->property("lastValue").toString(), QStringLiteral("Review"));
+        QTRY_COMPARE(menu->property("count").toInt(), 2);
 
         delete root;
     }
