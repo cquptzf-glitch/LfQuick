@@ -134,6 +134,7 @@ void QmlLazyLoader::setInitialProperties(const QVariantMap &properties)
 
 void QmlLazyLoader::classBegin()
 {
+    m_complete = false;
 }
 
 void QmlLazyLoader::componentComplete()
