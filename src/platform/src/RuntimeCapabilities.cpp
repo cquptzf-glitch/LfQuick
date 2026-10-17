@@ -59,6 +59,18 @@ QVariantMap RuntimeCapabilities::capabilities() const
     insertCapability(result, QStringLiteral("module.models"), false);
 #endif
 
+#ifdef LFQUICK_CAP_UI
+    insertCapability(result, QStringLiteral("module.ui"), true);
+#else
+    insertCapability(result, QStringLiteral("module.ui"), false);
+#endif
+
+#ifdef LFQUICK_CAP_DATAVIEW
+    insertCapability(result, QStringLiteral("module.dataView"), true);
+#else
+    insertCapability(result, QStringLiteral("module.dataView"), false);
+#endif
+
 #ifdef LFQUICK_CAP_PLATFORM_QML
     insertCapability(result, QStringLiteral("module.platformQml"), true);
 #else
