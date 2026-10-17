@@ -2,6 +2,7 @@
 
 #include <LfQuick/Tooling/HotReloadStateTransfer.h>
 #include <LfQuick/Tooling/QmlHotReloadController.h>
+#include <LfQuick/Ui/LifetimeLease.h>
 #include <LfQuick/Ui/QmlObjectFactory.h>
 
 #include <QQmlEngine>
@@ -240,8 +241,9 @@ bool QmlHotReloadHost::reloadInternal(qint64 attemptedRevision)
 
     if (previous) {
         previous->setVisible(false);
-        previous->setParentItem(nullptr);
-        previous->deleteLater();
+        const bool immediate = LifetimeLease::requestDestroy(previous);
+        if (immediate && previous)
+            previous->setParentItem(nullptr);
     }
 
     if (m_revision != attemptedRevision) {
