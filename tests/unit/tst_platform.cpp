@@ -155,6 +155,8 @@ private slots:
         const QStringList stableKeys{
             QStringLiteral("module.io"),
             QStringLiteral("module.models"),
+            QStringLiteral("module.ui"),
+            QStringLiteral("module.dataView"),
             QStringLiteral("module.platformQml"),
             QStringLiteral("module.integration"),
             QStringLiteral("module.widgetBridge"),
