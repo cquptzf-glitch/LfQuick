@@ -30,6 +30,60 @@ Controls.ComboBox {
         font.pixelSize: Tokens.fontSizeBody + 2
     }
 
+    delegate: Controls.ItemDelegate {
+        id: itemDelegate
+        required property int index
+
+        width: ListView.view ? ListView.view.width : control.width
+        implicitHeight: Tokens.controlHeight
+        highlighted: control.highlightedIndex === index
+        hoverEnabled: true
+        leftPadding: Tokens.controlPaddingHorizontal
+        rightPadding: Tokens.controlPaddingHorizontal
+
+        contentItem: Text {
+            text: control.textAt(itemDelegate.index)
+            color: itemDelegate.enabled ? Tokens.textPrimary : Tokens.textDisabled
+            font: control.font
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+        }
+
+        background: Rectangle {
+            radius: Tokens.radiusSmall
+            color: itemDelegate.highlighted || itemDelegate.hovered
+                   ? Tokens.controlFillHover
+                   : "transparent"
+        }
+    }
+
+    popup: Controls.Popup {
+        y: control.height + 2
+        width: control.width
+        implicitHeight: Math.min(contentItem.implicitHeight + topPadding + bottomPadding, 320)
+        topPadding: 4
+        bottomPadding: 4
+        leftPadding: 4
+        rightPadding: 4
+        closePolicy: Controls.Popup.CloseOnEscape | Controls.Popup.CloseOnPressOutsideParent
+
+        contentItem: ListView {
+            clip: true
+            implicitHeight: contentHeight
+            model: control.popup.visible ? control.delegateModel : null
+            currentIndex: control.highlightedIndex
+            boundsBehavior: Flickable.StopAtBounds
+
+            Controls.ScrollIndicator.vertical: Controls.ScrollIndicator {}
+        }
+
+        background: Rectangle {
+            radius: Tokens.radiusMedium
+            color: Tokens.surface
+            border.color: Tokens.border
+        }
+    }
+
     background: Rectangle {
         radius: Tokens.radiusSmall
         color: !control.enabled ? Tokens.controlFillDisabled
