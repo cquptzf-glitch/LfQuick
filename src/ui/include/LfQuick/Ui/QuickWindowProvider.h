@@ -4,7 +4,9 @@
 #include <LfQuick/Ui/LfQuickUiGlobal.h>
 
 #include <QPointer>
+#include <QUrl>
 
+#include <functional>
 #include <memory>
 
 class QQmlEngine;
@@ -21,6 +23,8 @@ struct QuickWindowProviderState;
 class LFQUICKUI_EXPORT QuickWindowProvider final : public IWindowProvider
 {
 public:
+    using SourceResolver = std::function<QUrl(const QUrl &logicalSource)>;
+
     explicit QuickWindowProvider(QQmlEngine *engine);
     ~QuickWindowProvider() override;
 
@@ -39,14 +43,17 @@ public:
     WindowProviderError lastErrorInfo() const override { return m_lastErrorInfo; }
 
     void setErrorCollector(QmlErrorCollector *collector);
+    void setSourceResolver(SourceResolver resolver);
 
 private:
+    QUrl resolvedSource(const WindowDescriptor &descriptor) const;
     void clearLastError();
     void setLastError(QString code, QString message, QVariantMap details = {});
 
     QPointer<QQmlEngine> m_engine;
     QPointer<QmlErrorCollector> m_errorCollector;
     std::shared_ptr<QuickWindowProviderState> m_state;
+    SourceResolver m_sourceResolver;
     WindowProviderError m_lastErrorInfo;
 };
 
