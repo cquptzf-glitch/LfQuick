@@ -46,6 +46,8 @@ qt_add_qml_module(LfQuickUi
         src/PermissionEvaluator.cpp
         include/LfQuick/Ui/LfAttached.h
         src/LfAttached.cpp
+        include/LfQuick/Ui/QmlIncubationScheduler.h
+        src/QmlIncubationScheduler.cpp
         include/LfQuick/Ui/QmlObjectFactory.h
         src/QmlObjectFactory.cpp
         include/LfQuick/Ui/QmlLazyLoader.h
@@ -155,6 +157,7 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/NavigationGuardController.h
         include/LfQuick/Ui/PermissionEvaluator.h
         include/LfQuick/Ui/LfAttached.h
+        include/LfQuick/Ui/QmlIncubationScheduler.h
         include/LfQuick/Ui/QmlObjectFactory.h
         include/LfQuick/Ui/QmlLazyLoader.h
         include/LfQuick/Ui/LifetimeLease.h
