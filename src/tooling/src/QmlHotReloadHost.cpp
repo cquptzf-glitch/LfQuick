@@ -161,8 +161,8 @@ void QmlHotReloadHost::releaseWatch()
         m_watchController->unwatchSource(m_watchedLogicalSource);
 
     m_watchController = nullptr;
-    m_watchedLogicalSource = {};
-    m_watchedDevelopmentSource = {};
+    m_watchedLogicalSource = QUrl{};
+    m_watchedDevelopmentSource = QUrl{};
 }
 
 bool QmlHotReloadHost::reloadInternal(qint64 attemptedRevision)
