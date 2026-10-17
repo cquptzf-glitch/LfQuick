@@ -3,12 +3,14 @@
 #include <LfQuick/Ui/HelpContextRegistry.h>
 #include <LfQuick/Ui/LfAttached.h>
 #include <LfQuick/Ui/LfValidationBinding.h>
+#include <LfQuick/Ui/LifetimeLease.h>
 #include <LfQuick/Ui/OverlayBackend.h>
 #include <LfQuick/Ui/OverlayCoordinator.h>
 #include <LfQuick/Ui/PermissionEvaluator.h>
 #include <LfQuick/Ui/ValidationFormState.h>
 #include <LfQuick/Ui/ValidationRuleTable.h>
 
+#include <QPointer>
 #include <QSignalSpy>
 #include <QTest>
 #include <QtQml/qqml.h>
@@ -173,6 +175,66 @@ private slots:
         evaluator.setProvider(std::make_shared<TestPermissionProvider>());
         QVERIFY(changed.count() >= 1);
         QCOMPARE(permission->state(), PermissionEvaluator::State::Allow);
+    }
+
+    void attachedReloadMetadataNormalizesValues()
+    {
+        QObject target;
+        auto *attached = qmlAttachedPropertiesObject<Lf>(&target, true);
+        QVERIFY(attached);
+
+        attached->setReloadKey(QStringLiteral("  sample-panel  "));
+        attached->setStateProperties({QStringLiteral(" currentIndex "),
+                                      QStringLiteral("text"),
+                                      QStringLiteral("currentIndex"),
+                                      QString()});
+
+        QCOMPARE(attached->reloadKey(), QStringLiteral("sample-panel"));
+        QCOMPARE(attached->stateProperties(),
+                 QStringList({QStringLiteral("currentIndex"), QStringLiteral("text")}));
+    }
+
+    void lifetimeLeaseDefersPhysicalDestruction()
+    {
+        auto *target = new QObject;
+        QPointer<QObject> guarded = target;
+
+        LifetimeLease lease;
+        lease.setObject(target);
+        lease.setHeld(true);
+        QSignalSpy dropped(&lease, &LifetimeLease::dropRequested);
+        QSignalSpy aboutToDestroy(&lease, &LifetimeLease::aboutToDestroy);
+
+        QVERIFY(!LifetimeLease::requestDestroy(target));
+        QCOMPARE(dropped.count(), 1);
+        QVERIFY(lease.retained());
+        QVERIFY(LifetimeLease::isRetained(target));
+        QVERIFY(guarded);
+
+        lease.setHeld(false);
+        QCOMPARE(aboutToDestroy.count(), 1);
+        QTRY_VERIFY(guarded.isNull());
+        QVERIFY(!lease.retained());
+        QCOMPARE(lease.object(), nullptr);
+    }
+
+    void lifetimeLeaseCanBeAcquiredWhenDropIsRequested()
+    {
+        auto *target = new QObject;
+        QPointer<QObject> guarded = target;
+
+        LifetimeLease lease;
+        lease.setObject(target);
+        connect(&lease, &LifetimeLease::dropRequested, &lease, [&lease] {
+            lease.setHeld(true);
+        });
+
+        QVERIFY(!LifetimeLease::requestDestroy(target));
+        QVERIFY(lease.held());
+        QVERIFY(guarded);
+
+        lease.setHeld(false);
+        QTRY_VERIFY(guarded.isNull());
     }
 
     void attachedValidationBindingTracksRuleAndTargetLifetime()
