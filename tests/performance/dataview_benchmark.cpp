@@ -9,6 +9,14 @@
 #include <array>
 #include <functional>
 
+#ifdef Q_OS_WIN
+#  include <windows.h>
+#  include <psapi.h>
+#elif defined(Q_OS_LINUX)
+#  include <unistd.h>
+#  include <fstream>
+#endif
+
 using namespace LfQuick;
 
 namespace {
@@ -49,9 +57,37 @@ qint64 elapsedFor(const std::function<void()> &work)
     return timer.elapsed();
 }
 
+qint64 processResidentBytes()
+{
+#ifdef Q_OS_WIN
+    PROCESS_MEMORY_COUNTERS_EX counters{};
+    counters.cb = sizeof(counters);
+    if (GetProcessMemoryInfo(GetCurrentProcess(),
+                             reinterpret_cast<PROCESS_MEMORY_COUNTERS *>(&counters),
+                             sizeof(counters))) {
+        return static_cast<qint64>(counters.WorkingSetSize);
+    }
+    return -1;
+#elif defined(Q_OS_LINUX)
+    std::ifstream statm("/proc/self/statm");
+    long totalPages = 0;
+    long residentPages = 0;
+    if (!(statm >> totalPages >> residentPages))
+        return -1;
+    Q_UNUSED(totalPages)
+    const long pageSize = sysconf(_SC_PAGESIZE);
+    return pageSize > 0 ? static_cast<qint64>(residentPages) * pageSize : -1;
+#else
+    return -1;
+#endif
+}
+
 struct Metrics {
     int rows = 0;
     int columns = 0;
+    qint64 rssBeforePopulateBytes = -1;
+    qint64 rssAfterPopulateBytes = -1;
+    qint64 rssPopulateDeltaBytes = -1;
     qint64 populateMs = 0;
     qint64 filterMs = 0;
     qint64 sortMs = 0;
@@ -69,7 +105,11 @@ Metrics runCase(int rowCount, int columnCount)
     Metrics metrics;
     metrics.rows = rowCount;
     metrics.columns = columnCount;
+    metrics.rssBeforePopulateBytes = processResidentBytes();
     metrics.populateMs = elapsedFor([&] { model.setRows(rows); });
+    metrics.rssAfterPopulateBytes = processResidentBytes();
+    if (metrics.rssBeforePopulateBytes >= 0 && metrics.rssAfterPopulateBytes >= 0)
+        metrics.rssPopulateDeltaBytes = metrics.rssAfterPopulateBytes - metrics.rssBeforePopulateBytes;
 
     DataFilterProxyModel proxy;
     proxy.setSourceModel(&model);
@@ -109,7 +149,8 @@ int main(int argc, char *argv[])
     QTextStream out(stdout);
 
     out << "LfQuick DataView benchmark\n";
-    out << "rows,columns,populate_ms,filter_ms,sort_ms,update_1_ms,update_10_ms,update_100_ms\n";
+    out << "rows,columns,populate_ms,filter_ms,sort_ms,update_1_ms,update_10_ms,update_100_ms,"
+           "rss_before_bytes,rss_after_populate_bytes,rss_populate_delta_bytes\n";
 
     constexpr std::array<int, 2> rowCounts{20000, 50000};
     constexpr std::array<int, 3> columnCounts{8, 20, 40};
@@ -124,12 +165,16 @@ int main(int argc, char *argv[])
                 << metrics.sortMs << ','
                 << metrics.updateBatchMs[0] << ','
                 << metrics.updateBatchMs[1] << ','
-                << metrics.updateBatchMs[2] << '\n';
+                << metrics.updateBatchMs[2] << ','
+                << metrics.rssBeforePopulateBytes << ','
+                << metrics.rssAfterPopulateBytes << ','
+                << metrics.rssPopulateDeltaBytes << '\n';
             out.flush();
         }
     }
 
     out << "Note: update columns report one synthetic batch containing 1/10/100 model updates. "
-           "No absolute performance threshold is enforced; use these metrics for regression tracking.\n";
+           "RSS is process working-set/resident memory where supported. No absolute threshold is "
+           "enforced; use these metrics for regression tracking.\n";
     return 0;
 }
