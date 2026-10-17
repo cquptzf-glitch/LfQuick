@@ -6,6 +6,7 @@
 #include <QTimer>
 
 #include <algorithm>
+#include <utility>
 
 namespace LfQuick {
 
