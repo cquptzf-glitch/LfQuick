@@ -6,6 +6,7 @@
 
 #include <QList>
 #include <QObject>
+#include <QPointer>
 #include <QVariantMap>
 
 #include <memory>
@@ -88,7 +89,7 @@ private:
     void promoteNextQueued();
     void dropQueuedRequests(const QString &reason);
 
-    PageRouter *m_router = nullptr;
+    QPointer<PageRouter> m_router;
     NavigationGuardState m_state;
     std::shared_ptr<INavigationGuard> m_guard;
     std::optional<NavigationContext> m_pending;
