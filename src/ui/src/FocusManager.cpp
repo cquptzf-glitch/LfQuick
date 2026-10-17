@@ -97,10 +97,8 @@ QVariantList FocusManager::dumpOrder() const
     QQuickItem *active = currentFocus();
     for (QVariant &entry : result) {
         QVariantMap map = entry.toMap();
-        const QString name = active && active->objectName().isEmpty()
-            ? QString::fromLatin1(active->metaObject()->className())
-            : (active ? active->objectName() : QString{});
-        map.insert(QStringLiteral("active"), !name.isEmpty() && map.value(QStringLiteral("name")).toString() == name);
+        QObject *item = map.value(QStringLiteral("item")).value<QObject *>();
+        map.insert(QStringLiteral("active"), item && item == active);
         entry = map;
     }
     return result;
