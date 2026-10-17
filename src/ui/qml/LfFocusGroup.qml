@@ -3,14 +3,47 @@ import QtQuick
 FocusScope {
     id: root
 
-    property int navigationMode: FocusNavigator.Native
+    property int navigationMode: {
+        switch (Lf.focusPolicy) {
+        case Lf.Explicit: return FocusNavigator.Explicit
+        case Lf.Geometric: return FocusNavigator.Geometric
+        case Lf.Grid: return FocusNavigator.Grid
+        case Lf.Native: return FocusNavigator.Native
+        default: return FocusNavigator.Native
+        }
+    }
     property bool wrap: true
     property real rowTolerance: 8
     property bool handleTab: true
     property bool handleArrows: navigationMode === FocusNavigator.Geometric
                                 || navigationMode === FocusNavigator.Grid
     readonly property alias navigator: focusNavigator
+    readonly property alias manager: focusManager
 
+    function managerMode() {
+        switch (root.navigationMode) {
+        case FocusNavigator.Explicit: return FocusWalker.Explicit
+        case FocusNavigator.Geometric: return FocusWalker.Geometric
+        case FocusNavigator.Grid: return FocusWalker.Grid
+        default: return FocusWalker.Native
+        }
+    }
+
+    onRowToleranceChanged: focusManager.walker.rowTolerance = rowTolerance
+
+    FocusManager {
+        id: focusManager
+        scope: root
+        mode: root.managerMode()
+        wrap: root.wrap
+        Component.onCompleted: {
+            walker.rowTolerance = root.rowTolerance
+            walker.layoutDirection = Qt.application.layoutDirection
+        }
+    }
+
+    // Compatibility object for existing pages/diagnostics that still bind to
+    // FocusNavigator. Keyboard handling below uses FocusManager/FocusWalker.
     FocusNavigator {
         id: focusNavigator
         scope: root
@@ -22,32 +55,32 @@ FocusScope {
     Keys.onTabPressed: function(event) {
         if (!root.handleTab)
             return
-        event.accepted = focusNavigator.moveNext()
+        event.accepted = focusManager.moveNext()
     }
 
     Keys.onBacktabPressed: function(event) {
         if (!root.handleTab)
             return
-        event.accepted = focusNavigator.movePrevious()
+        event.accepted = focusManager.movePrevious()
     }
 
     Keys.onLeftPressed: function(event) {
         if (root.handleArrows)
-            event.accepted = focusNavigator.moveLeft()
+            event.accepted = focusManager.moveLeft()
     }
 
     Keys.onRightPressed: function(event) {
         if (root.handleArrows)
-            event.accepted = focusNavigator.moveRight()
+            event.accepted = focusManager.moveRight()
     }
 
     Keys.onUpPressed: function(event) {
         if (root.handleArrows)
-            event.accepted = focusNavigator.moveUp()
+            event.accepted = focusManager.moveUp()
     }
 
     Keys.onDownPressed: function(event) {
         if (root.handleArrows)
-            event.accepted = focusNavigator.moveDown()
+            event.accepted = focusManager.moveDown()
     }
 }
