@@ -5,6 +5,7 @@
 #include <QFont>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMetaObject>
 #include <QPushButton>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -110,8 +111,13 @@ void WidgetOverlayBackend::presentToast(const ToastRequest &request)
             return;
         m_toasts.erase(it);
         m_toastOrder.removeAll(id);
-        emit toastDismissRequested(id);
         layoutToasts();
+
+        // Native parent destruction can recursively destroy children. Defer
+        // the logical dismissal until that native destructor stack is done.
+        QMetaObject::invokeMethod(this, [this, id] {
+            emit toastDismissRequested(id);
+        }, Qt::QueuedConnection);
     });
 
     frame->adjustSize();
@@ -201,7 +207,10 @@ void WidgetOverlayBackend::presentDialog(const DialogRequest &request)
         const QString fallback = dialogIt->fallbackButton;
         QObject::disconnect(dialogIt->finishedConnection);
         m_dialogs.erase(dialogIt);
-        emit dialogResolved(requestId, fallback);
+
+        QMetaObject::invokeMethod(this, [this, requestId, fallback] {
+            emit dialogResolved(requestId, fallback);
+        }, Qt::QueuedConnection);
     });
 
     box->open();
