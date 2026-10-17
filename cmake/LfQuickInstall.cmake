@@ -16,6 +16,14 @@ function(lfquick_install_target target export_name)
 
     set_target_properties(${target} PROPERTIES EXPORT_NAME ${export_name})
 
+    # Directory-level LFQUICK_STATIC is sufficient while building LfQuick,
+    # but it is not part of an exported target's usage requirements. Static
+    # SDK consumers must see the same define or the public headers use
+    # Q_DECL_IMPORT on Windows for symbols that actually live in static libs.
+    if(NOT BUILD_SHARED_LIBS)
+        target_compile_definitions(${target} INTERFACE LFQUICK_STATIC)
+    endif()
+
     get_target_property(_header_sets ${target} HEADER_SETS)
     if(_header_sets AND NOT _header_sets MATCHES "-NOTFOUND$")
         install(TARGETS ${target}
