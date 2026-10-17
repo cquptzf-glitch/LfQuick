@@ -1,0 +1,11 @@
+#pragma once
+
+#include <QtCore/qglobal.h>
+
+#if defined(LFQUICK_STATIC)
+#  define LFQUICKINTEGRATION_EXPORT
+#elif defined(LFQUICKINTEGRATION_LIBRARY)
+#  define LFQUICKINTEGRATION_EXPORT Q_DECL_EXPORT
+#else
+#  define LFQUICKINTEGRATION_EXPORT Q_DECL_IMPORT
+#endif
