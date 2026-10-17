@@ -45,6 +45,8 @@ qt_add_qml_module(LfQuickUi
         src/NavigationItemModel.cpp
         include/LfQuick/Ui/NavigationController.h
         src/NavigationController.cpp
+        include/LfQuick/Ui/IWindowBackend.h
+        src/IWindowBackend.cpp
         include/LfQuick/Ui/WindowController.h
         src/WindowController.cpp
         include/LfQuick/Ui/WindowCapabilities.h
@@ -117,6 +119,7 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/ValidationFormState.h
         include/LfQuick/Ui/NavigationItemModel.h
         include/LfQuick/Ui/NavigationController.h
+        include/LfQuick/Ui/IWindowBackend.h
         include/LfQuick/Ui/WindowController.h
         include/LfQuick/Ui/WindowCapabilities.h
         include/LfQuick/Ui/QuickRuntime.h
