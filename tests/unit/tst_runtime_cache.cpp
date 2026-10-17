@@ -4,6 +4,7 @@
 #include <LfQuick/Runtime/PageRegistry.h>
 #include <LfQuick/Runtime/PageRouter.h>
 
+#include <QList>
 #include <QSignalSpy>
 #include <QTest>
 
@@ -18,19 +19,27 @@ struct Stats {
     int destroyed = 0;
     int parameterUpdates = 0;
     QVariantMap lastParameters;
+    QList<std::shared_ptr<bool>> validityFlags;
 };
 
 class CachePage final : public IPageInstance
 {
 public:
-    CachePage(QString id, std::shared_ptr<Stats> stats)
-        : m_id(std::move(id)), m_stats(std::move(stats)) {}
+    CachePage(QString id,
+              std::shared_ptr<Stats> stats,
+              std::shared_ptr<bool> valid)
+        : m_id(std::move(id))
+        , m_stats(std::move(stats))
+        , m_valid(std::move(valid))
+    {
+    }
 
     QString pageId() const override { return m_id; }
     void activate() override {}
     void deactivate() override {}
     void suspend() override {}
     void resume() override {}
+    bool isValid() const noexcept override { return m_valid && *m_valid; }
     bool updateParameters(const QVariantMap &parameters) override
     {
         ++m_stats->parameterUpdates;
@@ -42,6 +51,7 @@ public:
 private:
     QString m_id;
     std::shared_ptr<Stats> m_stats;
+    std::shared_ptr<bool> m_valid;
 };
 
 class CacheProvider final : public IPageProvider
@@ -56,7 +66,9 @@ public:
                                            const QVariantMap &) override
     {
         ++stats->created;
-        return std::make_unique<CachePage>(descriptor.route, stats);
+        auto valid = std::make_shared<bool>(true);
+        stats->validityFlags.append(valid);
+        return std::make_unique<CachePage>(descriptor.route, stats, std::move(valid));
     }
 
     std::shared_ptr<Stats> stats = std::make_shared<Stats>();
@@ -144,6 +156,58 @@ private slots:
         // Singleton is destroyed once by the global cache; the KeepAlive page
         // is destroyed independently.
         QCOMPARE(provider->stats->destroyed, 2);
+    }
+
+    void keepAliveRecreatesInvalidBackingInstanceOnBack()
+    {
+        PageRegistry pages;
+        QVERIFY(pages.registerPage(page(QStringLiteral("/a"), PageCachePolicy::KeepAlive)));
+        QVERIFY(pages.registerPage(page(QStringLiteral("/b"), PageCachePolicy::KeepAlive)));
+
+        auto provider = std::make_shared<CacheProvider>();
+        PageProviderRegistry providers;
+        QVERIFY(providers.registerProvider(provider));
+        PageRouter router(&pages, &providers);
+
+        QVERIFY(router.push({QStringLiteral("/a"), {}, {}}).accepted);
+        QVERIFY(router.push({QStringLiteral("/b"), {}, {}}).accepted);
+        QCOMPARE(provider->stats->created, 2);
+        QCOMPARE(provider->stats->validityFlags.size(), 2);
+
+        *provider->stats->validityFlags.at(0) = false;
+        QVERIFY(router.back().accepted);
+
+        QCOMPARE(router.currentRoute(), QStringLiteral("/a"));
+        QCOMPARE(provider->stats->created, 3);
+        QVERIFY(*provider->stats->validityFlags.constLast());
+        QVERIFY(provider->stats->destroyed >= 2);
+    }
+
+    void singletonRecreatesInvalidGlobalInstanceOnPush()
+    {
+        PageRegistry pages;
+        QVERIFY(pages.registerPage(page(QStringLiteral("/singleton"), PageCachePolicy::Singleton)));
+
+        auto provider = std::make_shared<CacheProvider>();
+        PageProviderRegistry providers;
+        QVERIFY(providers.registerProvider(provider));
+        PageRouter router(&pages, &providers);
+        QSignalSpy created(&router, &PageRouter::singletonCreated);
+        QSignalSpy reused(&router, &PageRouter::singletonReused);
+
+        QVERIFY(router.push({QStringLiteral("/singleton"), {}, {}}).accepted);
+        QCOMPARE(provider->stats->created, 1);
+        QCOMPARE(router.singletonCount(), 1);
+
+        *provider->stats->validityFlags.at(0) = false;
+        QVERIFY(router.push({QStringLiteral("/singleton"), {}, {}}).accepted);
+
+        QCOMPARE(provider->stats->created, 2);
+        QCOMPARE(router.singletonCount(), 1);
+        QCOMPARE(created.count(), 2);
+        QCOMPARE(reused.count(), 0);
+        QCOMPARE(provider->stats->destroyed, 1);
+        QVERIFY(*provider->stats->validityFlags.constLast());
     }
 
     void weightedLruEvictsOldestUntilBothBudgetsFit()
