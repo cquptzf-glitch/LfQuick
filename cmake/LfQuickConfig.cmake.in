@@ -17,6 +17,8 @@ set(LfQuick_QT_COMPONENTS "@LFQUICK_PACKAGE_QT_COMPONENTS@")
 set(_LfQuick_known_components
     Core
     Runtime
+    Models
+    Io
     Platform
     PlatformQml
     Ui
