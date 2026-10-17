@@ -143,10 +143,28 @@ bool JsonDocument::save()
 
 bool JsonDocument::saveAs(const QString &path)
 {
-    if (!m_file)
+    if (!m_file) {
+        setErrorString(QStringLiteral("File document is unavailable"));
         return false;
-    setPath(path);
-    return save();
+    }
+
+    const QJsonDocument document = QJsonDocument::fromVariant(m_value);
+    if (document.isNull()) {
+        setErrorString(QStringLiteral("JSON root must be an object or array"));
+        return false;
+    }
+
+    m_file->setData(document.toJson(m_compact ? QJsonDocument::Compact
+                                              : QJsonDocument::Indented));
+    if (!m_file->saveAs(path)) {
+        setErrorString(m_file->errorString());
+        return false;
+    }
+
+    setDirty(false);
+    setErrorString({});
+    emit saved();
+    return true;
 }
 
 void JsonDocument::clear()
