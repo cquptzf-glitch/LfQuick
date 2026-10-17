@@ -1,6 +1,8 @@
+#include <LfQuick/Io/DataStream.h>
 #include <LfQuick/Io/FileDocument.h>
 #include <LfQuick/Io/LocalIpcClient.h>
 #include <LfQuick/Io/LocalIpcServer.h>
+#include <LfQuick/Io/ProcessRunner.h>
 
 #include <QDebug>
 #include <QFile>
@@ -113,6 +115,55 @@ QtObject {
         QCOMPARE(document.text(), QStringLiteral("disk-v2"));
         QVERIFY(!document.dirty());
         QVERIFY(!document.externalConflict());
+    }
+
+    void processFailedStartCompletesExactlyOnce()
+    {
+        QTemporaryDir temporary;
+        QVERIFY(temporary.isValid());
+
+        ProcessRunner runner;
+        StreamCollector collector;
+        runner.setStdoutParser(&collector);
+        runner.setProgram(temporary.filePath(QStringLiteral("definitely-missing-executable")));
+
+        QSignalSpy finished(&runner, &ProcessRunner::finished);
+        QSignalSpy parserFinished(&collector, &DataStreamParser::finished);
+
+        QVERIFY(runner.start());
+        QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 3000);
+        QCOMPARE(parserFinished.count(), 1);
+        QCOMPARE(runner.state(), ProcessRunner::State::NotRunning);
+        QVERIFY(!runner.running());
+        QCOMPARE(runner.exitCode(), -1);
+        QCOMPARE(runner.exitStatus(), ProcessRunner::ExitStatus::Unknown);
+        QVERIFY(!runner.errorString().isEmpty());
+
+        // No delayed QProcess signal may complete the same logical run twice.
+        QTest::qWait(50);
+        QCOMPARE(finished.count(), 1);
+        QCOMPARE(parserFinished.count(), 1);
+    }
+
+    void processTracksParserDestruction()
+    {
+        ProcessRunner runner;
+
+        auto *stdoutParser = new DelimitedStreamParser;
+        runner.setStdoutParser(stdoutParser);
+        QCOMPARE(runner.stdoutParser(), stdoutParser);
+        QSignalSpy stdoutChanged(&runner, &ProcessRunner::stdoutParserChanged);
+        delete stdoutParser;
+        QCOMPARE(runner.stdoutParser(), nullptr);
+        QCOMPARE(stdoutChanged.count(), 1);
+
+        auto *stderrParser = new DelimitedStreamParser;
+        runner.setStderrParser(stderrParser);
+        QCOMPARE(runner.stderrParser(), stderrParser);
+        QSignalSpy stderrChanged(&runner, &ProcessRunner::stderrParserChanged);
+        delete stderrParser;
+        QCOMPARE(runner.stderrParser(), nullptr);
+        QCOMPARE(stderrChanged.count(), 1);
     }
 
     void localIpcSupportsTypedRpcAndGenericMessages()
