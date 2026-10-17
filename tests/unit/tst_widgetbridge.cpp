@@ -18,6 +18,7 @@
 #include <QSignalSpy>
 #include <QStackedWidget>
 #include <QTest>
+#include <QWindow>
 
 using namespace LfQuick;
 
@@ -80,6 +81,7 @@ private slots:
     {
         WidgetWindowProvider provider;
         QWidget *firstWidget = nullptr;
+        QWidget *childWidget = nullptr;
         QWidget *receivedOwner = nullptr;
 
         QVERIFY(provider.registerFactory(
@@ -90,6 +92,8 @@ private slots:
                 widget->setWindowTitle(parameters.value(QStringLiteral("title")).toString());
                 if (!firstWidget)
                     firstWidget = widget;
+                else
+                    childWidget = widget;
                 return widget;
             }));
 
@@ -106,6 +110,7 @@ private slots:
         QVERIFY(firstWidget);
         QCOMPARE(firstWidget->windowTitle(), QStringLiteral("Owner"));
         QVERIFY(receivedOwner == nullptr);
+        QVERIFY(firstWidget->parentWidget() == nullptr);
 
         const QString firstId = first->instanceId();
         auto second = provider.create(
@@ -113,10 +118,68 @@ private slots:
             {QStringLiteral("tool"), {{QStringLiteral("title"), QStringLiteral("Child")}}, firstId, {}, {}});
         QVERIFY(second != nullptr);
         QCOMPARE(receivedOwner, firstWidget);
+        QVERIFY(childWidget);
+        QVERIFY(childWidget->parentWidget() == nullptr);
+        QVERIFY(childWidget->windowHandle());
+        QVERIFY(firstWidget->windowHandle());
+        QCOMPARE(childWidget->windowHandle()->transientParent(), firstWidget->windowHandle());
+        QCOMPARE(childWidget->property("lfquickWindowOwnerInstanceId").toString(), firstId);
 
         QVERIFY(second->updateParameters({{QStringLiteral("mode"), QStringLiteral("updated")}}));
         second->close();
         first->close();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    }
+
+    void widgetWindowProviderRejectsIncompatibleOwnerBeforeFactoryRuns()
+    {
+        WidgetWindowProvider provider;
+        bool factoryCalled = false;
+        QVERIFY(provider.registerFactory(
+            QStringLiteral("tool"),
+            [&](QWidget *, const QVariantMap &) -> QWidget * {
+                factoryCalled = true;
+                return new QWidget(nullptr, Qt::Window);
+            }));
+
+        WindowDescriptor descriptor;
+        descriptor.id = QStringLiteral("tool");
+        descriptor.provider = QStringLiteral("widget-window");
+        descriptor.source.insert(QStringLiteral("factory"), QStringLiteral("tool"));
+
+        auto instance = provider.create(
+            descriptor,
+            {descriptor.id, {}, QStringLiteral("foreign-provider-owner"), {}, {}});
+        QVERIFY(instance == nullptr);
+        QVERIFY(!factoryCalled);
+        QCOMPARE(provider.lastErrorInfo().code, QStringLiteral("widget-window.owner-incompatible"));
+        QCOMPARE(provider.lastErrorInfo().details.value(QStringLiteral("ownerInstanceId")).toString(),
+                 QStringLiteral("foreign-provider-owner"));
+    }
+
+    void widgetWindowProviderDetachesFactoryQObjectParent()
+    {
+        WidgetWindowProvider provider;
+        QWidget externalParent;
+        QWidget *created = nullptr;
+        QVERIFY(provider.registerFactory(
+            QStringLiteral("tool"),
+            [&](QWidget *, const QVariantMap &) -> QWidget * {
+                created = new QWidget(&externalParent, Qt::Window);
+                return created;
+            }));
+
+        WindowDescriptor descriptor;
+        descriptor.id = QStringLiteral("tool");
+        descriptor.provider = QStringLiteral("widget-window");
+        descriptor.source.insert(QStringLiteral("factory"), QStringLiteral("tool"));
+
+        auto instance = provider.create(descriptor, {descriptor.id, {}, {}, {}, {}});
+        QVERIFY(instance != nullptr);
+        QVERIFY(created);
+        QVERIFY(created->parentWidget() == nullptr);
+
+        instance->close();
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     }
 
