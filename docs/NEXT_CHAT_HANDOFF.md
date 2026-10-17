@@ -95,6 +95,27 @@ owner / reparent / close policy / close guard
 provider-native saveState / restoreState
 ```
 
+PageRouter 最新生命周期 contract：
+
+```text
+IPageInstance::isValid()
+    provider 可报告 backing object 已失效
+
+invalid KeepAlive/LRU cache
+    -> cleanup old instance
+    -> 按原 descriptor/parameters 自动重建
+
+invalid route-global Singleton
+    -> 一次性移出 singleton cache
+    -> 清除 history/forward 中同一 shared instance 的引用
+    -> destroy 一次
+    -> 后续按需重建/复用 replacement
+
+isValid()==false 后
+    -> Router 不再调用 deactivate/suspend/resume
+    -> 只走 cleanup/recreate
+```
+
 WindowRouter 当前关键语义：
 
 ```text
@@ -122,6 +143,16 @@ NavigationGuardController
 NavigationItemModel / NavigationView / ApplicationShell
 Theme / Tokens / Units / Typography / Motion / DpiHelper
 ThemeSystemAdapter / IconLoader
+```
+
+QuickRuntime / Quick page host contract：
+
+```text
+QuickRuntime.host 是 routed Quick pages 的 scene root
+host 切换 -> PageRouter reset
+host 销毁 -> provider host 清空 + PageRouter reset
+QuickPageProvider 缺 host -> structured quick.host-missing
+禁止“路由成功但 page 不在任何 scene tree”
 ```
 
 `Lf` attached context 五条 contract 都已有真实消费路径：
@@ -186,6 +217,7 @@ InputRouter 已做生命周期收口：
 scanner destruction -> scannerChanged/sourceCount sync
 clear/unregister source -> compatibility scanner sync
 install target destruction -> installedChanged
+InputTarget target destruction -> targetChanged
 InputTarget repeated register/unregister -> destroyed connection ownership closed
 QML QObject source registration entry
 ```
@@ -244,13 +276,24 @@ WidgetOverlayBackend
 DPR/screen/resize/load/first-frame telemetry
 ```
 
-WidgetWindowProvider 当前 owner 规则：
+WidgetPageProvider 当前 host 规则：
+
+```text
+page host 必须存在，否则 structured widget.host-missing
+setHost() 递增 provider generation
+旧 host 上的 cached page -> isValid()==false
+PageRouter 下次命中时自动 cleanup/rebuild 到新 host
+WidgetWindowProvider 专门负责 top-level window，不用 WidgetPageProvider 代替
+```
+
+WidgetWindowProvider 当前 owner/lifetime 规则：
 
 ```text
 Runtime owner 必须能解析为同 provider QWidget owner，否则结构化失败
 factory QWidget QObject parent 一律剥离
 native owner 只用 QWindow::transientParent
 Detach 不受 QObject parent 析构影响
+外部直接 delete QWidget -> 回调 Router 清理 window record
 ```
 
 ## Charts
@@ -370,17 +413,26 @@ tools/test_tooling.py
 
 ```text
 1000-cycle PageRouter push/back stress
+invalid KeepAlive/Singleton cache rebuild tests
+invalid current page no deactivate/suspend lifecycle test
+singleton invalidation no-double-destroy/history-reuse test
+QuickRuntime host switch/destruction reset tests
+Quick page missing-host structured failure test
 WindowRouter reparent/detach/cycle/state-save/topology-close tests
 1000-scan KeyboardWedge stress
 InputRouter source/scanner/install-target lifetime tests
-Integration attached scanner policy/lifetime tests
+InputTarget target destruction notify test
+Integration attached scanner policy/lifetime/QML smoke tests
+PlatformQml QML import/construct smoke test
 FocusWalker/FocusManager/FocusNavigator scope lifetime tests
 BusyToken release/external-end/destructor/coordinator-destruction tests
 attached validation/help contract tests
 base-control QML smoke test
+DataView Column/Header/Viewport/typed-delegate QML smoke test
 DataGrid FPS/frame/slow-frame telemetry
 DataView 20k/50k benchmark + RSS
-WidgetWindow native owner/incompatible owner/QObject parent tests
+WidgetPage host generation/rebuild/missing-host diagnostics tests
+WidgetWindow native owner/incompatible owner/QObject parent/external-delete tests
 WidgetFocusBridge repeated round-trip stress
 scanner isolation + modal focus trap
 QuickSurface 120 resize / DPR / root-size stress
