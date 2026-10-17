@@ -7,6 +7,7 @@
 #include <QUrl>
 #include <QVariantMap>
 #include <QQmlComponent>
+#include <QQmlContext>
 #include <QQmlEngine>
 #include <QtQmlIntegration/qqmlintegration.h>
 
@@ -61,13 +62,16 @@ private:
 
     explicit QmlObjectLoadHandle(QUrl source,
                                  QVariantMap initialProperties,
+                                 QQmlContext *creationContext,
                                  QObject *parent = nullptr);
     explicit QmlObjectLoadHandle(QQmlComponent *component,
                                  QVariantMap initialProperties,
+                                 QQmlContext *creationContext,
                                  QObject *parent = nullptr);
 
     void begin(QQmlEngine *engine);
     void startIncubation();
+    QQmlContext *effectiveCreationContext() const;
     void onComponentStatusChanged();
     void onIncubatorStatusChanged();
     void finishWithObject(QObject *object);
@@ -78,6 +82,7 @@ private:
     QUrl m_source;
     QVariantMap m_initialProperties;
     QPointer<QQmlEngine> m_engine;
+    QPointer<QQmlContext> m_creationContext;
     std::unique_ptr<QQmlComponent> m_ownedComponent;
     QPointer<QQmlComponent> m_component;
     QMetaObject::Connection m_componentDestroyedConnection;
@@ -100,6 +105,12 @@ public:
     QQmlEngine *engine() const noexcept { return m_engine; }
     void setEngine(QQmlEngine *engine);
 
+    // Optional lexical creation context used by C++ hosts such as
+    // LfLazyLoader. It is deliberately not a QML property; QML-created
+    // factories can discover their own qmlContext automatically.
+    QQmlContext *creationContext() const noexcept { return m_creationContext; }
+    void setCreationContext(QQmlContext *context);
+
     QString lastError() const { return m_lastError; }
 
     Q_INVOKABLE QObject *create(const QUrl &source,
@@ -115,10 +126,12 @@ public:
     static QObject *createSync(QQmlEngine *engine,
                                const QUrl &source,
                                const QVariantMap &initialProperties,
-                               QString *error = nullptr);
+                               QString *error = nullptr,
+                               QQmlContext *creationContext = nullptr);
     static QObject *createSync(QQmlComponent *component,
                                const QVariantMap &initialProperties,
-                               QString *error = nullptr);
+                               QString *error = nullptr,
+                               QQmlContext *creationContext = nullptr);
 
 signals:
     void engineChanged();
@@ -127,9 +140,11 @@ signals:
 private:
     QmlObjectLoadHandle *beginAsync(QmlObjectLoadHandle *handle, QQmlEngine *engine);
     QQmlEngine *effectiveEngine() const;
+    QQmlContext *effectiveCreationContext(QQmlComponent *component = nullptr) const;
     void setLastError(const QString &message);
 
     QPointer<QQmlEngine> m_engine;
+    QPointer<QQmlContext> m_creationContext;
     QString m_lastError;
 };
 
