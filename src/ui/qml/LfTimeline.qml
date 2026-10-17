@@ -8,6 +8,14 @@ Controls.Control {
     property var model: []
     property int currentIndex: -1
 
+    function valueAt(index) {
+        if (!model)
+            return undefined
+        if (typeof model.get === "function")
+            return model.get(index)
+        return model[index]
+    }
+
     function titleFor(value) {
         if (typeof value === "string")
             return value
@@ -43,8 +51,8 @@ Controls.Control {
             delegate: Item {
                 id: entry
                 required property int index
-                required property var modelData
 
+                readonly property var value: root.valueAt(index)
                 readonly property bool completed: root.currentIndex >= 0 && index < root.currentIndex
                 readonly property bool current: index === root.currentIndex
 
@@ -63,7 +71,6 @@ Controls.Control {
                         Layout.fillHeight: true
 
                         Rectangle {
-                            id: line
                             anchors.horizontalCenter: marker.horizontalCenter
                             anchors.top: marker.verticalCenter
                             anchors.bottom: parent.bottom
@@ -106,7 +113,7 @@ Controls.Control {
 
                             Text {
                                 Layout.fillWidth: true
-                                text: root.titleFor(entry.modelData)
+                                text: root.titleFor(entry.value)
                                 color: entry.current ? Tokens.textPrimary : Tokens.textSecondary
                                 font.pixelSize: Typography.body
                                 font.weight: entry.current ? Typography.weightSemibold : Typography.weightMedium
@@ -114,8 +121,8 @@ Controls.Control {
                             }
 
                             Text {
-                                visible: root.detailFor(entry.modelData).length > 0
-                                text: root.detailFor(entry.modelData)
+                                visible: root.detailFor(entry.value).length > 0
+                                text: root.detailFor(entry.value)
                                 color: Tokens.textSecondary
                                 font.pixelSize: Typography.caption
                             }
@@ -123,8 +130,8 @@ Controls.Control {
 
                         Text {
                             Layout.fillWidth: true
-                            visible: root.descriptionFor(entry.modelData).length > 0
-                            text: root.descriptionFor(entry.modelData)
+                            visible: root.descriptionFor(entry.value).length > 0
+                            text: root.descriptionFor(entry.value)
                             color: Tokens.textSecondary
                             font.pixelSize: Typography.caption
                             wrapMode: Text.Wrap
