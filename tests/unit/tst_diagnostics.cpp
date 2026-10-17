@@ -1,6 +1,7 @@
 #include <LfQuick/Diagnostics/DiagnosticsModel.h>
 
 #include <QFile>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
