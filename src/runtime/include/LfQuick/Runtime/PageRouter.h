@@ -7,7 +7,6 @@
 #include <QHash>
 #include <QObject>
 #include <QStringList>
-#include <QStringView>
 
 #include <memory>
 #include <vector>
@@ -58,9 +57,6 @@ public:
 
     bool addGuard(std::shared_ptr<INavigationGuard> guard);
     void clearGuards();
-
-    bool prewarm(const RouteRequest &request);
-    void cancelPrewarm(QStringView route);
 
     RouteResult push(const RouteRequest &request);
     RouteResult replace(const RouteRequest &request);
