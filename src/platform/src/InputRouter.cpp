@@ -101,6 +101,21 @@ void InputRouter::clearSources()
         unregisterSource(source);
 }
 
+bool InputRouter::registerSourceObject(QObject *sourceObject)
+{
+    return registerSource(qobject_cast<IInputSource *>(sourceObject));
+}
+
+bool InputRouter::unregisterSourceObject(QObject *sourceObject)
+{
+    return unregisterSource(qobject_cast<IInputSource *>(sourceObject));
+}
+
+void InputRouter::clearSourceObjects()
+{
+    clearSources();
+}
+
 bool InputRouter::registerTarget(QObject *targetObject)
 {
     auto *target = qobject_cast<InputTarget *>(targetObject);
