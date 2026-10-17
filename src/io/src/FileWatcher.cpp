@@ -13,7 +13,13 @@ namespace LfQuick {
 FileWatcher::FileWatcher(QObject *parent)
     : QObject(parent)
     , m_watcher(new QFileSystemWatcher(this))
+    , m_rebuildTimer(new QTimer(this))
 {
+    m_rebuildTimer->setSingleShot(true);
+    m_rebuildTimer->setInterval(30);
+    connect(m_rebuildTimer, &QTimer::timeout,
+            this, &FileWatcher::rebuildWatcher);
+
     connect(m_watcher, &QFileSystemWatcher::fileChanged,
             this, [this](const QString &path) {
                 emit fileChanged(QDir::cleanPath(path));
@@ -142,6 +148,9 @@ QString FileWatcher::normalizedPath(const QString &path)
 
 void FileWatcher::rebuildWatcher()
 {
+    if (m_rebuildTimer)
+        m_rebuildTimer->stop();
+
     const QStringList existingFiles = m_watcher->files();
     if (!existingFiles.isEmpty())
         m_watcher->removePaths(existingFiles);
@@ -174,7 +183,8 @@ void FileWatcher::rebuildWatcher()
 
 void FileWatcher::scheduleRebuild()
 {
-    QTimer::singleShot(30, this, &FileWatcher::rebuildWatcher);
+    if (m_rebuildTimer)
+        m_rebuildTimer->start();
 }
 
 } // namespace LfQuick
