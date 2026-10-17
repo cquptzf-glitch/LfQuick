@@ -218,6 +218,13 @@ if(LFQUICK_ENABLE_HOT_RELOAD)
     )
     target_link_libraries(tst_tooling PRIVATE LfQuick::Tooling Qt6::Test)
     lfquick_register_test(tst_tooling)
+
+    qt_add_executable(tst_runtime_infrastructure
+        unit/tst_runtime_infrastructure.cpp
+    )
+    target_link_libraries(tst_runtime_infrastructure
+        PRIVATE LfQuick::Tooling Qt6::Qml Qt6::Test)
+    lfquick_register_test(tst_runtime_infrastructure)
 endif()
 
 if(LFQUICK_BUILD_QRANGE_MODEL_ADAPTER)
