@@ -12,7 +12,8 @@ namespace LfQuick {
 enum class NavigationAction {
     Push,
     Replace,
-    Back
+    Back,
+    Forward
 };
 
 struct NavigationContext
