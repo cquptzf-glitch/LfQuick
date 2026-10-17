@@ -1,6 +1,7 @@
 #pragma once
 
 #include <LfQuick/Tooling/LfQuickToolingGlobal.h>
+#include <LfQuick/Tooling/QmlHotReloadController.h>
 
 #include <QPointer>
 #include <QQuickItem>
@@ -10,8 +11,6 @@
 #include <QtQmlIntegration/qqmlintegration.h>
 
 namespace LfQuick {
-
-class QmlHotReloadController;
 
 class LFQUICKTOOLING_EXPORT QmlHotReloadHost : public QQuickItem
 {
