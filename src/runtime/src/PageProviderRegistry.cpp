@@ -16,7 +16,7 @@ bool PageProviderRegistry::registerProvider(std::shared_ptr<IPageProvider> provi
 
 bool PageProviderRegistry::unregisterProvider(QStringView id)
 {
-    return m_providers.remove(id.toString()) > 0;
+    return m_providers.remove(id.toString());
 }
 
 std::shared_ptr<IPageProvider> PageProviderRegistry::find(QStringView id) const
