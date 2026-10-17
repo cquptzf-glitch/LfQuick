@@ -104,6 +104,13 @@ function(lfquick_install_target target export_name)
 
     if(_qml_plugin_target AND NOT _qml_plugin_target MATCHES "-NOTFOUND$"
        AND TARGET ${_qml_plugin_target})
+        if(NOT BUILD_SHARED_LIBS)
+            # Static QML plugins are link-time SDK targets. Give them a stable
+            # exported name instead of leaking the generated build target name.
+            set_target_properties(${_qml_plugin_target}
+                PROPERTIES EXPORT_NAME "${export_name}QmlPlugin")
+        endif()
+
         if(_has_qml_module)
             if(BUILD_SHARED_LIBS)
                 install(TARGETS ${_qml_plugin_target}
