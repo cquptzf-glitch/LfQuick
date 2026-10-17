@@ -45,6 +45,8 @@ public:
 
         if (!m_pendingDestroy) {
             m_pendingDestroy = true;
+            // Give interested leases a synchronous opportunity to retain the
+            // object before the destruction decision is made.
             emit dropRequested();
             emit stateChanged();
         }
@@ -53,6 +55,14 @@ public:
             finishDestroy();
             return true;
         }
+
+        // A QObject parent destroys all of its QObject children regardless of
+        // deleteLater()/retention state. Once a logical destroy is retained,
+        // detach QObject ownership so the lease can actually outlive the owner.
+        // QQuickItem::parentItem is intentionally left untouched: an exit
+        // animation may still need the old visual tree until the lease drops.
+        if (m_target->parent())
+            m_target->setParent(nullptr);
         return false;
     }
 
