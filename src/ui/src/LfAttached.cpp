@@ -100,6 +100,48 @@ LfAttached::LfAttached(QObject *target)
 {
 }
 
+void LfAttached::setValidationRule(const QVariantMap &rule)
+{
+    if (m_validationRule == rule)
+        return;
+    m_validationRule = rule;
+    emit validationRuleChanged();
+}
+
+void LfAttached::setFocusPolicy(int policy)
+{
+    const int normalized = policy < Lf::Auto || policy > Lf::Grid ? Lf::Auto : policy;
+    if (m_focusPolicy == normalized)
+        return;
+    m_focusPolicy = normalized;
+    emit focusPolicyChanged();
+}
+
+void LfAttached::setFocusOrder(int order)
+{
+    if (m_focusOrder == order)
+        return;
+    m_focusOrder = order;
+    emit focusOrderChanged();
+}
+
+void LfAttached::setAcceptScanner(bool value)
+{
+    if (m_acceptScanner == value)
+        return;
+    m_acceptScanner = value;
+    emit acceptScannerChanged();
+}
+
+void LfAttached::setHelpContext(const QString &context)
+{
+    const QString normalized = context.trimmed();
+    if (m_helpContext == normalized)
+        return;
+    m_helpContext = normalized;
+    emit helpContextChanged();
+}
+
 LfAttached *Lf::qmlAttachedProperties(QObject *object)
 {
     return new LfAttached(object);
