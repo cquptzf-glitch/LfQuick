@@ -20,14 +20,20 @@ Controls.Control {
         return model[index]
     }
 
-    function activate(index, value) {
+    function labelFor(value) {
+        if (typeof value === "string")
+            return value
+        return value && value.text !== undefined ? String(value.text) : String(value)
+    }
+
+    function activate(index) {
         if (!interactive || stepCount <= 0)
             return
         const target = Math.max(0, Math.min(stepCount - 1, index))
         if (target === currentIndex)
             return
         currentIndex = target
-        stepActivated(target, value === undefined ? valueAt(target) : value)
+        stepActivated(target, valueAt(target))
     }
 
     leftPadding: 0
@@ -49,13 +55,11 @@ Controls.Control {
             delegate: Item {
                 id: step
                 required property int index
-                required property var modelData
 
+                readonly property var value: root.valueAt(index)
                 readonly property bool completed: index < root.currentIndex
                 readonly property bool current: index === root.currentIndex
-                readonly property string label: typeof modelData === "string"
-                    ? modelData
-                    : (modelData && modelData.text !== undefined ? String(modelData.text) : String(modelData))
+                readonly property string label: root.labelFor(value)
 
                 width: Math.max(96, labelText.implicitWidth + Units.lg * 2)
                 height: marker.height + Units.sm + labelText.implicitHeight
@@ -106,7 +110,7 @@ Controls.Control {
 
                 TapHandler {
                     enabled: root.interactive
-                    onTapped: root.activate(step.index, step.modelData)
+                    onTapped: root.activate(step.index)
                 }
             }
         }
