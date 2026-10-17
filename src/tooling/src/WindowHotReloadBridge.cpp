@@ -5,6 +5,8 @@
 
 #include <QSet>
 
+#include <utility>
+
 namespace LfQuick {
 
 WindowHotReloadBridge::WindowHotReloadBridge(QObject *parent)
