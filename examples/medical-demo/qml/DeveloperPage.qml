@@ -8,6 +8,7 @@ LfPage {
     title: qsTr("Developer")
 
     property int demoProgress: 42
+    property date demoDateTime: new Date(2026, 9, 17, 10, 30)
 
     FocusNavigator {
         id: focusNavigator
@@ -53,7 +54,19 @@ LfPage {
                 LfButton {
                     text: Theme.dark ? qsTr("Switch to Light") : qsTr("Switch to Dark")
                     highlighted: true
-                    onClicked: Theme.dark = !Theme.dark
+                    onClicked: Theme.dark ? Theme.useLight() : Theme.useDark()
+                }
+
+                LfButton {
+                    text: qsTr("System Theme")
+                    enabled: Theme.mode !== Theme.System
+                    onClicked: Theme.useSystem()
+                }
+
+                LfSwitch {
+                    text: qsTr("High Contrast")
+                    checked: Theme.highContrast
+                    onToggled: Theme.highContrast = checked
                 }
 
                 LfButton {
@@ -139,6 +152,17 @@ LfPage {
                             placeholderText: qsTr("Search samples")
                         }
 
+                        LfFilterInput {
+                            Layout.fillWidth: true
+                            placeholderText: qsTr("Filter status")
+                        }
+
+                        LfPasswordField {
+                            Layout.fillWidth: true
+                            placeholderText: qsTr("Password")
+                            text: "demo-password"
+                        }
+
                         LfComboBox {
                             Layout.fillWidth: true
                             model: [qsTr("Ready"), qsTr("Running"), qsTr("Review")]
@@ -164,6 +188,12 @@ LfPage {
                             status: LfStatusIndicator.Success
                             text: qsTr("Instrument ready")
                         }
+
+                        LfProgressRing {
+                            running: true
+                        }
+
+                        Item { Layout.fillWidth: true }
 
                         LfSlider {
                             Layout.columnSpan: 2
@@ -194,6 +224,40 @@ LfPage {
                         LfButton {
                             text: qsTr("Advance %1%").arg(root.demoProgress)
                             onClicked: root.demoProgress = (root.demoProgress + 13) % 101
+                        }
+
+                        LfDatePicker {
+                            Layout.fillWidth: true
+                            value: root.demoDateTime
+                            onAccepted: function(dateValue) {
+                                root.demoDateTime = new Date(dateValue.getFullYear(), dateValue.getMonth(), dateValue.getDate(),
+                                                             root.demoDateTime.getHours(), root.demoDateTime.getMinutes())
+                            }
+                        }
+
+                        LfTimePicker {
+                            Layout.fillWidth: true
+                            value: root.demoDateTime
+                            minuteStep: 5
+                            onAccepted: function(timeValue) {
+                                root.demoDateTime = new Date(root.demoDateTime.getFullYear(), root.demoDateTime.getMonth(),
+                                                             root.demoDateTime.getDate(), timeValue.getHours(), timeValue.getMinutes())
+                            }
+                        }
+
+                        LfDateTimePicker {
+                            Layout.columnSpan: 2
+                            Layout.fillWidth: true
+                            value: root.demoDateTime
+                            minuteStep: 5
+                            onAccepted: function(dateValue) { root.demoDateTime = dateValue }
+                        }
+
+                        LfDateRangePicker {
+                            Layout.columnSpan: 2
+                            Layout.fillWidth: true
+                            startDate: new Date(2026, 9, 1)
+                            endDate: new Date(2026, 9, 17)
                         }
 
                         LfButton {
@@ -245,9 +309,11 @@ LfPage {
                     }
 
                     Label {
-                        text: qsTr("Focus items: %1 | Density: %2")
+                        text: qsTr("Focus items: %1 | Density: %2 | Theme: %3")
                             .arg(focusNavigator.focusChain().length)
                             .arg(densityPicker.currentText)
+                            .arg(Theme.mode === Theme.System ? qsTr("System")
+                                 : Theme.dark ? qsTr("Dark") : qsTr("Light"))
                         color: Tokens.textSecondary
                     }
                 }
@@ -280,6 +346,8 @@ LfPage {
                                 height: 24
                                 radius: Tokens.radiusSmall
                                 color: modelData
+                                border.width: Theme.highContrast ? 1 : 0
+                                border.color: Tokens.borderStrong
                             }
                         }
                     }
