@@ -18,6 +18,8 @@ qt_add_qml_module(LfQuickDiagnostics
         src/DiagnosticsModel.cpp
         include/LfQuick/Diagnostics/ObjectInspectorModel.h
         src/ObjectInspectorModel.cpp
+        include/LfQuick/Diagnostics/AccessibilityAudit.h
+        src/AccessibilityAudit.cpp
     QML_FILES
         qml/DiagnosticsHud.qml
         qml/DiagnosticsObjectInspector.qml
@@ -34,11 +36,13 @@ target_sources(LfQuickDiagnostics PUBLIC
         include/LfQuick/Diagnostics/LfQuickDiagnosticsGlobal.h
         include/LfQuick/Diagnostics/DiagnosticsModel.h
         include/LfQuick/Diagnostics/ObjectInspectorModel.h
+        include/LfQuick/Diagnostics/AccessibilityAudit.h
 )
 
 target_link_libraries(LfQuickDiagnostics
     PUBLIC
         Qt6::Core
+        Qt6::Gui
         Qt6::Qml
         Qt6::QmlIntegration
         Qt6::Quick
