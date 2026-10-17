@@ -4,11 +4,11 @@ import QtCanvas2D
 Item {
     id: root
 
+    required property color strokeColor
     property var points: []
     property bool normalizedCoordinates: true
     property real padding: 0
     property real lineWidth: 2
-    property color strokeColor: "#0067C0"
     property color backgroundColor: "transparent"
     property bool clearBeforePaint: true
 
