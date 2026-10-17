@@ -55,12 +55,30 @@ bool NavigationController::back()
     return true;
 }
 
+bool NavigationController::forward()
+{
+    if (!m_canGoForward)
+        return false;
+    emit forwardRequested();
+    return true;
+}
+
 void NavigationController::syncCurrentRoute(const QString &route, bool canGoBack)
 {
+    syncNavigationState(route, canGoBack, false);
+}
+
+void NavigationController::syncNavigationState(const QString &route,
+                                               bool canGoBack,
+                                               bool canGoForward)
+{
     const QString normalized = route.trimmed();
-    const bool changed = m_currentRoute != normalized || m_canGoBack != canGoBack;
+    const bool changed = m_currentRoute != normalized
+        || m_canGoBack != canGoBack
+        || m_canGoForward != canGoForward;
     m_currentRoute = normalized;
     m_canGoBack = canGoBack;
+    m_canGoForward = canGoForward;
 
     if (m_model)
         m_model->setSelectedRoute(m_currentRoute);
