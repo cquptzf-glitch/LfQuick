@@ -31,6 +31,9 @@ class LFQUICKRUNTIME_EXPORT WindowRouter : public QObject
     Q_PROPERTY(QString activeInstanceId READ activeInstanceId NOTIFY activeWindowChanged FINAL)
 
 public:
+    // `providers` is a non-owning dependency. It may be null, in which case
+    // open() returns structured provider-registry diagnostics, but a non-null
+    // registry must outlive this router.
     explicit WindowRouter(WindowProviderRegistry *providers, QObject *parent = nullptr);
     ~WindowRouter() override;
 
