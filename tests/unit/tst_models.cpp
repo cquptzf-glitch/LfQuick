@@ -9,6 +9,8 @@
 #include <QSignalSpy>
 #include <QTest>
 
+#include <utility>
+
 using namespace LfQuick;
 
 namespace {
