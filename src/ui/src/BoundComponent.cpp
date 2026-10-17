@@ -293,7 +293,8 @@ void BoundComponent::bindDynamicProperties()
     const QMetaObject *toMeta = m_item->metaObject();
     const int firstDynamicProperty = std::max(
         fromMeta->propertyOffset(), BoundComponent::staticMetaObject.propertyCount());
-    const int forwardingSlot = metaObject()->indexOfSlot("forwardDynamicProperty()");
+    const int forwardingSlotIndex = metaObject()->indexOfSlot("forwardDynamicProperty()");
+    const QMetaMethod forwardingSlot = metaObject()->method(forwardingSlotIndex);
 
     for (int i = firstDynamicProperty; i < fromMeta->propertyCount(); ++i) {
         const QMetaProperty fromProperty = fromMeta->property(i);
@@ -316,8 +317,9 @@ void BoundComponent::bindDynamicProperties()
 
         const int notifyIndex = fromProperty.notifySignalIndex();
         if (!m_propertyBindings.contains(notifyIndex)) {
-            const QMetaObject::Connection connection = QMetaObject::connect(
-                this, notifyIndex, this, forwardingSlot, Qt::AutoConnection, nullptr);
+            const QMetaObject::Connection connection = QObject::connect(
+                this, fromProperty.notifySignal(), this, forwardingSlot,
+                Qt::AutoConnection);
             if (connection)
                 m_bindingConnections.push_back(connection);
         }
@@ -353,10 +355,8 @@ void BoundComponent::bindSignalHandlers()
             const QMetaMethod signal = targetMeta->method(methodIndex);
             if (signal.methodType() != QMetaMethod::Signal || signal.name() != signalName)
                 continue;
-            if (!QMetaObject::checkConnectArgs(signal.methodSignature(),
-                                               handler.methodSignature())) {
+            if (!QMetaObject::checkConnectArgs(signal, handler))
                 continue;
-            }
             candidate = signal;
             ++compatibleCandidates;
         }
@@ -372,9 +372,8 @@ void BoundComponent::bindSignalHandlers()
             continue;
         }
 
-        const QMetaObject::Connection connection = QMetaObject::connect(
-            m_item, candidate.methodIndex(), this, handler.methodIndex(),
-            Qt::AutoConnection, nullptr);
+        const QMetaObject::Connection connection = QObject::connect(
+            m_item, candidate, this, handler, Qt::AutoConnection);
         if (connection)
             m_bindingConnections.push_back(connection);
     }
