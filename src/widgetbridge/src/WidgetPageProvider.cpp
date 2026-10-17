@@ -188,6 +188,16 @@ std::unique_ptr<IPageInstance> WidgetPageProvider::create(
     }
 
     QWidget *currentHost = m_state ? m_state->host.data() : nullptr;
+    if (!currentHost) {
+        m_lastErrorInfo.code = QStringLiteral("widget.host-missing");
+        m_lastErrorInfo.message = QStringLiteral("Widget page host is not configured");
+        m_lastErrorInfo.details = {
+            {QStringLiteral("route"), descriptor.route},
+            {QStringLiteral("factory"), key}
+        };
+        return {};
+    }
+
     QWidget *widget = it.value()(currentHost, parameters);
     if (!widget) {
         m_lastErrorInfo.code = QStringLiteral("widget.factory-returned-null");
