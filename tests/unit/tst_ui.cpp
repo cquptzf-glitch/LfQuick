@@ -240,10 +240,32 @@ private slots:
         QCOMPARE(changed.count(), 1);
     }
 
-    void quickRuntimeRejectsUnknownRouteAndCanDisableFallback()
+    void quickRuntimeRejectsQuickNavigationWithoutHost()
     {
         QQmlEngine engine;
         QuickRuntime runtime(&engine);
+
+        QVERIFY(runtime.registerPage(
+            QStringLiteral("/quick"),
+            QUrl(QStringLiteral("qrc:/tests/QuickPage.qml")),
+            static_cast<int>(PageCachePolicy::KeepAlive),
+            false));
+
+        QVERIFY(!runtime.push(QStringLiteral("/quick")));
+        QCOMPARE(runtime.currentRoute(), QString{});
+        QCOMPARE(runtime.depth(), 0);
+        QCOMPARE(runtime.errorCollector()->count(), 1);
+        const QVariantMap error = runtime.errorCollector()->lastError();
+        QCOMPARE(error.value(QStringLiteral("stage")).toString(), QStringLiteral("host"));
+        QVERIFY(error.value(QStringLiteral("message")).toString().contains(QStringLiteral("host"), Qt::CaseInsensitive));
+    }
+
+    void quickRuntimeRejectsUnknownRouteAndCanDisableFallback()
+    {
+        QQmlEngine engine;
+        QQuickItem host;
+        QuickRuntime runtime(&engine);
+        runtime.setHost(&host);
 
         QVERIFY(runtime.registerPage(
             QStringLiteral("/missing-source"),
@@ -255,6 +277,8 @@ private slots:
         QVERIFY(!runtime.push(QStringLiteral("/missing-source")));
         QCOMPARE(runtime.currentRoute(), QString{});
         QCOMPARE(runtime.errorCollector()->count(), 1);
+        QCOMPARE(runtime.errorCollector()->lastError().value(QStringLiteral("stage")).toString(),
+                 QStringLiteral("primary"));
     }
 
     void navigationGuardConfirmRetriesExactlyOnce()
