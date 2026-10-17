@@ -230,9 +230,9 @@ bool QmlHotReloadHost::reloadInternal(qint64 attemptedRevision)
 
     // Stable scoped IDs restore state throughout the object tree. The legacy
     // preservedProperties list above remains only as a root-level compatibility
-    // path for existing applications.
-    if (previous)
-        HotReloadStateTransfer::transfer(candidate, previous);
+    // path for existing applications. The transfer also completes the initial
+    // load stage for PersistentState objects when there is no previous tree.
+    HotReloadStateTransfer::transfer(candidate, previous);
 
     m_item = candidate;
     candidate->setVisible(true);
