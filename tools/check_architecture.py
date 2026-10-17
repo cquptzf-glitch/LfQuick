@@ -19,11 +19,11 @@ RULES = {
     ],
 }
 
-# Diagnostics, development tooling and version-specific styling adapters are
+# Diagnostics, development tooling and version-specific Qt adapters are
 # optional leaf modules. Framework foundations must never depend on them.
 LEAF_DEPENDENCY_PATTERNS = [
-    r"LfQuick/(Diagnostics|Tooling|StyleKit)/",
-    r"LfQuick::(Diagnostics|Tooling|StyleKit)",
+    r"LfQuick/(Diagnostics|Tooling|StyleKit|QtAdapters)/",
+    r"LfQuick::(Diagnostics|Tooling|StyleKit|RangeModelAdapter|CanvasPainterAdapter)",
 ]
 for rel in [
     "src/core",
