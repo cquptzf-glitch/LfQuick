@@ -9,6 +9,11 @@ project(LfQuick
 include(GNUInstallDirs)
 include(CTest)
 
+# Keep the project-wide linkage mode explicit. Without this option, ordinary
+# add_library() defaults to static while Qt's qt_add_library()/QML APIs can
+# follow the Qt build type, producing a mixed static/shared SDK.
+option(BUILD_SHARED_LIBS "Build LfQuick libraries as shared libraries" OFF)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -26,6 +31,10 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 find_package(Qt6 6.8.3 REQUIRED COMPONENTS Core)
+# Qt 6.7+ only honors BUILD_SHARED_LIBS in qt_add_library(), qt_add_plugin()
+# and qt_add_qml_module() when QTP0003 uses NEW semantics. LfQuick supports
+# both linkage modes, so all module families must follow the same switch.
+qt_policy(SET QTP0003 NEW)
 include(LfQuickQtFeatures)
 
 if(LFQUICK_BUILD_PLATFORM OR LFQUICK_BUILD_UI OR LFQUICK_BUILD_INTEGRATION
