@@ -4,9 +4,8 @@
 
 #include <QObject>
 #include <QPointer>
+#include <QScreen>
 #include <QtQmlIntegration/qqmlintegration.h>
-
-class QScreen;
 
 namespace LfQuick {
 
