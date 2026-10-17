@@ -56,6 +56,18 @@ if(LFQUICK_BUILD_QT_GRAPHS_ADAPTER)
     find_package(Qt6 6.8.3 REQUIRED COMPONENTS Graphs Qml QmlIntegration Quick)
 endif()
 
+if(LFQUICK_BUILD_QRANGE_MODEL_ADAPTER)
+    lfquick_require_qt_feature("LFQUICK_BUILD_QRANGE_MODEL_ADAPTER" LFQUICK_HAS_QRANGE_MODEL "6.10.0")
+endif()
+
+if(LFQUICK_EXPERIMENTAL_CANVAS_PAINTER)
+    # LfQuick's declarative adapter uses the QtCanvas2D QML module, which is
+    # introduced in Qt 6.12. The option remains OFF by default because the
+    # module is technology-preview and has separate licensing implications.
+    lfquick_require_qt_feature("LFQUICK_EXPERIMENTAL_CANVAS_PAINTER" LFQUICK_HAS_CANVAS2D_QML "6.12.0")
+    find_package(Qt6 6.12 REQUIRED COMPONENTS CanvasPainter Qml QmlIntegration Quick)
+endif()
+
 if(LFQUICK_EXPERIMENTAL_STYLEKIT)
     lfquick_require_qt_feature("LFQUICK_EXPERIMENTAL_STYLEKIT" LFQUICK_HAS_STYLEKIT "6.12.0")
     find_package(Qt6 6.12 REQUIRED COMPONENTS LabsStyleKit)
@@ -98,6 +110,14 @@ endif()
 
 if(LFQUICK_EXPERIMENTAL_STYLEKIT)
     add_subdirectory(src/stylekit)
+endif()
+
+if(LFQUICK_BUILD_QRANGE_MODEL_ADAPTER)
+    add_subdirectory(src/qtadapters/rangemodel)
+endif()
+
+if(LFQUICK_EXPERIMENTAL_CANVAS_PAINTER)
+    add_subdirectory(src/qtadapters/canvaspainter)
 endif()
 
 if(LFQUICK_BUILD_DATAVIEW)
