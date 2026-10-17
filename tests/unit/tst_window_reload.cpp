@@ -7,6 +7,7 @@
 #include <QtTest>
 
 #include <memory>
+#include <utility>
 
 namespace {
 
