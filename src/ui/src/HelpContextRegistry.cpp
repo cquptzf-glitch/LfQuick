@@ -90,7 +90,8 @@ QString HelpContextRegistry::contextIdFor(QObject *target) const
 {
     if (!target)
         return {};
-    auto *attached = qmlAttachedPropertiesObject<Lf>(target, false);
+    auto *attached = qobject_cast<LfAttached *>(
+        qmlAttachedPropertiesObject<Lf>(target, false));
     return attached ? normalizedId(attached->helpContext()) : QString{};
 }
 
