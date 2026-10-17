@@ -19,7 +19,19 @@ void FocusWalker::setScope(QQuickItem *scope)
 {
     if (m_scope == scope)
         return;
+
+    QObject::disconnect(m_scopeDestroyedConnection);
+    m_scopeDestroyedConnection = {};
     m_scope = scope;
+
+    if (m_scope) {
+        m_scopeDestroyedConnection = connect(m_scope, &QObject::destroyed, this, [this] {
+            m_scope = nullptr;
+            m_scopeDestroyedConnection = {};
+            emit scopeChanged();
+        });
+    }
+
     emit scopeChanged();
 }
 
