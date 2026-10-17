@@ -170,6 +170,12 @@ if(LFQUICK_BUILD_UI)
     target_link_libraries(tst_ui_controls PRIVATE LfQuick::Ui Qt6::Test)
     lfquick_register_test(tst_ui_controls)
 
+    qt_add_executable(tst_popup_anchor
+        unit/tst_popup_anchor.cpp
+    )
+    target_link_libraries(tst_popup_anchor PRIVATE LfQuick::Ui Qt6::Quick Qt6::Test)
+    lfquick_register_test(tst_popup_anchor)
+
     qt_add_executable(tst_quick_page_lifecycle
         unit/tst_quick_page_lifecycle.cpp
     )
