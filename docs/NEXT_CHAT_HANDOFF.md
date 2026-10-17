@@ -3,7 +3,7 @@
 > 更新时间：2026-10-17  
 > 仓库：`https://github.com/cquptzf-glitch/LfQuick`  
 > 分支策略：**main-only**。  
-> 当前策略：**主要功能已基本完成；继续源码收口与最终验证。暂时不要恢复 GitHub Actions / CI / release workflow。**
+> 当前策略：**主要功能已基本完成；继续源码/API/生命周期收口与最终验证。暂时不要恢复 GitHub Actions / CI / release workflow。**
 
 ## 1. 新窗口开场直接做什么
 
@@ -19,6 +19,7 @@ Diagnostics
 Hot Reload
 Design System / Base Controls
 Platform Services
+PlatformQml / Integration scanner bridge
 QRangeModel / Canvas2D / StyleKit adapter
 local developer tooling
 ```
@@ -29,10 +30,11 @@ local developer tooling
 2. 读取本文件与 `docs/IMPLEMENTATION_STATUS.md`；
 3. 保持 main-only；
 4. **不要重新创建 `.github/workflows/*`**，除非用户明确要求恢复 CI；
-5. 优先做静态/API 收口，修最终编译前能发现的问题；
-6. 进入可用 Windows + Qt 6.8.3 环境后做 full Configure / Build / CTest；
-7. 再做真实 GUI hardening、deploy/package；
-8. 最后才恢复 CI/release。
+5. 优先做静态/API/生命周期收口，修最终编译前能发现的问题；
+6. 不再为了“组件名对齐”新增空壳模块；
+7. 进入可用 Windows + Qt 6.8.3 环境后做 full Configure / Build / CTest；
+8. 再做真实 GUI hardening、deploy/package；
+9. 最后才恢复 CI/release。
 
 ---
 
@@ -68,7 +70,7 @@ package validation
 artifact upload
 ```
 
-这只是历史基线。当前 HEAD 后续又加入了大量功能，**不能宣称当前 HEAD 已 full-build green**。
+这只是历史基线。当前 HEAD 后续又加入了大量功能和 hardening，**不能宣称当前 HEAD 已 full-build green**。
 
 ---
 
@@ -80,6 +82,7 @@ artifact upload
 Error / Result / OperationHandle
 Command / Event
 Permission / Validation / Route
+TelemetryEvent / ILogSink
 PageRegistry / ProviderRegistry
 PageRouter
 None / KeepAlive / Singleton / weighted LRU
@@ -88,22 +91,48 @@ structured provider errors
 cross-provider fallback
 NavigationGuard
 WindowProviderRegistry / WindowRouter
-owner / close policy / close guard
+owner / reparent / close policy / close guard
+provider-native saveState / restoreState
 ```
+
+WindowRouter 当前关键语义：
+
+```text
+single/multi instance
+owner cycle rejection
+explicit reparent / detach
+CloseWithOwner children first
+Detach survivor native owner removal
+closeAll owner-depth order
+windowClosed emit 前已从 registry 移除
+native close request 回到 Router
+```
+
+Runtime 仍禁止 `QWidget / QWindow / QQuickItem`。
 
 ## UI / Design System
 
 ```text
 QuickRuntime / QuickPageProvider
 QML error/fallback
-Overlay Busy/Toast/Dialog
-Focus
-Lf.permission
-ValidationRuleTable / FormState
+OverlayCoordinator / BusyToken / Toast / Dialog
+FocusWalker / FocusManager
+FocusNavigator compatibility API
+NavigationGuardController
 NavigationItemModel / NavigationView / ApplicationShell
-Theme / Tokens
-Light / Dark / System
-High Contrast / Density / Motion
+Theme / Tokens / Units / Typography / Motion / DpiHelper
+ThemeSystemAdapter / IconLoader
+```
+
+`Lf` attached context 五条 contract 都已有真实消费路径：
+
+```text
+Lf.permission      -> PermissionBinding
+Lf.validationRule  -> LfValidationBinding
+Lf.focusPolicy     -> FocusManager / FocusWalker
+Lf.focusOrder      -> FocusWalker
+Lf.acceptScanner   -> LfQuick.Integration::LfScannerTarget
+Lf.helpContext     -> HelpContextRegistry / LfHelpShortcut
 ```
 
 Base controls：
@@ -128,6 +157,7 @@ LfDateTimePicker / LfDateRangePicker
 ```text
 DataTableModel / DataFilterProxyModel
 DataGrid
+DataGridColumn / DataGridHeader / DataGridViewport
 column persistence
 edit transaction
 selection/context/keyboard
@@ -141,14 +171,67 @@ DataGridTelemetry
 
 ```text
 ScannerSession
-KeyboardWedgeScanner
-InputRouter
+KeyboardWedgeScanner / MockScanner
+InputTarget / InputRouter / HotkeyRouter
 SystemAppearance
 ScreenService
 ClipboardService
 FileWatcher
 RuntimeCapabilities
 ```
+
+InputRouter 已做生命周期收口：
+
+```text
+scanner destruction -> scannerChanged/sourceCount sync
+clear/unregister source -> compatibility scanner sync
+install target destruction -> installedChanged
+InputTarget repeated register/unregister -> destroyed connection ownership closed
+QML QObject source registration entry
+```
+
+`RuntimeCapabilities` 已覆盖当前 optional module / adapter / style / tooling stable keys。
+
+## PlatformQml
+
+可选：
+
+```text
+-DLFQUICK_BUILD_PLATFORM_QML=ON
+LfQuick::PlatformQml / LfQuick.Platform
+```
+
+保持 Platform 本体 QtCore/Gui-only，通过 foreign registration 暴露到 QML，并提供：
+
+```text
+ScannerTarget
+InputSourceRegistration
+```
+
+## Integration
+
+可选：
+
+```text
+-DLFQUICK_BUILD_INTEGRATION=ON
+LfQuick::Integration / LfQuick.Integration
+```
+
+当前：
+
+```text
+LfScannerTarget
+    Lf.acceptScanner + activeFocus
+    -> Platform InputTarget / InputRouter
+```
+
+依赖方向只能：
+
+```text
+Integration -> Ui + Platform
+```
+
+基础模块禁止反向依赖 Integration。
 
 ## WidgetBridge
 
@@ -159,6 +242,15 @@ WidgetWindowProvider
 WidgetFocusBridge
 WidgetOverlayBackend
 DPR/screen/resize/load/first-frame telemetry
+```
+
+WidgetWindowProvider 当前 owner 规则：
+
+```text
+Runtime owner 必须能解析为同 provider QWidget owner，否则结构化失败
+factory QWidget QObject parent 一律剥离
+native owner 只用 QWindow::transientParent
+Detach 不受 QObject parent 析构影响
 ```
 
 ## Charts
@@ -173,12 +265,19 @@ Medical Demo Charts page
 
 ```text
 DiagnosticsModel
-DiagnosticsHud
+DiagnosticsLogSink
+DiagnosticsHud / inspectors
+AccessibilityAudit
+DiagnosticsTokens
 bounded events
 metrics/timing
 JSON snapshot/export
 Medical + Hybrid integration
 ```
+
+`DiagnosticsLogSink` 可接 Core `TelemetryEvent`；跨线程 write 会先序列化回 sink owner thread，再更新 model。
+
+`AccessibilityAudit` 不再在 issue snapshot 中保存裸 QQuickItem 指针；root 切换/销毁会清理旧 issues。
 
 ## Hot Reload
 
@@ -197,7 +296,7 @@ reference-counted shared watches
 
 ---
 
-# 4. Modern Qt feature gates
+# 4. Modern Qt / style feature gates
 
 ```text
 SafeArea                  >= Qt 6.9
@@ -212,12 +311,19 @@ Qt Labs StyleKit          >= Qt 6.12
 Optional OFF-by-default modules/options：
 
 ```text
+LFQUICK_BUILD_PLATFORM_QML
+LFQUICK_BUILD_INTEGRATION
+LFQUICK_BUILD_FLUENT_STYLE
+LFQUICK_BUILD_BRAND_TEST_STYLE
+LFQUICK_BUILD_SAFEAREA_ADAPTER
 LFQUICK_BUILD_QRANGE_MODEL_ADAPTER
+LFQUICK_BUILD_CUSTOM_QUICK_CHARTS
+LFQUICK_BUILD_LEGACY_QCUSTOMPLOT_ADAPTER
 LFQUICK_EXPERIMENTAL_CANVAS_PAINTER
 LFQUICK_EXPERIMENTAL_STYLEKIT
 ```
 
-规则：这些模块必须保持 leaf-only；不要让 Core/Runtime/UI/DataView/Platform/WidgetBridge/Charts 依赖它们。
+规则：leaf 模块必须保持 leaf-only；不要让 Core/Runtime/UI/DataView/Platform/WidgetBridge/Charts 反向依赖 Diagnostics/Tooling/Integration/PlatformQml/styles/version adapters。
 
 Canvas Painter / QtCanvas2D 是 Technology Preview，且存在独立 Qt 许可要求；禁止默认为产品构建打开。
 
@@ -225,7 +331,7 @@ Canvas Painter / QtCanvas2D 是 Technology Preview，且存在独立 Qt 许可�
 
 ---
 
-# 5. Local Tooling
+# 5. Local Tooling / architecture guard
 
 已完成：
 
@@ -238,6 +344,18 @@ tools/lfquick_deploy_check.py
 tools/screenshot -> lfquick-screenshot
 ```
 
+Architecture checker 已同步识别：
+
+```text
+Diagnostics / Tooling / Integration / PlatformQml
+FluentStyle / BrandTestStyle
+SafeArea / RangeModel / CanvasPainter / CustomQuickCharts / QCustomPlot / StyleKit
+QML leaf imports
+LfQuick.impl forbidden public import
+```
+
+QML color lint 允许 `*Tokens.qml` 定义色值，其它 QML 继续检查 magic color。
+
 Python self-test：
 
 ```text
@@ -246,28 +364,35 @@ tools/test_tooling.py
 
 检测到 Python 时会注册 `tooling_python_selftest` 到 CTest。
 
-见 `tools/README.md`。
-
 ---
 
 # 6. 当前 hardening/test 已增加
 
 ```text
 1000-cycle PageRouter push/back stress
+WindowRouter reparent/detach/cycle/state-save/topology-close tests
 1000-scan KeyboardWedge stress
+InputRouter source/scanner/install-target lifetime tests
+Integration attached scanner policy/lifetime tests
+FocusWalker/FocusManager/FocusNavigator scope lifetime tests
+BusyToken release/external-end/destructor/coordinator-destruction tests
+attached validation/help contract tests
 base-control QML smoke test
 DataGrid FPS/frame/slow-frame telemetry
 DataView 20k/50k benchmark + RSS
+WidgetWindow native owner/incompatible owner/QObject parent tests
 WidgetFocusBridge repeated round-trip stress
 scanner isolation + modal focus trap
 QuickSurface 120 resize / DPR / root-size stress
+Telemetry -> Diagnostics same-thread/worker-thread tests
+AccessibilityAudit root lifetime tests
 Hot Reload success/state/rollback/shared-watch tests
 Diagnostics bounded/export tests
 optional QRangeModel bridge tests
 Python tooling self-tests
 ```
 
-Runtime stress 的计数已与 `PageRouter.cpp` 逐行核对：None cache policy 每 cycle 创建/销毁各 2 个实例，测试断言正确。
+这些测试已经注册到源码/CMake，但**当前 HEAD 还没有执行最终 full Build/CTest**。
 
 ---
 
@@ -297,21 +422,23 @@ tests/manual/WIDGETBRIDGE_HARDENING.md
 不要再扩张新的大框架模块。
 
 ```text
-1. 静态/API/生命周期审查
-2. 修明显 QML/C++/CMake 编译风险
-3. Windows Qt 6.8.3 full Configure + Build
-4. 全量 CTest
-5. Qt 6.10 QRangeModel optional build
-6. Qt 6.12 StyleKit / Canvas2D optional build
-7. 手工 GUI hardening
-8. deploy/package + lfquick_deploy_check
-9. 最后恢复 GitHub Actions/release
+1. 继续静态/API/生命周期审查
+2. 修明显 QML/C++/CMake 编译风险与 public API 不一致
+3. 复核新增 leaf 的 install/export/downstream discoverability
+4. Windows Qt 6.8.3 full Configure + Build
+5. 全量 CTest
+6. Qt 6.10 QRangeModel optional build
+7. Qt 6.12 StyleKit / Canvas2D optional build
+8. 手工 GUI hardening
+9. deploy/package + lfquick_deploy_check
+10. 最后恢复 GitHub Actions/release
 ```
 
 最终验证完成前必须使用以下表述：
 
 ```text
 Major functionality implemented: YES
+Source-level hardening substantially implemented: YES
 Current HEAD full Build verified: NO
 Current HEAD full CTest verified: NO
 Current HEAD deploy/package verified: NO
@@ -327,11 +454,13 @@ CI Green: NO CLAIM
 
 ```text
 Core -> QtCore only
-Runtime -> no QWidget/QQuickItem
+Runtime -> no QWidget/QWindow/QQuickItem
 UI -> no product domain
+Platform -> QtCore/Gui only
+Integration -> leaf; may depend on Ui + Platform
 DataView -> no medical business
 Charts -> no QC/Calibration algorithms
-Diagnostics/Tooling/QtAdapters -> leaf-only
+Diagnostics/Tooling/Styles/QtAdapters -> leaf-only
 ```
 
 FluentUI MIT 可按许可证研究；FluentUI2/Pro 继续 clean-room public API/behavior reference，不逆向 DLL。见 `docs/REFERENCE_POLICY.md`。
