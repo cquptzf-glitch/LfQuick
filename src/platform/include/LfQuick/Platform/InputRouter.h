@@ -37,6 +37,10 @@ public:
     bool unregisterSource(IInputSource *source);
     void clearSources();
 
+    Q_INVOKABLE bool registerSourceObject(QObject *source);
+    Q_INVOKABLE bool unregisterSourceObject(QObject *source);
+    Q_INVOKABLE void clearSourceObjects();
+
     Q_INVOKABLE bool registerTarget(QObject *target);
     Q_INVOKABLE bool unregisterTarget(QObject *target);
     Q_INVOKABLE void clearTargets();
