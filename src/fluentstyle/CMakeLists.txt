@@ -7,6 +7,7 @@ qt_add_qml_module(LfQuickFluentStyle
     URI LfQuick.Fluent
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
+    OUTPUT_TARGETS _lfquick_fluent_qml_output_targets
     QML_FILES
         qml/FluentTokens.qml
         qml/FluentIcon.qml
@@ -19,6 +20,8 @@ qt_add_qml_module(LfQuickFluentStyle
         qml/FluentSlider.qml
         qml/FluentProgressBar.qml
 )
+lfquick_register_qml_output_targets(
+    LfQuickFluentStyle ${_lfquick_fluent_qml_output_targets})
 
 target_link_libraries(LfQuickFluentStyle
     PUBLIC
