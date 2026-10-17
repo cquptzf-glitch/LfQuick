@@ -73,9 +73,13 @@ private:
     QList<QQuickItem *> orderedItems() const;
     QPointF itemCenter(QQuickItem *item) const;
     int explicitOrder(QQuickItem *item) const;
+    void reconnectWindow();
 
     QPointer<QQuickItem> m_scope;
+    QMetaObject::Connection m_scopeDestroyedConnection;
+    QMetaObject::Connection m_scopeWindowConnection;
     QMetaObject::Connection m_focusConnection;
+    QMetaObject::Connection m_windowDestroyedConnection;
     Mode m_mode = Mode::Native;
     bool m_wrap = true;
     qreal m_rowTolerance = 8.0;
