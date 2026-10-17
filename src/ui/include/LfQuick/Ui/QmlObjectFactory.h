@@ -146,6 +146,7 @@ private:
     void setLastError(const QString &message);
 
     QPointer<QQmlEngine> m_engine;
+    QMetaObject::Connection m_engineDestroyedConnection;
     QPointer<QQmlContext> m_creationContext;
     QString m_lastError;
 };
