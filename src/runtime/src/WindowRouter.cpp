@@ -4,6 +4,8 @@
 #include <LfQuick/Runtime/IWindowProvider.h>
 #include <LfQuick/Runtime/WindowProviderRegistry.h>
 
+#include <QSet>
+
 #include <algorithm>
 
 namespace LfQuick {
@@ -92,21 +94,12 @@ WindowResult WindowRouter::open(const WindowOpenRequest &request)
     if (descriptorValue.openPolicy == WindowOpenPolicy::SingleInstance) {
         if (auto existing = findSingleInstance(request.windowId)) {
             const QString existingId = existing->instance->instanceId();
-            if (!request.ownerInstanceId.isEmpty()) {
-                QString cursor = request.ownerInstanceId;
-                while (!cursor.isEmpty()) {
-                    if (cursor == existingId) {
-                        auto result = WindowResult::failure(request.windowId,
-                                                            existingId,
-                                                            routerError(13, QStringLiteral("Window ownership cannot form a cycle")));
-                        emit windowOpenFailed(request.windowId, result.error.message());
-                        return result;
-                    }
-                    const auto ownerRecord = findRecord(cursor);
-                    if (!ownerRecord)
-                        break;
-                    cursor = ownerRecord->request.ownerInstanceId;
-                }
+            if (!request.ownerInstanceId.isEmpty() && wouldFormOwnerCycle(existingId, request.ownerInstanceId)) {
+                auto result = WindowResult::failure(request.windowId,
+                                                    existingId,
+                                                    routerError(13, QStringLiteral("Window ownership cannot form a cycle")));
+                emit windowOpenFailed(request.windowId, result.error.message());
+                return result;
             }
             if (!existing->instance->updateParameters(request.parameters)) {
                 auto result = WindowResult::failure(request.windowId,
@@ -122,10 +115,16 @@ WindowResult WindowRouter::open(const WindowOpenRequest &request)
                 emit windowOpenFailed(request.windowId, result.error.message());
                 return result;
             }
+            if (!request.ownerInstanceId.isEmpty()
+                && request.ownerInstanceId != existing->request.ownerInstanceId) {
+                auto ownerResult = reparent(existingId, request.ownerInstanceId);
+                if (!ownerResult.accepted) {
+                    emit windowOpenFailed(request.windowId, ownerResult.error.message());
+                    return ownerResult;
+                }
+            }
             existing->request.parameters = request.parameters;
             existing->request.metadata = request.metadata;
-            if (!request.ownerInstanceId.isEmpty())
-                existing->request.ownerInstanceId = request.ownerInstanceId;
             setActive(existing);
             auto result = WindowResult::success(request.windowId, existingId);
             result.diagnostics.insert(QStringLiteral("reused"), true);
@@ -225,6 +224,42 @@ WindowResult WindowRouter::activate(QStringView instanceId)
 
     setActive(record);
     return WindowResult::success(record->descriptor.id, record->instance->instanceId());
+}
+
+WindowResult WindowRouter::reparent(QStringView instanceId, QStringView ownerInstanceId)
+{
+    auto record = findRecord(instanceId);
+    if (!record || !record->instance)
+        return WindowResult::failure({}, instanceId.toString(), routerError(11, QStringLiteral("Window instance was not found")));
+
+    const QString id = record->instance->instanceId();
+    const QString ownerId = ownerInstanceId.toString();
+    if (!ownerId.isEmpty() && !m_instances.contains(ownerId)) {
+        return WindowResult::failure(record->descriptor.id,
+                                     id,
+                                     routerError(2, QStringLiteral("Owner window instance was not found"),
+                                                 {{QStringLiteral("ownerInstanceId"), ownerId}}));
+    }
+    if (wouldFormOwnerCycle(id, ownerId)) {
+        return WindowResult::failure(record->descriptor.id,
+                                     id,
+                                     routerError(13, QStringLiteral("Window ownership cannot form a cycle")));
+    }
+    if (record->request.ownerInstanceId == ownerId)
+        return WindowResult::success(record->descriptor.id, id);
+
+    if (!record->instance->canUpdateOwner(ownerId) || !record->instance->updateOwner(ownerId)) {
+        return WindowResult::failure(record->descriptor.id,
+                                     id,
+                                     routerError(14,
+                                                 QStringLiteral("Window instance rejected owner update"),
+                                                 {{QStringLiteral("ownerInstanceId"), ownerId}}));
+    }
+
+    record->request.ownerInstanceId = ownerId;
+    emit windowOwnerChanged(record->descriptor.id, id, ownerId);
+    emit windowsChanged();
+    return WindowResult::success(record->descriptor.id, id);
 }
 
 WindowResult WindowRouter::close(QStringView instanceId)
@@ -361,12 +396,40 @@ WindowResult WindowRouter::closeRecords(const QList<std::shared_ptr<Record>> &re
         }
     }
 
-    const QString rootId = root->instance->instanceId();
+    QSet<QString> closingIds;
+    for (const auto &record : records) {
+        if (record && record->instance)
+            closingIds.insert(record->instance->instanceId());
+    }
+
+    QList<std::shared_ptr<Record>> detachedSurvivors;
     for (const auto &record : m_instances) {
-        if (record && record->request.ownerInstanceId == rootId
-            && record->descriptor.ownerClosePolicy == OwnerClosePolicy::Detach) {
-            record->request.ownerInstanceId.clear();
+        if (!record || !record->instance || closingIds.contains(record->instance->instanceId()))
+            continue;
+        if (!closingIds.contains(record->request.ownerInstanceId)
+            || record->descriptor.ownerClosePolicy != OwnerClosePolicy::Detach) {
+            continue;
         }
+        if (!record->instance->canUpdateOwner({})) {
+            return WindowResult::failure(root->descriptor.id,
+                                         root->instance->instanceId(),
+                                         routerError(14,
+                                                     QStringLiteral("Detached child rejected owner removal"),
+                                                     {{QStringLiteral("childInstanceId"), record->instance->instanceId()}}));
+        }
+        detachedSurvivors.append(record);
+    }
+
+    for (const auto &record : detachedSurvivors) {
+        if (!record->instance->updateOwner({})) {
+            return WindowResult::failure(root->descriptor.id,
+                                         root->instance->instanceId(),
+                                         routerError(14,
+                                                     QStringLiteral("Detached child failed owner removal"),
+                                                     {{QStringLiteral("childInstanceId"), record->instance->instanceId()}}));
+        }
+        record->request.ownerInstanceId.clear();
+        emit windowOwnerChanged(record->descriptor.id, record->instance->instanceId(), {});
     }
 
     for (const auto &record : records) {
@@ -383,7 +446,22 @@ WindowResult WindowRouter::closeRecords(const QList<std::shared_ptr<Record>> &re
     }
 
     emit windowsChanged();
-    return WindowResult::success(root->descriptor.id, rootId);
+    return WindowResult::success(root->descriptor.id, root->instance->instanceId());
+}
+
+bool WindowRouter::wouldFormOwnerCycle(QStringView instanceId, QStringView ownerInstanceId) const
+{
+    const QString id = instanceId.toString();
+    QString cursor = ownerInstanceId.toString();
+    while (!cursor.isEmpty()) {
+        if (cursor == id)
+            return true;
+        const auto ownerRecord = findRecord(cursor);
+        if (!ownerRecord)
+            break;
+        cursor = ownerRecord->request.ownerInstanceId;
+    }
+    return false;
 }
 
 void WindowRouter::setActive(const std::shared_ptr<Record> &record)
