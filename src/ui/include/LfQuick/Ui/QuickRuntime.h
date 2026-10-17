@@ -31,7 +31,9 @@ class LFQUICKUI_EXPORT QuickRuntime : public QObject
     Q_OBJECT
     Q_PROPERTY(QString currentRoute READ currentRoute NOTIFY currentRouteChanged FINAL)
     Q_PROPERTY(bool canGoBack READ canGoBack NOTIFY navigationChanged FINAL)
+    Q_PROPERTY(bool canGoForward READ canGoForward NOTIFY navigationChanged FINAL)
     Q_PROPERTY(int depth READ depth NOTIFY navigationChanged FINAL)
+    Q_PROPERTY(int forwardDepth READ forwardDepth NOTIFY navigationChanged FINAL)
     Q_PROPERTY(QQuickItem* host READ host WRITE setHost NOTIFY hostChanged FINAL)
     Q_PROPERTY(QmlErrorCollector* errorCollector READ errorCollector CONSTANT FINAL)
     Q_PROPERTY(NavigationGuardController* navigationGuard READ navigationGuard CONSTANT FINAL)
@@ -46,7 +48,9 @@ public:
 
     QString currentRoute() const;
     bool canGoBack() const;
+    bool canGoForward() const;
     int depth() const;
+    int forwardDepth() const;
 
     QQuickItem *host() const;
     void setHost(QQuickItem *host);
@@ -77,6 +81,7 @@ public:
     Q_INVOKABLE bool push(const QString &route, const QVariantMap &parameters = {});
     Q_INVOKABLE bool replace(const QString &route, const QVariantMap &parameters = {});
     Q_INVOKABLE bool back();
+    Q_INVOKABLE bool forward();
     Q_INVOKABLE void reset();
 
 signals:
