@@ -24,7 +24,9 @@ BoundComponent::~BoundComponent()
 {
     cancelHandle();
     QObject::disconnect(m_componentDestroyedConnection);
+    QObject::disconnect(m_itemDestroyedConnection);
     clearBindings();
+    clearItemConnections();
     unloadObject();
 }
 
@@ -257,6 +259,18 @@ void BoundComponent::adoptObject(QObject *object)
     object->setParent(this);
     m_quickItem = qobject_cast<QQuickItem *>(object);
 
+    QObject::disconnect(m_itemDestroyedConnection);
+    m_itemDestroyedConnection = connect(object, &QObject::destroyed, this, [this] {
+        m_itemDestroyedConnection = {};
+        clearBindings();
+        clearItemConnections();
+        m_item = nullptr;
+        m_quickItem = nullptr;
+        setImplicitWidth(0);
+        setImplicitHeight(0);
+        emit itemChanged();
+    });
+
     if (m_quickItem) {
         m_quickItem->setParentItem(this);
         updateItemSize();
@@ -396,24 +410,32 @@ void BoundComponent::updateImplicitSize()
 void BoundComponent::unloadObject()
 {
     clearBindings();
-    if (!m_item)
+    if (!m_item) {
+        clearItemConnections();
+        QObject::disconnect(m_itemDestroyedConnection);
+        m_itemDestroyedConnection = {};
         return;
+    }
 
     QPointer<QObject> object = m_item;
     QPointer<QQuickItem> quickItem = m_quickItem;
+    QObject::disconnect(m_itemDestroyedConnection);
+    m_itemDestroyedConnection = {};
+    clearItemConnections();
     m_item = nullptr;
     m_quickItem = nullptr;
-
-    for (const QMetaObject::Connection &connection : std::as_const(m_itemConnections))
-        QObject::disconnect(connection);
-    m_itemConnections.clear();
-
-    if (quickItem)
-        quickItem->setParentItem(nullptr);
-    if (object)
-        object->setParent(nullptr);
-    LifetimeLease::requestDestroy(object);
+    setImplicitWidth(0);
+    setImplicitHeight(0);
     emit itemChanged();
+
+    // LifetimeLease::requestDestroy() emits dropRequested synchronously. When a
+    // lease retains the old object, LifetimeState detaches QObject ownership but
+    // intentionally preserves QQuickItem::parentItem so exit animations can
+    // finish in the old visual tree. Only detach immediately when nobody
+    // retained the object and physical destruction was scheduled right away.
+    const bool destroyingImmediately = LifetimeLease::requestDestroy(object);
+    if (destroyingImmediately && quickItem)
+        quickItem->setParentItem(nullptr);
 }
 
 void BoundComponent::cancelHandle()
@@ -450,6 +472,13 @@ void BoundComponent::clearBindings()
         QObject::disconnect(connection);
     m_bindingConnections.clear();
     m_propertyBindings.clear();
+}
+
+void BoundComponent::clearItemConnections()
+{
+    for (const QMetaObject::Connection &connection : std::as_const(m_itemConnections))
+        QObject::disconnect(connection);
+    m_itemConnections.clear();
 }
 
 QUrl BoundComponent::resolvedSource() const
