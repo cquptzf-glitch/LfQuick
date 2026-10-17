@@ -26,6 +26,7 @@ qt_add_qml_module(LfQuickUi
     URI LfQuick
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
+    OUTPUT_TARGETS _lfquick_ui_qml_output_targets
     SOURCES
         include/LfQuick/Ui/QmlErrorCollector.h
         src/QmlErrorCollector.cpp
@@ -127,6 +128,7 @@ qt_add_qml_module(LfQuickUi
         qml/NavigationView.qml
         qml/ApplicationShell.qml
 )
+lfquick_register_qml_output_targets(LfQuickUi ${_lfquick_ui_qml_output_targets})
 
 target_sources(LfQuickUi PUBLIC
     FILE_SET HEADERS
