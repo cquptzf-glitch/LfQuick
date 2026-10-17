@@ -62,10 +62,15 @@ bool FileWatcher::watchFile(const QString &path)
     const QFileInfo info(normalized);
     if (!QFileInfo::exists(info.absolutePath()))
         return false;
+    if (info.exists() && !info.isFile())
+        return false;
 
     if (m_files.contains(normalized))
         return true;
 
+    // A logical path cannot be both a file and a directory watch. This also
+    // keeps the sets correct if a filesystem entry changes kind between calls.
+    m_directories.remove(normalized);
     m_files.insert(normalized);
     rebuildWatcher();
     emit watchesChanged();
@@ -85,6 +90,7 @@ bool FileWatcher::watchDirectory(const QString &path)
     if (m_directories.contains(normalized))
         return true;
 
+    m_files.remove(normalized);
     m_directories.insert(normalized);
     rebuildWatcher();
     emit watchesChanged();
@@ -97,8 +103,9 @@ bool FileWatcher::unwatch(const QString &path)
     if (normalized.isEmpty())
         return false;
 
-    const bool removed = m_files.remove(normalized) || m_directories.remove(normalized);
-    if (!removed)
+    const bool removedFile = m_files.remove(normalized) > 0;
+    const bool removedDirectory = m_directories.remove(normalized) > 0;
+    if (!removedFile && !removedDirectory)
         return false;
 
     rebuildWatcher();
