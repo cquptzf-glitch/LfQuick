@@ -20,6 +20,8 @@ qt_add_qml_module(LfQuickDataView
         src/DataTableModel.cpp
         include/LfQuick/DataView/DataFilterProxyModel.h
         src/DataFilterProxyModel.cpp
+        include/LfQuick/DataView/ModelRoleAdapter.h
+        src/ModelRoleAdapter.cpp
         include/LfQuick/DataView/ColumnStateModel.h
         src/ColumnStateModel.cpp
         include/LfQuick/DataView/ColumnConfigStore.h
@@ -31,6 +33,7 @@ qt_add_qml_module(LfQuickDataView
     QML_FILES
         qml/DataGrid.qml
         qml/DataGridTelemetry.qml
+        qml/DataGridKeyboardController.qml
         qml/DataGridEditorDelegate.qml
         qml/DataGridCheckDelegate.qml
         qml/DataGridCheckEditorDelegate.qml
@@ -38,6 +41,9 @@ qt_add_qml_module(LfQuickDataView
         qml/DataGridComboEditorDelegate.qml
         qml/DataGridProgressDelegate.qml
         qml/DataGridIconDelegate.qml
+        qml/DataGridBadgeDelegate.qml
+        qml/DataGridButtonDelegate.qml
+        qml/DataGridCustomDelegate.qml
 )
 
 target_sources(LfQuickDataView PUBLIC
@@ -47,6 +53,7 @@ target_sources(LfQuickDataView PUBLIC
         include/LfQuick/DataView/LfQuickDataViewGlobal.h
         include/LfQuick/DataView/DataTableModel.h
         include/LfQuick/DataView/DataFilterProxyModel.h
+        include/LfQuick/DataView/ModelRoleAdapter.h
         include/LfQuick/DataView/ColumnStateModel.h
         include/LfQuick/DataView/ColumnConfigStore.h
         include/LfQuick/DataView/DataEditTransaction.h
