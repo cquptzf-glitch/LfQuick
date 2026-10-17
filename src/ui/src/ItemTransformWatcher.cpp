@@ -163,6 +163,16 @@ void ItemTransformWatcher::watchWindow(QQuickWindow *window)
     m_connections.push_back(connect(window, &QWindow::heightChanged, this, changed));
     m_connections.push_back(connect(window, &QWindow::screenChanged, this,
                                     [changed](QScreen *) { changed(); }));
+
+    // Qt 6.8 exposes no public per-item notification for changes to the
+    // attached transform list (Scale/Rotation/Translate/Matrix4x4). A visual
+    // transform change schedules a Quick frame, and afterAnimating is emitted
+    // on the GUI thread before scene-graph synchronization. Invalidating here
+    // gives consumers a public-ABI fallback that also covers custom transforms
+    // and transform animations without depending on QQuickItem private APIs.
+    m_connections.push_back(connect(window, &QQuickWindow::afterAnimating,
+                                    this, changed));
+
     m_connections.push_back(connect(window, &QObject::destroyed, this, [this] {
         rebuild();
         invalidate();
