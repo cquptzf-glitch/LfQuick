@@ -5,7 +5,6 @@
 #include <QAbstractListModel>
 #include <QMetaObject>
 #include <QPointer>
-#include <QVariantList>
 #include <QtQmlIntegration/qqmlintegration.h>
 
 namespace LfQuick {
@@ -50,6 +49,7 @@ signals:
 
 private:
     struct Entry {
+        QObject *identity = nullptr; // address identity only; never dereferenced after destruction
         QPointer<QObject> object;
         QMetaObject::Connection destroyedConnection;
     };
@@ -57,6 +57,7 @@ private:
     static QList<QObject *> normalize(const QList<QObject *> &values);
     bool insertInternal(int index, QObject *object, bool notifyValues);
     bool removeAtInternal(int index, bool notifyValues);
+    int indexOfIdentity(const QObject *object) const;
     void connectEntry(Entry &entry, QObject *object);
 
     QList<Entry> m_entries;
