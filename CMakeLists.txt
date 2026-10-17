@@ -240,13 +240,17 @@ if(TARGET LfQuickLegacyQCustomPlotAdapter)
     list(APPEND LFQUICK_PACKAGE_QT_COMPONENTS Widgets)
 endif()
 if(LFQUICK_BUILD_QT_GRAPHS_ADAPTER)
-    list(APPEND LFQUICK_PACKAGE_QT_COMPONENTS Graphs)
+    # LfQuickCharts exports these Qt targets in its public link interface when
+    # the Graphs-backed QML adapter is compiled in. Mirror the build-time
+    # find_package() contract so an installed LfQuickTargets.cmake never
+    # references missing Qt imported targets in downstream projects.
+    list(APPEND LFQUICK_PACKAGE_QT_COMPONENTS Graphs Qml QmlIntegration Quick)
 endif()
 if(TARGET LfQuickCanvasPainterAdapter)
-    list(APPEND LFQUICK_PACKAGE_QT_COMPONENTS CanvasPainter)
+    list(APPEND LFQUICK_PACKAGE_QT_COMPONENTS CanvasPainter Qml QmlIntegration Quick)
 endif()
 if(TARGET LfQuickStyleKit)
-    list(APPEND LFQUICK_PACKAGE_QT_COMPONENTS Widgets LabsStyleKit)
+    list(APPEND LFQUICK_PACKAGE_QT_COMPONENTS Qml QmlIntegration Widgets LabsStyleKit)
 endif()
 list(REMOVE_DUPLICATES LFQUICK_PACKAGE_QT_COMPONENTS)
 lfquick_install_package()
