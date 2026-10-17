@@ -59,6 +59,8 @@ qt_add_qml_module(LfQuickUi
         src/LifetimeLease.cpp
         include/LfQuick/Ui/PersistentState.h
         src/PersistentState.cpp
+        include/LfQuick/Ui/PostReloadHook.h
+        src/PostReloadHook.cpp
         include/LfQuick/Ui/PopupAnchor.h
         src/PopupAnchor.cpp
         include/LfQuick/Ui/WindowRuntime.h
@@ -177,6 +179,7 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/QmlStateSnapshot.h
         include/LfQuick/Ui/LifetimeLease.h
         include/LfQuick/Ui/PersistentState.h
+        include/LfQuick/Ui/PostReloadHook.h
         include/LfQuick/Ui/PopupAnchor.h
         include/LfQuick/Ui/WindowRuntime.h
         include/LfQuick/Ui/HelpContextRegistry.h
