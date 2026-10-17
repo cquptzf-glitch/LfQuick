@@ -13,6 +13,7 @@ QtObject {
     property bool autoRegister: true
 
     readonly property bool registered: d.registered
+    readonly property string registeredWindowId: d.registeredWindowId
     readonly property string errorString: d.errorString
 
     signal registrationFailed(string message)
@@ -23,8 +24,17 @@ QtObject {
             registrationFailed(d.errorString)
             return false
         }
-        if (d.registered)
-            return true
+
+        if (d.registered) {
+            if (d.registeredRuntime === runtime
+                    && d.registeredWindowId === windowId)
+                return true
+
+            d.errorString = qsTr("Window definition is already registered as '%1'")
+                    .arg(d.registeredWindowId)
+            registrationFailed(d.errorString)
+            return false
+        }
 
         const accepted = runtime.registerWindow(
             windowId, source, openPolicy, ownerClosePolicy, options)
@@ -35,6 +45,8 @@ QtObject {
         }
 
         d.registered = true
+        d.registeredRuntime = runtime
+        d.registeredWindowId = windowId
         d.errorString = ""
         return true
     }
@@ -42,13 +54,21 @@ QtObject {
     function unregisterNow() {
         if (!d.registered)
             return true
-        if (!runtime)
-            return false
-        if (!runtime.unregisterWindow(windowId)) {
-            d.errorString = runtime.lastError
+
+        const targetRuntime = d.registeredRuntime
+        const targetWindowId = d.registeredWindowId
+        if (!targetRuntime) {
+            d.errorString = qsTr("Registered WindowRuntime is no longer available")
             return false
         }
+        if (!targetRuntime.unregisterWindow(targetWindowId)) {
+            d.errorString = targetRuntime.lastError
+            return false
+        }
+
         d.registered = false
+        d.registeredRuntime = null
+        d.registeredWindowId = ""
         d.errorString = ""
         return true
     }
@@ -60,10 +80,14 @@ QtObject {
 
     // Do not force-unregister on destruction. Runtime intentionally owns the
     // descriptor after successful registration, and unregistering can be
-    // rejected while live instances still exist.
+    // rejected while live instances still exist. We only remember the exact
+    // registration target so an explicit unregister remains deterministic if
+    // this declarative object's input properties later change.
     property QtObject _private: QtObject {
         id: d
         property bool registered: false
+        property WindowRuntime registeredRuntime: null
+        property string registeredWindowId: ""
         property string errorString: ""
     }
 }
