@@ -137,6 +137,45 @@ QtObject {
         QVERIFY(!document.externalConflict());
     }
 
+    void fileDocumentOwnSaveDoesNotCreateExternalConflict()
+    {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const QString path = directory.filePath(QStringLiteral("self-save.txt"));
+        {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            QCOMPARE(file.write("initial"), qint64(7));
+        }
+
+        FileDocument document;
+        document.setPath(path);
+        QVERIFY(document.load());
+        document.setWatch(true);
+        QVERIFY(document.watch());
+
+        QSignalSpy externalChanges(&document, &FileDocument::externalChanged);
+        QSignalSpy conflicts(&document, &FileDocument::externalConflictDetected);
+
+        document.setText(QStringLiteral("saved-value"));
+        QVERIFY2(document.save(), qPrintable(document.errorString()));
+        QVERIFY(!document.dirty());
+
+        // Edit again immediately, before the filesystem watcher necessarily
+        // delivers notifications caused by the atomic QSaveFile replacement.
+        // Those delayed self-save events must not be reclassified as an
+        // external conflict against this newer local edit.
+        document.setText(QStringLiteral("new-local-edit"));
+        QVERIFY(document.dirty());
+        QTest::qWait(1000);
+
+        QCOMPARE(document.text(), QStringLiteral("new-local-edit"));
+        QVERIFY(document.dirty());
+        QVERIFY(!document.externalConflict());
+        QCOMPARE(conflicts.count(), 0);
+        QCOMPARE(externalChanges.count(), 0);
+    }
+
     void jsonDocumentSaveAsFailurePreservesAssociation()
     {
         QTemporaryDir directory;
