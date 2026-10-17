@@ -85,6 +85,9 @@ private:
     void setErrorString(const QString &error);
     void refreshWatch();
     void handleExternalChange(const QString &path);
+    void armSelfWriteSuppression(const QString &path, const QByteArray &data);
+    void clearSelfWriteSuppression();
+    bool matchesSuppressedSelfWrite(const QString &path);
 
     QString m_path;
     QByteArray m_data;
@@ -95,6 +98,10 @@ private:
     bool m_externalConflict = false;
     QString m_errorString;
     FileWatcher *m_watcher = nullptr;
+    QString m_selfWritePath;
+    QByteArray m_selfWriteData;
+    quint64 m_selfWriteGeneration = 0;
+    bool m_selfWriteSuppressionActive = false;
 };
 
 } // namespace LfQuick
