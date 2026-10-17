@@ -2,6 +2,7 @@
 
 #include <LfQuick/Platform/LfQuickPlatformGlobal.h>
 
+#include <QMetaObject>
 #include <QObject>
 #include <QPointer>
 #include <QString>
@@ -56,6 +57,7 @@ signals:
 private:
     QString m_id;
     QPointer<QObject> m_target;
+    QMetaObject::Connection m_targetDestroyedConnection;
     bool m_enabled = true;
     bool m_active = false;
     bool m_acceptScanner = false;
