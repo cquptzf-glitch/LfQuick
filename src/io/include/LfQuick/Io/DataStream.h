@@ -97,7 +97,7 @@ class LFQUICKIO_EXPORT DataStream final : public QObject
     Q_OBJECT
     QML_NAMED_ELEMENT(LfDataStream)
     Q_PROPERTY(DataStreamParser* parser READ parser WRITE setParser NOTIFY parserChanged FINAL)
-    Q_PROPERTY(QObject* device READ deviceObject WRITE attach NOTIFY deviceChanged FINAL)
+    Q_PROPERTY(QObject* device READ deviceObject WRITE setDeviceObject NOTIFY deviceChanged FINAL)
     Q_PROPERTY(bool attached READ attached NOTIFY deviceChanged FINAL)
     Q_PROPERTY(qint64 bufferedBytes READ bufferedBytes NOTIFY bufferedBytesChanged FINAL)
 
@@ -109,6 +109,7 @@ public:
     void setParser(DataStreamParser *parser);
 
     QObject *deviceObject() const;
+    void setDeviceObject(QObject *device);
     bool attached() const noexcept { return !m_device.isNull(); }
     qint64 bufferedBytes() const noexcept { return m_buffer.size(); }
 
