@@ -13,6 +13,7 @@ class LFQUICKPLATFORM_EXPORT InputTarget : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(QString id READ id WRITE setId NOTIFY idChanged FINAL)
+    Q_PROPERTY(QString targetId READ id WRITE setId NOTIFY idChanged FINAL)
     Q_PROPERTY(QObject* target READ target WRITE setTarget NOTIFY targetChanged FINAL)
     Q_PROPERTY(bool enabled READ isEnabled WRITE setEnabled NOTIFY enabledChanged FINAL)
     Q_PROPERTY(bool active READ isActive WRITE setActive NOTIFY activeChanged FINAL)
