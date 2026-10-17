@@ -46,6 +46,10 @@ qt_add_qml_module(LfQuickUi
         src/PermissionEvaluator.cpp
         include/LfQuick/Ui/LfAttached.h
         src/LfAttached.cpp
+        include/LfQuick/Ui/QmlObjectFactory.h
+        src/QmlObjectFactory.cpp
+        include/LfQuick/Ui/LifetimeLease.h
+        src/LifetimeLease.cpp
         include/LfQuick/Ui/HelpContextRegistry.h
         src/HelpContextRegistry.cpp
         include/LfQuick/Ui/DpiHelper.h
@@ -147,6 +151,8 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/NavigationGuardController.h
         include/LfQuick/Ui/PermissionEvaluator.h
         include/LfQuick/Ui/LfAttached.h
+        include/LfQuick/Ui/QmlObjectFactory.h
+        include/LfQuick/Ui/LifetimeLease.h
         include/LfQuick/Ui/HelpContextRegistry.h
         include/LfQuick/Ui/DpiHelper.h
         include/LfQuick/Ui/ValidationEvaluator.h
