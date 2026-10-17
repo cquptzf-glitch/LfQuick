@@ -1,27 +1,48 @@
 # LfQuick
 
-LfQuick is a modular Qt UI Runtime Framework targeting **Qt 6.8.3** as the primary baseline, with version-gated adapters for newer Qt capabilities.
+LfQuick is a modular Qt UI Runtime Framework targeting **Qt 6.8.3** as the primary compatibility baseline, with isolated adapters for newer Qt capabilities.
 
-It is designed for large desktop/device applications that need:
+The project is aimed at large desktop/device applications that need:
 
 - Qt Quick/QML application runtime;
 - gradual QWidget → QML migration;
 - technology-stack-neutral page/window routing;
-- reusable permission / validation / overlay infrastructure;
-- scanner/input/focus integration;
+- style-agnostic UI components and semantic tokens;
+- permission / validation / overlay infrastructure;
+- scanner/input/focus/platform services;
 - large-table DataGrid capabilities;
-- Qt Graphs visualization adapters;
-- structured diagnostics and runtime export;
+- optional Qt Graphs visualization;
+- structured Diagnostics / telemetry;
 - development-only QML hot reload with rollback;
-- an optional Qt 6.12 StyleKit bridge for shared Quick/Widget styling.
+- opt-in adapters for QRangeModel, Canvas2D and Qt Labs StyleKit;
+- local generation/lint/deploy/screenshot tooling.
 
 ## Current development policy
 
 Development currently proceeds directly on `main`.
 
-**GitHub Actions / CI / release workflows are intentionally removed during the current feature-completion and hardening phase.** Do not infer that the newest HEAD is CI-green. A previous Qt 6.8.3 / MSVC2022 revision did pass full Build + 13/13 CTest + deploy/package validation, but newer Diagnostics/Tooling/StyleKit/hardening changes have not yet been put through the final full build matrix.
+**GitHub Actions / CI / release workflows are intentionally removed during the current feature-completion and source-hardening phase.** Do not infer that the newest HEAD is CI-green.
 
-The workflows will be restored only after the feature/hardening phase is complete.
+A previous Qt 6.8.3 / MSVC2022 revision did pass:
+
+```text
+Architecture
+Configure
+full Build
+13/13 CTest
+Qt deployment
+package validation
+artifact upload
+```
+
+A large set of later Design System, Platform, Tooling and Qt-adapter changes has not yet been put through the final full build matrix. The intended order is:
+
+```text
+finish source functionality
+-> local/full Qt build + CTest + GUI hardening
+-> deploy/package verification
+-> restore CI/release workflows last
+```
 
 ## Modules
 
@@ -72,6 +93,31 @@ ValidationRuleTable / ValidationFormState
 NavigationItemModel / NavigationView / ApplicationShell
 ```
 
+The Design System uses semantic `Theme` / `Tokens` and provides reusable controls:
+
+```text
+LfButton
+LfTextField
+LfCheckBox / LfRadioButton / LfSwitch
+LfComboBox / LfSlider
+LfProgressBar / LfProgressRing
+LfSearchBox / LfFilterInput / LfPasswordField
+LfNumberInput / LfRangeInput
+LfStatusIndicator
+LfDatePicker / LfTimePicker
+LfDateTimePicker / LfDateRangePicker
+```
+
+Theme behavior includes:
+
+```text
+Light / Dark / System
+Compact / Standard / Comfortable / Touch density
+motion enable/disable
+high-contrast semantic tokens
+accent color
+```
+
 ### `LfQuick::DataView` / `LfQuick.DataView`
 
 Large-table/view subsystem:
@@ -89,7 +135,7 @@ context menu / keyboard navigation
 DataGridTelemetry
 ```
 
-`DataGridTelemetry` is optional and independent of Diagnostics. It exposes frame/FPS data using Qt 6.8 `FrameAnimation`:
+`DataGridTelemetry` is independent from Diagnostics and exposes frame/FPS data using Qt 6.8 `FrameAnimation`:
 
 ```qml
 DataGridTelemetry {
@@ -102,13 +148,22 @@ Metrics include FPS, current/max frame time, slow-frame count and first-visible 
 
 ### `LfQuick::Platform`
 
-Input/platform adapters:
+Reusable input/platform services:
 
 ```text
 ScannerSession
 KeyboardWedgeScanner
 InputRouter
+SystemAppearance
+ScreenService
+ClipboardService
+FileWatcher
+RuntimeCapabilities
 ```
+
+`FileWatcher` keeps desired file watches alive across editor-style atomic file replacement by also watching parent directories.
+
+`RuntimeCapabilities` reports both build-time optional modules and Qt-version features, so applications do not need to scatter Qt-version checks throughout product code.
 
 ### `LfQuick::WidgetBridge`
 
@@ -147,7 +202,7 @@ QtGraphsAxisAdapter
 ChartView.qml
 ```
 
-For Qt 6.8.3, the Graphs build needs the Qt modules:
+For Qt 6.8.3, the Graphs build needs:
 
 ```text
 qtgraphs
@@ -168,7 +223,7 @@ snapshot / JSON
 atomic JSON export
 ```
 
-Foundation modules do not depend on Diagnostics; applications/Demos compose it from the outside.
+Foundation modules do not depend on Diagnostics; applications compose it from the outside.
 
 ### `LfQuick::Tooling` / `LfQuick.Tooling`
 
@@ -187,7 +242,7 @@ QmlHotReloadHost
 
 Features:
 
-- logical resource URL → local development file mapping;
+- logical resource URL → local development-file mapping;
 - file + directory watching for editor atomic-save workflows;
 - debounce and QML component-cache invalidation;
 - reference-counted shared source watches;
@@ -195,57 +250,47 @@ Features:
 - selected-property state preservation;
 - failed reload rollback that keeps the previous UI alive.
 
-Example:
+### Optional modern-Qt adapters
 
-```qml
-import QtQuick
-import LfQuick.Tooling
-
-QmlHotReloadController {
-    id: reloader
-    debounceMs: 120
-}
-
-QmlHotReloadHost {
-    anchors.fill: parent
-    controller: reloader
-    source: "qrc:/qt/qml/MyApp/EditorPage.qml"
-    developmentSource: devEditorPageUrl   // local file URL supplied by dev configuration
-    preservedProperties: ["selectedIndex", "filterText"]
-}
-```
-
-Hot reload is not part of Core/Runtime production lifecycle and is OFF by default.
-
-### `LfQuick::StyleKit` / `LfQuick.StyleKit`
-
-Qt 6.12-only experimental adapter, enabled with:
+All are isolated leaf modules and OFF by default.
 
 ```text
--DLFQUICK_EXPERIMENTAL_STYLEKIT=ON
+LFQUICK_BUILD_QRANGE_MODEL_ADAPTER
+    Qt 6.10+
+    -> LfQuick::RangeModelAdapter / RangeModelBridge
+    -> Qt 6.12 adds drag/drop action support
+
+LFQUICK_EXPERIMENTAL_CANVAS_PAINTER
+    Qt 6.12+ for the declarative QtCanvas2D adapter
+    -> LfQuick::CanvasPainterAdapter / LfQuick.CanvasPainter
+    -> Technology Preview; licensing review required before product use
+
+LFQUICK_EXPERIMENTAL_STYLEKIT
+    Qt 6.12+
+    -> LfQuick::StyleKit
+    -> QStyleKitStyle bridge for shared Quick/Widget styling experiments
 ```
 
-`StyleKitBridge` applies a Qt Labs StyleKit style to QWidget through `QStyleKitStyle`, allowing one Style QML definition to drive both Qt Quick Controls and Qt Widgets.
-
-The adapter is version-gated and does not expose `QStyleKitStyle` in the Qt 6.8-compatible public API. Qt Labs StyleKit is technology preview, so this option remains OFF by default.
+See [`docs/QT_OPTIONAL_ADAPTERS.md`](docs/QT_OPTIONAL_ADAPTERS.md).
 
 ## Architecture boundaries
 
 ```text
-LfQuickCore        -> QtCore only
-LfQuickRuntime     -> Core; no QWidget/QQuickItem
-LfQuickUi          -> Core + Runtime + Qt Quick
-LfQuickDataView    -> Ui + Qt Model/View/Quick
-LfQuickPlatform    -> platform/input adapters
-LfQuickWidgetBridge-> optional Widgets / QuickWidgets
-LfQuickCharts      -> optional visualization
-Diagnostics        -> optional leaf
-Tooling            -> optional development leaf
-StyleKit           -> optional Qt 6.12 leaf
-Product adapters   -> legacy/product dependencies
+LfQuickCore         -> QtCore only
+LfQuickRuntime      -> Core; no QWidget/QQuickItem
+LfQuickUi           -> Core + Runtime + Qt Quick
+LfQuickDataView     -> Ui + Qt Model/View/Quick
+LfQuickPlatform     -> platform/input services
+LfQuickWidgetBridge -> optional Widgets / QuickWidgets
+LfQuickCharts       -> optional visualization
+Diagnostics         -> optional leaf
+Tooling             -> optional development leaf
+QtAdapters          -> optional version-specific leaves
+StyleKit            -> optional Qt 6.12 leaf
+Product adapters    -> legacy/product dependencies
 ```
 
-`tools/check_architecture.py` also prevents Core/Runtime/UI/DataView/Platform/WidgetBridge/Charts from acquiring reverse dependencies on Diagnostics, Tooling or StyleKit.
+`tools/check_architecture.py` prevents framework foundation modules from acquiring reverse dependencies on Diagnostics, Tooling, StyleKit or version-specific Qt adapters.
 
 ## Build
 
@@ -257,13 +302,12 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-Enable the migration demo:
+Enable QWidget migration demo:
 
 ```bash
 cmake -S . -B build \
   -DLFQUICK_BUILD_WIDGET_BRIDGE=ON \
   -DLFQUICK_BUILD_HYBRID_DEMO=ON
-cmake --build build --parallel
 ```
 
 Enable Charts / Qt Graphs adapter:
@@ -281,18 +325,26 @@ cmake -S . -B build \
   -DLFQUICK_ENABLE_HOT_RELOAD=ON
 ```
 
-Enable benchmarks:
+Enable DataView benchmarks:
 
 ```bash
 cmake -S . -B build \
   -DLFQUICK_BUILD_BENCHMARKS=ON
 ```
 
-Enable Qt 6.12 StyleKit experiment only with an appropriate Qt 6.12 installation:
+Enable QRangeModel adapter with Qt 6.10+:
 
 ```bash
 cmake -S . -B build \
-  -DLFQUICK_EXPERIMENTAL_STYLEKIT=ON
+  -DLFQUICK_BUILD_QRANGE_MODEL_ADAPTER=ON
+```
+
+Enable local screenshot tool:
+
+```bash
+cmake -S . -B build \
+  -DLFQUICK_BUILD_SCREENSHOT_TOOL=ON
+cmake --build build --target lfquick-screenshot
 ```
 
 ## Important CMake options
@@ -305,9 +357,12 @@ LFQUICK_BUILD_WIDGET_BRIDGE
 LFQUICK_BUILD_HYBRID_DEMO
 LFQUICK_BUILD_CHARTS
 LFQUICK_BUILD_QT_GRAPHS_ADAPTER
+LFQUICK_BUILD_QRANGE_MODEL_ADAPTER
+LFQUICK_EXPERIMENTAL_CANVAS_PAINTER
 LFQUICK_BUILD_DIAGNOSTICS
 LFQUICK_BUILD_MEDICAL_DEMO
 LFQUICK_BUILD_BENCHMARKS
+LFQUICK_BUILD_SCREENSHOT_TOOL
 LFQUICK_ENABLE_HOT_RELOAD
 LFQUICK_ENABLE_QMLTC
 LFQUICK_EXPERIMENTAL_STYLEKIT
@@ -317,7 +372,7 @@ LFQUICK_EXPERIMENTAL_STYLEKIT
 
 `examples/medical-demo` is the main vertical reference application for analyzer-style desktop/device UI workflows. It uses **synthetic data only** and is **not medical diagnostic software**.
 
-Current pages include:
+Current pages:
 
 ```text
 Dashboard
@@ -332,7 +387,7 @@ Alarms
 Developer
 ```
 
-The demo validates Scanner/InputRouter, permission, validation, navigation guard, overlay, DataGrid, Charts and Diagnostics together.
+The Developer page is also the live Design System playground: Theme mode/density/high-contrast, base controls, date/time controls, focus, busy overlay and scanner behavior can be exercised in one place.
 
 ## Hybrid Demo
 
@@ -342,48 +397,56 @@ The demo validates Scanner/InputRouter, permission, validation, navigation guard
 QML Page <-> QuickRuntime/PageRouter <-> Legacy QWidget Page
 ```
 
-It also exercises:
+It also exercises WidgetFocusBridge, shared overlays, WindowRouter/WidgetWindowProvider, QuickSurface telemetry, QML→legacy fallback and Diagnostics export.
 
-```text
-WidgetFocusBridge
-WidgetOverlayBackend
-WindowRouter / WidgetWindowProvider
-QuickSurface telemetry
-fallback from broken QML to legacy QWidget
-Diagnostics JSON export
-```
+## Hardening and tests
 
-## Hardening
+Current source-level/automated coverage includes:
 
-Automated/source-level hardening currently includes:
-
+- Runtime 1000-cycle PageRouter push/back stress;
+- Keyboard-wedge 1000-scan loss test;
 - DataView 20k/50k × 8/20/40-column benchmark matrix;
 - process RSS before/after DataTableModel population;
 - DataGrid FPS/slow-frame telemetry;
+- base-control QML construction smoke test;
 - repeated WidgetFocusBridge focus transfer stress;
-- scanner isolation + modal focus trap stress;
+- scanner isolation + modal focus-trap stress;
 - QuickSurface repeated resize/root-size consistency;
-- Hot Reload success/state-preserve/failure-rollback tests;
-- Diagnostics bounded model/export tests.
+- Hot Reload success/state-preserve/failure-rollback/shared-watch tests;
+- Diagnostics bounded model/export tests;
+- optional QRangeModel bridge tests;
+- Python tooling self-tests.
 
-Multi-DPI, compositor and native z-order behavior require real desktop verification. See:
+Multi-DPI, compositor and native z-order behavior require a real desktop environment. See [`tests/manual/WIDGETBRIDGE_HARDENING.md`](tests/manual/WIDGETBRIDGE_HARDENING.md).
 
-- [`tests/manual/WIDGETBRIDGE_HARDENING.md`](tests/manual/WIDGETBRIDGE_HARDENING.md)
+## Developer tools
+
+`tools/` now provides:
+
+```text
+check_architecture.py
+lfquick_lint.py
+lfquick_gen_vm.py
+lfquick_gen_token.py
+lfquick_deploy_check.py
+lfquick-screenshot (optional C++ CLI)
+```
+
+See [`tools/README.md`](tools/README.md).
 
 ## Qt version gates
-
-Current feature detection:
 
 ```text
 SafeArea                  >= Qt 6.9
 QRangeModel               >= Qt 6.10
-QCanvasPainter            >= Qt 6.11
+QCanvasPainter C++        >= Qt 6.11
 QRangeModel drag/drop     >= Qt 6.12
+QtCanvas2D QML            >= Qt 6.12
 qt_add_qml_preview        >= Qt 6.12
 Qt Labs StyleKit          >= Qt 6.12
 ```
 
-The primary API baseline remains Qt 6.8.3.
+The primary public API baseline remains Qt 6.8.3.
 
 ## External reference policy
 
@@ -394,7 +457,7 @@ LfQuick may learn from public Qt/Fluent implementations, but external references
 - decompilation or reconstruction of proprietary/binary implementations is not permitted;
 - LfQuick architecture takes priority over source-level similarity to reference projects.
 
-See [External Reference & Clean-room Policy](docs/REFERENCE_POLICY.md).
+See [`docs/REFERENCE_POLICY.md`](docs/REFERENCE_POLICY.md).
 
 ## Documents
 
@@ -403,7 +466,9 @@ See [External Reference & Clean-room Policy](docs/REFERENCE_POLICY.md).
 - [Architecture Review & V2.1 Optimization](docs/LfQuick_V2.1_架构审查与优化方案.md)
 - [Development Plan](docs/LfQuick_详细开发计划.md)
 - [Medical Demo Design](docs/LfQuick_Medical_Demo_详细设计方案.md)
+- [Optional modern Qt adapters](docs/QT_OPTIONAL_ADAPTERS.md)
 - [WidgetBridge hardening checklist](tests/manual/WIDGETBRIDGE_HARDENING.md)
+- [Developer tools](tools/README.md)
 - [Hybrid Demo](examples/hybrid-demo/README.md)
 - [External Reference & Clean-room Policy](docs/REFERENCE_POLICY.md)
 - [Third-party Notices](THIRD_PARTY_NOTICES.md)
