@@ -58,35 +58,23 @@ QuickRuntime::~QuickRuntime()
     QObject::disconnect(m_hostDestroyedConnection);
     m_hostDestroyedConnection = {};
     m_router->reset();
-    m_providers->unregisterProvider(QStringLiteral("quick"));
 }
 
-QString QuickRuntime::currentRoute() const
+QQmlEngine *QuickRuntime::engine() const noexcept
 {
-    return m_router ? m_router->currentRoute() : QString{};
+    return m_engine;
 }
 
-bool QuickRuntime::canGoBack() const
+void QuickRuntime::setEngine(QQmlEngine *engine)
 {
-    return m_router && m_router->canGoBack();
+    if (m_engine == engine)
+        return;
+    m_engine = engine;
+    m_provider->setEngine(engine);
+    emit engineChanged();
 }
 
-bool QuickRuntime::canGoForward() const
-{
-    return m_router && m_router->canGoForward();
-}
-
-int QuickRuntime::depth() const
-{
-    return m_router ? m_router->depth() : 0;
-}
-
-int QuickRuntime::forwardDepth() const
-{
-    return m_router ? m_router->forwardDepth() : 0;
-}
-
-QQuickItem *QuickRuntime::host() const
+QQuickItem *QuickRuntime::host() const noexcept
 {
     return m_host;
 }
@@ -96,43 +84,52 @@ void QuickRuntime::setHost(QQuickItem *host)
     if (m_host == host)
         return;
 
-    // The host is the scene root for routed Quick pages. Keeping history or
-    // caches alive across a host switch would leave instances attached to the
-    // previous scene tree while currentRoute still reports them as active.
-    if (m_router)
-        m_router->reset();
-
     QObject::disconnect(m_hostDestroyedConnection);
     m_hostDestroyedConnection = {};
+
     m_host = host;
     m_provider->setHost(host);
-
     if (m_host) {
         m_hostDestroyedConnection = connect(m_host, &QObject::destroyed, this, [this] {
             m_host = nullptr;
-            m_hostDestroyedConnection = {};
-            if (m_provider)
-                m_provider->setHost(nullptr);
-            if (m_router)
-                m_router->reset();
+            m_provider->setHost(nullptr);
             emit hostChanged();
         });
     }
-
     emit hostChanged();
 }
 
-QmlErrorCollector *QuickRuntime::errorCollector() const
+QmlErrorCollector *QuickRuntime::errorCollector() const noexcept
 {
     return m_errorCollector.get();
 }
 
-NavigationGuardController *QuickRuntime::navigationGuard() const
+QString QuickRuntime::currentRoute() const
 {
-    return m_navigationGuardController.get();
+    return m_router ? m_router->currentRoute() : QString{};
 }
 
-int QuickRuntime::maxRetainedLruPages() const
+bool QuickRuntime::canGoBack() const noexcept
+{
+    return m_router && m_router->canGoBack();
+}
+
+bool QuickRuntime::canGoForward() const noexcept
+{
+    return m_router && m_router->canGoForward();
+}
+
+int QuickRuntime::depth() const noexcept
+{
+    return m_router ? m_router->depth() : 0;
+}
+
+int QuickRuntime::forwardDepth() const noexcept
+{
+    return m_router ? m_router->forwardDepth() : 0;
+}
+
+int QuickRuntime::maxRetainedLruPages() const noexcept
 {
     return m_router ? m_router->maxRetainedLruPages() : 0;
 }
@@ -143,7 +140,7 @@ void QuickRuntime::setMaxRetainedLruPages(int value)
         m_router->setMaxRetainedLruPages(value);
 }
 
-qint64 QuickRuntime::maxRetainedLruWeight() const
+qint64 QuickRuntime::maxRetainedLruWeight() const noexcept
 {
     return m_router ? m_router->maxRetainedLruWeight() : 0;
 }
@@ -154,43 +151,24 @@ void QuickRuntime::setMaxRetainedLruWeight(qint64 value)
         m_router->setMaxRetainedLruWeight(value);
 }
 
-qint64 QuickRuntime::retainedLruWeight() const
+qint64 QuickRuntime::retainedLruWeight() const noexcept
 {
     return m_router ? m_router->retainedLruWeight() : 0;
 }
 
-int QuickRuntime::singletonCount() const
+int QuickRuntime::singletonCount() const noexcept
 {
     return m_router ? m_router->singletonCount() : 0;
 }
 
-bool QuickRuntime::registerProvider(std::shared_ptr<IPageProvider> provider)
+NavigationGuardController *QuickRuntime::navigationGuardController() const noexcept
 {
-    return m_providers && m_providers->registerProvider(std::move(provider));
+    return m_navigationGuardController.get();
 }
 
-bool QuickRuntime::registerDescriptor(PageDescriptor descriptor)
+QVariantMap QuickRuntime::lastError() const
 {
-    return m_pages && m_pages->registerPage(std::move(descriptor));
-}
-
-bool QuickRuntime::addNavigationGuard(std::shared_ptr<INavigationGuard> guard)
-{
-    return m_router && m_router->addGuard(std::move(guard));
-}
-
-void QuickRuntime::clearNavigationGuards()
-{
-    if (!m_router)
-        return;
-    m_router->clearGuards();
-    if (m_navigationGuardController)
-        m_router->addGuard(m_navigationGuardController->guardHandle());
-}
-
-void QuickRuntime::setQuickActivationCallback(std::function<void()> callback)
-{
-    m_provider->setActivationCallback(std::move(callback));
+    return m_provider ? m_provider->lastErrorInfo().toVariantMap() : QVariantMap{};
 }
 
 PageDescriptor QuickRuntime::descriptorFor(const QString &route,
@@ -233,14 +211,20 @@ bool QuickRuntime::push(const QString &route, const QVariantMap &parameters)
 {
     if (!m_router)
         return false;
-    return m_router->push(route, parameters).accepted;
+    RouteRequest request;
+    request.route = route;
+    request.parameters = parameters;
+    return m_router->push(request).accepted;
 }
 
 bool QuickRuntime::replace(const QString &route, const QVariantMap &parameters)
 {
     if (!m_router)
         return false;
-    return m_router->replace(route, parameters).accepted;
+    RouteRequest request;
+    request.route = route;
+    request.parameters = parameters;
+    return m_router->replace(request).accepted;
 }
 
 bool QuickRuntime::back()
