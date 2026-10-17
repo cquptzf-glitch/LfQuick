@@ -58,9 +58,12 @@ qt_add_qml_module(LfQuickUi
         qml/LfSlider.qml
         qml/LfProgressBar.qml
         qml/LfSearchBox.qml
+        qml/LfFilterInput.qml
+        qml/LfPasswordField.qml
         qml/LfStatusIndicator.qml
         qml/LfNumberInput.qml
         qml/LfRangeInput.qml
+        qml/LfProgressRing.qml
         qml/OverlayHost.qml
         qml/BusyOverlay.qml
         qml/ToastStack.qml
