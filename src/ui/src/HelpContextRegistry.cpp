@@ -1,5 +1,9 @@
 #include <LfQuick/Ui/HelpContextRegistry.h>
 
+#include <LfQuick/Ui/LfAttached.h>
+
+#include <QtQml/qqml.h>
+
 #include <algorithm>
 
 namespace LfQuick {
@@ -80,6 +84,26 @@ QStringList HelpContextRegistry::ids() const
     QStringList result = m_contexts.keys();
     std::sort(result.begin(), result.end());
     return result;
+}
+
+QString HelpContextRegistry::contextIdFor(QObject *target) const
+{
+    if (!target)
+        return {};
+    auto *attached = qmlAttachedPropertiesObject<Lf>(target, false);
+    return attached ? normalizedId(attached->helpContext()) : QString{};
+}
+
+QVariantMap HelpContextRegistry::resolveFor(QObject *target) const
+{
+    const QString id = contextIdFor(target);
+    return id.isEmpty() ? QVariantMap{} : resolve(id);
+}
+
+bool HelpContextRegistry::requestHelpFor(QObject *target)
+{
+    const QString id = contextIdFor(target);
+    return !id.isEmpty() && requestHelp(id);
 }
 
 void HelpContextRegistry::clear()
