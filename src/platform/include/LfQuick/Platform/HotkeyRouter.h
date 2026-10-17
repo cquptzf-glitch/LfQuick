@@ -4,6 +4,7 @@
 
 #include <QHash>
 #include <QKeySequence>
+#include <QMetaObject>
 #include <QObject>
 #include <QPointer>
 #include <QString>
@@ -53,6 +54,7 @@ private:
 
     QHash<QString, Entry> m_hotkeys;
     QPointer<QObject> m_target;
+    QMetaObject::Connection m_targetDestroyedConnection;
 };
 
 } // namespace LfQuick
