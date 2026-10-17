@@ -83,6 +83,7 @@ private:
     QmlObjectFactory *m_factory = nullptr;
     QPointer<QmlObjectLoadHandle> m_handle;
     QPointer<QObject> m_item;
+    QMetaObject::Connection m_itemDestroyedConnection;
     QPointer<QQmlComponent> m_component;
     QMetaObject::Connection m_componentDestroyedConnection;
     QUrl m_source;
