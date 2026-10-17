@@ -30,8 +30,22 @@ BusyToken::BusyToken(QString id, OverlayCoordinator *coordinator, QObject *paren
 
 BusyToken::~BusyToken()
 {
-    if (m_active && m_coordinator)
-        m_coordinator->endBusy(m_id);
+    if (!m_active || !m_coordinator)
+        return;
+
+    // Do not emit activeChanged/released while QObject destruction is already
+    // in progress. Disconnect first so OverlayCoordinator::busyChanged cannot
+    // re-enter this object while endBusy() tears the token down.
+    m_active = false;
+    QObject::disconnect(m_busyChangedConnection);
+    QObject::disconnect(m_coordinatorDestroyedConnection);
+    m_busyChangedConnection = {};
+    m_coordinatorDestroyedConnection = {};
+
+    const QPointer<OverlayCoordinator> coordinator = m_coordinator;
+    m_coordinator = nullptr;
+    if (coordinator)
+        coordinator->endBusy(m_id);
 }
 
 bool BusyToken::release()
