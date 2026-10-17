@@ -1,0 +1,17 @@
+qt_add_library(LfQuickPlatformQml)
+add_library(LfQuick::PlatformQml ALIAS LfQuickPlatformQml)
+
+qt_add_qml_module(LfQuickPlatformQml
+    URI LfQuick.Platform
+    VERSION 1.0
+    RESOURCE_PREFIX /qt/qml
+    SOURCES
+        PlatformQmlTypes.h
+)
+
+target_link_libraries(LfQuickPlatformQml
+    PUBLIC
+        LfQuick::Platform
+        Qt6::Qml
+        Qt6::QmlIntegration
+)
