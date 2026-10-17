@@ -9,6 +9,14 @@
 #include <utility>
 
 namespace LfQuick {
+namespace {
+
+bool contextMatchesEngine(QQmlContext *context, QQmlEngine *engine)
+{
+    return !context || !engine || context->engine() == engine;
+}
+
+} // namespace
 
 class FactoryIncubator final : public QQmlIncubator
 {
@@ -32,20 +40,26 @@ private:
 
 QmlObjectLoadHandle::QmlObjectLoadHandle(QUrl source,
                                          QVariantMap initialProperties,
+                                         QQmlContext *creationContext,
                                          QObject *parent)
     : QObject(parent)
     , m_source(std::move(source))
     , m_initialProperties(std::move(initialProperties))
+    , m_creationContext(creationContext)
 {
 }
 
 QmlObjectLoadHandle::QmlObjectLoadHandle(QQmlComponent *component,
                                          QVariantMap initialProperties,
+                                         QQmlContext *creationContext,
                                          QObject *parent)
     : QObject(parent)
     , m_initialProperties(std::move(initialProperties))
+    , m_creationContext(creationContext)
     , m_component(component)
 {
+    if (!m_creationContext && m_component)
+        m_creationContext = m_component->creationContext();
 }
 
 QmlObjectLoadHandle::~QmlObjectLoadHandle()
@@ -77,6 +91,10 @@ void QmlObjectLoadHandle::begin(QQmlEngine *engine)
         fail(QStringLiteral("QML object creation requires a QQmlEngine"));
         return;
     }
+    if (!contextMatchesEngine(m_creationContext, m_engine)) {
+        fail(QStringLiteral("QML creation context belongs to a different QQmlEngine"));
+        return;
+    }
 
     if (!m_component) {
         if (!m_source.isValid() || m_source.isEmpty()) {
@@ -91,6 +109,16 @@ void QmlObjectLoadHandle::begin(QQmlEngine *engine)
 
     if (!m_component) {
         fail(QStringLiteral("QML component is null"));
+        return;
+    }
+    if (m_component->engine() && m_component->engine() != m_engine) {
+        fail(QStringLiteral("QML component belongs to a different QQmlEngine"));
+        return;
+    }
+    if (!m_creationContext && m_component->creationContext())
+        m_creationContext = m_component->creationContext();
+    if (!contextMatchesEngine(m_creationContext, m_engine)) {
+        fail(QStringLiteral("QML component creation context belongs to a different QQmlEngine"));
         return;
     }
 
@@ -108,6 +136,15 @@ void QmlObjectLoadHandle::begin(QQmlEngine *engine)
     onComponentStatusChanged();
 }
 
+QQmlContext *QmlObjectLoadHandle::effectiveCreationContext() const
+{
+    if (m_creationContext)
+        return m_creationContext;
+    if (m_component && m_component->creationContext())
+        return m_component->creationContext();
+    return nullptr;
+}
+
 void QmlObjectLoadHandle::startIncubation()
 {
     if (m_status != Status::Loading || !m_component || !m_engine || m_incubator)
@@ -115,7 +152,7 @@ void QmlObjectLoadHandle::startIncubation()
 
     m_incubator = std::make_unique<FactoryIncubator>(this);
     m_incubator->setInitialProperties(m_initialProperties);
-    m_component->create(*m_incubator, m_engine->rootContext());
+    m_component->create(*m_incubator, effectiveCreationContext());
     onIncubatorStatusChanged();
 }
 
@@ -226,7 +263,7 @@ void QmlObjectLoadHandle::forceCompletion()
 
     QString error;
     QObject *created = QmlObjectFactory::createSync(
-        m_engine, m_source, m_initialProperties, &error);
+        m_engine, m_source, m_initialProperties, &error, m_creationContext);
     if (!created) {
         fail(error);
         return;
@@ -294,11 +331,17 @@ void QmlObjectFactory::setEngine(QQmlEngine *engine)
     emit engineChanged();
 }
 
+void QmlObjectFactory::setCreationContext(QQmlContext *context)
+{
+    m_creationContext = context;
+}
+
 QObject *QmlObjectFactory::create(const QUrl &source,
                                   const QVariantMap &initialProperties)
 {
     QString error;
-    QObject *object = createSync(effectiveEngine(), source, initialProperties, &error);
+    QObject *object = createSync(effectiveEngine(), source, initialProperties, &error,
+                                 effectiveCreationContext());
     setLastError(error);
     return object;
 }
@@ -307,7 +350,8 @@ QObject *QmlObjectFactory::createComponent(QQmlComponent *component,
                                            const QVariantMap &initialProperties)
 {
     QString error;
-    QObject *object = createSync(component, initialProperties, &error);
+    QObject *object = createSync(component, initialProperties, &error,
+                                 effectiveCreationContext(component));
     setLastError(error);
     return object;
 }
@@ -316,7 +360,8 @@ QmlObjectLoadHandle *QmlObjectFactory::createAsync(
     const QUrl &source,
     const QVariantMap &initialProperties)
 {
-    return beginAsync(new QmlObjectLoadHandle(source, initialProperties, this),
+    return beginAsync(new QmlObjectLoadHandle(source, initialProperties,
+                                               effectiveCreationContext(), this),
                       effectiveEngine());
 }
 
@@ -325,7 +370,9 @@ QmlObjectLoadHandle *QmlObjectFactory::createAsyncComponent(
     const QVariantMap &initialProperties)
 {
     QQmlEngine *engine = component ? component->engine() : effectiveEngine();
-    return beginAsync(new QmlObjectLoadHandle(component, initialProperties, this), engine);
+    return beginAsync(new QmlObjectLoadHandle(component, initialProperties,
+                                               effectiveCreationContext(component), this),
+                      engine);
 }
 
 QmlObjectLoadHandle *QmlObjectFactory::beginAsync(QmlObjectLoadHandle *handle,
@@ -350,7 +397,8 @@ QmlObjectLoadHandle *QmlObjectFactory::beginAsync(QmlObjectLoadHandle *handle,
 QObject *QmlObjectFactory::createSync(QQmlEngine *engine,
                                       const QUrl &source,
                                       const QVariantMap &initialProperties,
-                                      QString *error)
+                                      QString *error,
+                                      QQmlContext *creationContext)
 {
     auto setError = [error](const QString &message) {
         if (error)
@@ -365,14 +413,19 @@ QObject *QmlObjectFactory::createSync(QQmlEngine *engine,
         setError(QStringLiteral("QML source URL is empty or invalid"));
         return nullptr;
     }
+    if (!contextMatchesEngine(creationContext, engine)) {
+        setError(QStringLiteral("QML creation context belongs to a different QQmlEngine"));
+        return nullptr;
+    }
 
     QQmlComponent component(engine, source, QQmlComponent::PreferSynchronous);
-    return createSync(&component, initialProperties, error);
+    return createSync(&component, initialProperties, error, creationContext);
 }
 
 QObject *QmlObjectFactory::createSync(QQmlComponent *component,
                                       const QVariantMap &initialProperties,
-                                      QString *error)
+                                      QString *error,
+                                      QQmlContext *creationContext)
 {
     auto setError = [error](const QString &message) {
         if (error)
@@ -396,7 +449,15 @@ QObject *QmlObjectFactory::createSync(QQmlComponent *component,
         return nullptr;
     }
 
-    QObject *object = component->createWithInitialProperties(initialProperties);
+    QQmlContext *context = creationContext
+        ? creationContext
+        : component->creationContext();
+    if (!contextMatchesEngine(context, component->engine())) {
+        setError(QStringLiteral("QML creation context belongs to a different QQmlEngine"));
+        return nullptr;
+    }
+
+    QObject *object = component->createWithInitialProperties(initialProperties, context);
     if (!object) {
         setError(component->errorString().isEmpty()
                      ? QStringLiteral("QML component creation returned null")
@@ -412,6 +473,15 @@ QObject *QmlObjectFactory::createSync(QQmlComponent *component,
 QQmlEngine *QmlObjectFactory::effectiveEngine() const
 {
     return m_engine ? m_engine.data() : qmlEngine(const_cast<QmlObjectFactory *>(this));
+}
+
+QQmlContext *QmlObjectFactory::effectiveCreationContext(QQmlComponent *component) const
+{
+    if (m_creationContext)
+        return m_creationContext;
+    if (component && component->creationContext())
+        return component->creationContext();
+    return QQmlEngine::contextForObject(const_cast<QmlObjectFactory *>(this));
 }
 
 void QmlObjectFactory::setLastError(const QString &message)
