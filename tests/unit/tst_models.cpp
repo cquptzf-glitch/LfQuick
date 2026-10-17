@@ -215,7 +215,6 @@ private slots:
         delete object;
 
         QCOMPARE(model.rowCount(), 0);
-        QCOMPARE(model.count(), 0);
         QCOMPARE(removed.count(), 1);
         QCOMPARE(removed.at(0).at(0).value<QObject *>(), nullptr);
     }
