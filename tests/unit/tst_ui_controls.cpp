@@ -3,6 +3,8 @@
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQmlError>
+#include <QPointer>
+#include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QVariantMap>
@@ -104,6 +106,9 @@ QtObject {
         QObject *loader = root->findChild<QObject *>(QStringLiteral("loader"));
         QVERIFY(loader);
 
+        QSignalSpy itemChanged(loader, SIGNAL(itemChanged()));
+        QSignalSpy activeChanged(loader, SIGNAL(activeChanged()));
+
         QVERIFY(loader->setProperty("source", QUrl::fromLocalFile(childPath)));
         QVERIFY(loader->setProperty(
             "initialProperties",
@@ -115,6 +120,37 @@ QtObject {
         QVERIFY2(loaded, qPrintable(loader->property("errorString").toString()));
         QCOMPARE(loaded->property("answer").toInt(), 17);
         QVERIFY(loader->property("active").toBool());
+
+        // Creation inputs are transactional: changing initialProperties while
+        // active must rebuild the item rather than leave the property and the
+        // actual constructed object out of sync.
+        QPointer<QObject> firstItem = loaded;
+        const int itemSignalsBeforeRecreate = itemChanged.count();
+        QVERIFY(loader->setProperty(
+            "initialProperties",
+            QVariantMap{{QStringLiteral("answer"), 23}}));
+        QObject *recreated = loader->property("item").value<QObject *>();
+        QVERIFY(recreated);
+        QVERIFY(recreated != firstItem.data());
+        QCOMPARE(recreated->property("answer").toInt(), 23);
+        QVERIFY(loader->property("active").toBool());
+        QVERIFY(itemChanged.count() >= itemSignalsBeforeRecreate + 2);
+
+        // If loaded content destroys itself, the loader must not silently leave
+        // QML bindings with stale active/item state.
+        const int itemSignalsBeforeDestroy = itemChanged.count();
+        const int activeSignalsBeforeDestroy = activeChanged.count();
+        delete recreated;
+        QCOMPARE(loader->property("item").value<QObject *>(), nullptr);
+        QVERIFY(!loader->property("active").toBool());
+        QCOMPARE(itemChanged.count(), itemSignalsBeforeDestroy + 1);
+        QCOMPARE(activeChanged.count(), activeSignalsBeforeDestroy + 1);
+
+        // The loader remains reusable after unexpected content destruction.
+        QVERIFY(loader->setProperty("active", true));
+        QObject *reloaded = loader->property("item").value<QObject *>();
+        QVERIFY(reloaded);
+        QCOMPARE(reloaded->property("answer").toInt(), 23);
 
         QVERIFY(loader->setProperty("active", false));
         QCOMPARE(loader->property("item").value<QObject *>(), nullptr);
