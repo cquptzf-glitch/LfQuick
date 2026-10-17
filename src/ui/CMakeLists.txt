@@ -1,5 +1,6 @@
 qt_add_library(LfQuickUi
     src/QuickPageProvider.cpp
+    src/QuickWindowProvider.cpp
     src/NavigationGuardState.cpp
     src/NavigationGuardController.cpp
     src/QuickRuntime.cpp
@@ -155,6 +156,7 @@ target_sources(LfQuickUi PUBLIC
     FILES
         include/LfQuick/Ui/LfQuickUiGlobal.h
         include/LfQuick/Ui/QuickPageProvider.h
+        include/LfQuick/Ui/QuickWindowProvider.h
         include/LfQuick/Ui/QmlErrorCollector.h
         include/LfQuick/Ui/OverlayBackend.h
         include/LfQuick/Ui/OverlayCoordinator.h
