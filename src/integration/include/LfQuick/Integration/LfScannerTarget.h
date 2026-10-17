@@ -1,6 +1,8 @@
 #pragma once
 
 #include <LfQuick/Integration/LfQuickIntegrationGlobal.h>
+#include <LfQuick/Platform/InputRouter.h>
+#include <LfQuick/Platform/InputTarget.h>
 
 #include <QObject>
 #include <QPointer>
@@ -11,8 +13,6 @@
 
 namespace LfQuick {
 
-class InputRouter;
-class InputTarget;
 class LfAttached;
 
 class LFQUICKINTEGRATION_EXPORT LfScannerTarget final : public QObject
