@@ -6,8 +6,14 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QSaveFile>
+#include <QTimer>
 
 namespace LfQuick {
+namespace {
+
+constexpr int kSelfWriteSuppressionMs = 1500;
+
+} // namespace
 
 FileDocument::FileDocument(QObject *parent)
     : QObject(parent)
@@ -31,6 +37,7 @@ void FileDocument::setPath(const QString &path)
     if (m_path == normalized)
         return;
 
+    clearSelfWriteSuppression();
     m_path = normalized;
     setExternalConflict(false);
     setErrorString({});
@@ -115,6 +122,7 @@ bool FileDocument::load()
         return false;
     }
 
+    clearSelfWriteSuppression();
     const bool changed = m_data != loadedData;
     m_data = loadedData;
     setDirty(false);
@@ -165,6 +173,7 @@ bool FileDocument::save()
     if (!writeDataToPath(m_path))
         return false;
 
+    armSelfWriteSuppression(m_path, m_data);
     setDirty(false);
     setExternalConflict(false);
     setErrorString({});
@@ -191,6 +200,7 @@ bool FileDocument::saveAs(const QString &path)
     if (!writeDataToPath(targetPath))
         return false;
 
+    armSelfWriteSuppression(targetPath, m_data);
     m_path = targetPath;
     setDirty(false);
     setExternalConflict(false);
@@ -252,7 +262,16 @@ void FileDocument::refreshWatch()
 
 void FileDocument::handleExternalChange(const QString &path)
 {
-    if (m_path.isEmpty() || normalizedPath(path) != m_path)
+    const QString normalized = normalizedPath(path);
+    if (m_path.isEmpty() || normalized != m_path)
+        return;
+
+    // QSaveFile replaces the target atomically and can therefore produce both
+    // file and parent-directory notifications. Suppress only notifications
+    // whose on-disk bytes still match the exact snapshot written by this
+    // document. A competing writer changes those bytes and immediately falls
+    // through to the normal external-change/conflict path.
+    if (matchesSuppressedSelfWrite(normalized))
         return;
 
     emit metadataChanged();
@@ -266,6 +285,54 @@ void FileDocument::handleExternalChange(const QString &path)
 
     if (m_autoReload)
         load();
+}
+
+void FileDocument::armSelfWriteSuppression(const QString &path,
+                                           const QByteArray &data)
+{
+    m_selfWritePath = normalizedPath(path);
+    m_selfWriteData = data;
+    m_selfWriteSuppressionActive = !m_selfWritePath.isEmpty();
+    const quint64 generation = ++m_selfWriteGeneration;
+
+    QTimer::singleShot(kSelfWriteSuppressionMs, this, [this, generation] {
+        if (generation != m_selfWriteGeneration)
+            return;
+        m_selfWriteSuppressionActive = false;
+        m_selfWritePath.clear();
+        m_selfWriteData.clear();
+    });
+}
+
+void FileDocument::clearSelfWriteSuppression()
+{
+    ++m_selfWriteGeneration;
+    m_selfWriteSuppressionActive = false;
+    m_selfWritePath.clear();
+    m_selfWriteData.clear();
+}
+
+bool FileDocument::matchesSuppressedSelfWrite(const QString &path)
+{
+    if (!m_selfWriteSuppressionActive || path != m_selfWritePath)
+        return false;
+
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        clearSelfWriteSuppression();
+        return false;
+    }
+    if (file.size() != m_selfWriteData.size()) {
+        clearSelfWriteSuppression();
+        return false;
+    }
+
+    const QByteArray current = file.readAll();
+    if (file.error() != QFileDevice::NoError || current != m_selfWriteData) {
+        clearSelfWriteSuppression();
+        return false;
+    }
+    return true;
 }
 
 } // namespace LfQuick
