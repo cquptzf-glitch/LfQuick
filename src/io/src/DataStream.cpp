@@ -9,6 +9,7 @@ namespace LfQuick {
 namespace {
 
 constexpr qint64 kReadChunkBytes = 64 * 1024;
+constexpr int kMaxReadChunksPerTurn = 16;
 
 qsizetype trailingDelimiterPrefixLength(const QByteArray &buffer,
                                         const QByteArray &delimiter)
@@ -314,6 +315,8 @@ void DataStream::attachDevice(QIODevice *device)
                                               this, [this] {
             m_device = nullptr;
             m_deviceConnections.clear();
+            m_readContinuationQueued = false;
+            m_readContinuationDevice = nullptr;
             end();
             emit deviceChanged();
         }));
@@ -374,22 +377,62 @@ void DataStream::end()
 
 void DataStream::readAvailable()
 {
-    if (!m_device || !m_device->isReadable())
+    if (m_reading || !m_device || !m_device->isReadable())
         return;
 
-    // Keep transient allocations bounded as well as the parser's persistent
-    // buffer. A device may have accumulated a very large amount of readable
-    // data before one readyRead delivery; readAll() would duplicate that whole
-    // backlog before the parser had a chance to enforce its own limits.
-    while (m_device && m_device->isReadable()) {
-        const QByteArray bytes = m_device->read(kReadChunkBytes);
+    // Keep both transient allocation and work performed in one event-loop turn
+    // bounded. Large regular files or a continuously producing socket should
+    // not monopolize the GUI thread simply because the parser itself is
+    // memory-bounded.
+    m_reading = true;
+    QPointer<DataStream> self(this);
+    const QPointer<QIODevice> device = m_device;
+    int chunks = 0;
+
+    while (device && m_device == device && device->isReadable()
+           && chunks < kMaxReadChunksPerTurn) {
+        const QByteArray bytes = device->read(kReadChunkBytes);
         if (bytes.isEmpty())
             break;
+        ++chunks;
         feed(bytes);
-        // feed() emits user-observable signals and may detach or destroy the
-        // current device. The loop condition re-checks the guarded pointer on
-        // the next iteration instead of dereferencing a stale device here.
+
+        // User-visible parser/bytes signals may synchronously detach the
+        // device, replace it, or even destroy this DataStream.
+        if (!self)
+            return;
+        if (m_device != device) {
+            m_reading = false;
+            return;
+        }
     }
+
+    m_reading = false;
+    if (device && m_device == device && chunks >= kMaxReadChunksPerTurn)
+        queueReadContinuation(device);
+}
+
+void DataStream::queueReadContinuation(QIODevice *device)
+{
+    if (!device)
+        return;
+    if (m_readContinuationQueued && m_readContinuationDevice == device)
+        return;
+
+    m_readContinuationQueued = true;
+    m_readContinuationDevice = device;
+    const QPointer<QIODevice> expectedDevice = device;
+    QMetaObject::invokeMethod(this, [this, expectedDevice] {
+        // A new device may have installed its own continuation while this old
+        // queued callback was waiting. Never clear or consume that newer work.
+        if (!m_readContinuationQueued || m_readContinuationDevice != expectedDevice)
+            return;
+
+        m_readContinuationQueued = false;
+        m_readContinuationDevice = nullptr;
+        if (expectedDevice && m_device == expectedDevice)
+            readAvailable();
+    }, Qt::QueuedConnection);
 }
 
 void DataStream::disconnectDevice()
@@ -397,6 +440,8 @@ void DataStream::disconnectDevice()
     for (const auto &connection : std::as_const(m_deviceConnections))
         QObject::disconnect(connection);
     m_deviceConnections.clear();
+    m_readContinuationQueued = false;
+    m_readContinuationDevice = nullptr;
 }
 
 } // namespace LfQuick
