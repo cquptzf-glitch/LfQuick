@@ -19,3 +19,16 @@ foreach(_component IN LISTS _lfquick_components)
     endif()
     target_link_libraries(lfquick_package_smoke PRIVATE "LfQuick::${_component}")
 endforeach()
+
+if(NOT @BUILD_SHARED_LIBS@)
+    get_target_property(_lfquick_core_definitions
+        LfQuick::Core INTERFACE_COMPILE_DEFINITIONS)
+    if(NOT _lfquick_core_definitions)
+        message(FATAL_ERROR
+            "Static LfQuick SDK does not export any interface compile definitions")
+    endif()
+    if(NOT "LFQUICK_STATIC" IN_LIST _lfquick_core_definitions)
+        message(FATAL_ERROR
+            "Static LfQuick SDK must propagate LFQUICK_STATIC to consumers")
+    endif()
+endif()
