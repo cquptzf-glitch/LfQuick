@@ -27,6 +27,7 @@ target_sources(LfQuickRuntime PUBLIC
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
     FILES
         include/LfQuick/Runtime/LfQuickRuntimeGlobal.h
+        include/LfQuick/Runtime/IStatefulInstance.h
         include/LfQuick/Runtime/PageDescriptor.h
         include/LfQuick/Runtime/IPageInstance.h
         include/LfQuick/Runtime/IPageProvider.h
