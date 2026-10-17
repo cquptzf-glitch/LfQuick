@@ -13,10 +13,13 @@ qt_add_qml_module(LfQuickStyleKit
     URI LfQuick.StyleKit
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
+    OUTPUT_TARGETS _lfquick_stylekit_qml_output_targets
     SOURCES
         include/LfQuick/StyleKit/StyleKitBridge.h
         src/StyleKitBridge.cpp
 )
+lfquick_register_qml_output_targets(
+    LfQuickStyleKit ${_lfquick_stylekit_qml_output_targets})
 
 target_sources(LfQuickStyleKit PUBLIC
     FILE_SET HEADERS
