@@ -17,7 +17,8 @@ Controls.Control {
 
     function normalizedMinute(value) {
         const step = Math.max(1, Math.min(60, minuteStep))
-        return Math.max(0, Math.min(59, Math.round(value / step) * step)) % 60
+        const clamped = Math.max(0, Math.min(59, Number(value)))
+        return Math.floor(clamped / step) * step
     }
 
     function applyTime(hour, minute, emitAccepted) {
@@ -66,7 +67,6 @@ Controls.Control {
 
     Controls.Popup {
         id: timePopup
-        parent: Controls.Overlay.overlay
         padding: Tokens.spacingMedium
         modal: false
         focus: true
@@ -74,7 +74,7 @@ Controls.Control {
 
         onOpened: {
             hourInput.value = control.value.getHours()
-            minuteInput.value = control.value.getMinutes()
+            minuteInput.value = control.normalizedMinute(control.value.getMinutes())
         }
 
         background: Rectangle {
