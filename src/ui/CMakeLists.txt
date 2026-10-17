@@ -53,6 +53,8 @@ qt_add_qml_module(LfQuickUi
         src/QmlObjectFactory.cpp
         include/LfQuick/Ui/QmlLazyLoader.h
         src/QmlLazyLoader.cpp
+        include/LfQuick/Ui/BoundComponent.h
+        src/BoundComponent.cpp
         include/LfQuick/Ui/QmlStateSnapshot.h
         src/QmlStateSnapshot.cpp
         include/LfQuick/Ui/LifetimeLease.h
@@ -61,6 +63,8 @@ qt_add_qml_module(LfQuickUi
         src/PersistentState.cpp
         include/LfQuick/Ui/PostReloadHook.h
         src/PostReloadHook.cpp
+        include/LfQuick/Ui/ItemTransformWatcher.h
+        src/ItemTransformWatcher.cpp
         include/LfQuick/Ui/PopupAnchor.h
         src/PopupAnchor.cpp
         include/LfQuick/Ui/WindowRuntime.h
@@ -176,10 +180,12 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/QmlIncubationScheduler.h
         include/LfQuick/Ui/QmlObjectFactory.h
         include/LfQuick/Ui/QmlLazyLoader.h
+        include/LfQuick/Ui/BoundComponent.h
         include/LfQuick/Ui/QmlStateSnapshot.h
         include/LfQuick/Ui/LifetimeLease.h
         include/LfQuick/Ui/PersistentState.h
         include/LfQuick/Ui/PostReloadHook.h
+        include/LfQuick/Ui/ItemTransformWatcher.h
         include/LfQuick/Ui/PopupAnchor.h
         include/LfQuick/Ui/WindowRuntime.h
         include/LfQuick/Ui/HelpContextRegistry.h
