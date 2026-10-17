@@ -21,6 +21,17 @@ foreach(_component IN LISTS _lfquick_components)
     target_link_libraries(lfquick_package_smoke PRIVATE "LfQuick::${_component}")
 endforeach()
 
+# Do not stop at target existence/linkability. Compile against representative
+# public headers from newly added optional SDK components so install header
+# sets, export macros, include paths and transitive Qt dependencies are checked
+# by the downstream consumer as well.
+if("Models" IN_LIST _lfquick_components)
+    target_compile_definitions(lfquick_package_smoke PRIVATE LFQUICK_SMOKE_MODELS=1)
+endif()
+if("Io" IN_LIST _lfquick_components)
+    target_compile_definitions(lfquick_package_smoke PRIVATE LFQUICK_SMOKE_IO=1)
+endif()
+
 foreach(_plugin IN LISTS _lfquick_qml_plugins)
     if(NOT TARGET "LfQuick::${_plugin}")
         message(FATAL_ERROR
