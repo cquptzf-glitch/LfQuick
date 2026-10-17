@@ -32,6 +32,8 @@ qt_add_qml_module(LfQuickDataView
         include/LfQuick/DataView/DataGridSelectionController.h
         src/DataGridSelectionController.cpp
     QML_FILES
+        qml/LfTreeView.qml
+        qml/LfTreeSelect.qml
         qml/DataGrid.qml
         qml/DataGridColumn.qml
         qml/DataGridHeader.qml

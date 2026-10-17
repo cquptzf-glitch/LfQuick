@@ -116,6 +116,8 @@ qt_add_qml_module(LfQuickUi
         qml/LfRadioButton.qml
         qml/LfSwitch.qml
         qml/LfComboBox.qml
+        qml/LfSearchableComboBox.qml
+        qml/LfMultiSelect.qml
         qml/LfSlider.qml
         qml/LfProgressBar.qml
         qml/LfSearchBox.qml
