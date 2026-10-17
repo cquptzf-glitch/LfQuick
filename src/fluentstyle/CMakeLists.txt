@@ -9,6 +9,7 @@ qt_add_qml_module(LfQuickFluentStyle
     RESOURCE_PREFIX /qt/qml
     QML_FILES
         qml/FluentTokens.qml
+        qml/FluentIcon.qml
         qml/FluentButton.qml
         qml/FluentTextField.qml
         qml/FluentCheckBox.qml
