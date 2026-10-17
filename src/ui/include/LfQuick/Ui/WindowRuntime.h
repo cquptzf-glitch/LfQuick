@@ -2,13 +2,14 @@
 
 #include <LfQuick/Runtime/WindowDescriptor.h>
 #include <LfQuick/Ui/LfQuickUiGlobal.h>
+#include <LfQuick/Ui/QmlErrorCollector.h>
 
 #include <QObject>
 #include <QPointer>
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
-#include <QtQml/QQmlParserStatus>
+#include <QQmlParserStatus>
 #include <QtQmlIntegration/qqmlintegration.h>
 
 #include <memory>
@@ -18,7 +19,6 @@ class QQmlEngine;
 namespace LfQuick {
 
 class IWindowProvider;
-class QmlErrorCollector;
 class QuickWindowProvider;
 class WindowProviderRegistry;
 class WindowRouter;
