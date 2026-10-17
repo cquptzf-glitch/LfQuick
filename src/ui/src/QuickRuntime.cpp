@@ -226,7 +226,74 @@ bool QuickRuntime::unregisterPage(const QString &route)
 {
     if (!m_pages)
         return false;
+    cancelPrewarm(route);
     return m_pages->unregisterPage(route);
+}
+
+bool QuickRuntime::resolvePrewarmTarget(
+    const QString &route,
+    PageDescriptor &descriptor,
+    std::shared_ptr<IPageProvider> &provider) const
+{
+    provider.reset();
+    if (!m_pages || !m_providers)
+        return false;
+
+    const auto registered = m_pages->find(route);
+    if (!registered)
+        return false;
+
+    descriptor = *registered;
+    if (descriptor.featureSwitch == FeatureSwitch::Legacy) {
+        if (!descriptor.fallback.has_value())
+            return false;
+
+        descriptor.provider = descriptor.fallback->provider;
+        descriptor.source = descriptor.fallback->source;
+        descriptor.featureSwitch = FeatureSwitch::Quick;
+        descriptor.fallbackPolicy = FallbackPolicy::None;
+        descriptor.fallback.reset();
+    }
+
+    provider = m_providers->find(descriptor.provider);
+    return bool(provider);
+}
+
+bool QuickRuntime::prewarm(const QString &route, const QVariantMap &parameters)
+{
+    PageDescriptor descriptor;
+    std::shared_ptr<IPageProvider> provider;
+    if (!resolvePrewarmTarget(route, descriptor, provider)) {
+        emit prewarmFailed(route, QStringLiteral("Route or page provider is not available"));
+        return false;
+    }
+
+    if (!provider->prewarm(descriptor, parameters)) {
+        QString message = provider->lastErrorInfo().message.trimmed();
+        if (message.isEmpty())
+            message = QStringLiteral("Page provider does not support prewarming");
+        emit prewarmFailed(route, message);
+        return false;
+    }
+    return true;
+}
+
+void QuickRuntime::cancelPrewarm(const QString &route)
+{
+    if (!m_pages || !m_providers)
+        return;
+
+    const auto registered = m_pages->find(route);
+    if (!registered)
+        return;
+
+    if (auto provider = m_providers->find(registered->provider))
+        provider->cancelPrewarm(route);
+
+    if (registered->fallback.has_value()) {
+        if (auto fallback = m_providers->find(registered->fallback->provider))
+            fallback->cancelPrewarm(route);
+    }
 }
 
 bool QuickRuntime::push(const QString &route, const QVariantMap &parameters)
