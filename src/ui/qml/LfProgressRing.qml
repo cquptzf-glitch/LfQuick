@@ -15,7 +15,6 @@ Controls.BusyIndicator {
         implicitHeight: control.implicitHeight
         opacity: control.enabled ? 1.0 : 0.45
         visible: control.running
-        rotation: Theme.animationEnabled ? rotation : 0
 
         Repeater {
             model: 8
@@ -40,6 +39,14 @@ Controls.BusyIndicator {
             duration: 900
             loops: Animation.Infinite
             running: control.running && control.visible && Theme.animationEnabled
+        }
+
+        Connections {
+            target: Theme
+            function onAnimationEnabledChanged() {
+                if (!Theme.animationEnabled)
+                    spinner.rotation = 0
+            }
         }
     }
 }
