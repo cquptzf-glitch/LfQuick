@@ -74,6 +74,7 @@ qt_add_qml_module(LfQuickUi
         qml/Units.qml
         qml/Typography.qml
         qml/Motion.qml
+        qml/ThemeSystemAdapter.qml
         qml/IconLoader.qml
         qml/LfButton.qml
         qml/LfTextField.qml
