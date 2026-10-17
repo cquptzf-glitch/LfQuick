@@ -55,6 +55,7 @@ RULES = {
         # table, IO/model helper and QWidget bridge dependencies out of it.
         r"LfQuick/(Models|Io|DataView|Platform|WidgetBridge|Charts)/",
         r"LfQuick::(Models|Io|DataView|Platform|WidgetBridge|Charts)",
+        r"(?m)^\s*import\s+LfQuick\.(Models|Io|DataView|Platform|Diagnostics|Tooling|StyleKit|Integration|SafeArea|CanvasPainter|CustomQuickCharts|Fluent|BrandTest)\b",
     ],
 }
 
