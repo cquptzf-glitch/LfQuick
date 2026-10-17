@@ -1,5 +1,7 @@
 #include <LfQuick/Runtime/TelemetryPageProvider.h>
 
+#include <LfQuick/Runtime/IPageInstance.h>
+
 #include <QElapsedTimer>
 
 namespace LfQuick {
