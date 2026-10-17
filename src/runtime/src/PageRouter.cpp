@@ -746,7 +746,7 @@ void PageRouter::destroy(Entry &entry)
 }
 
 void PageRouter::invalidateSingleton(const QString &route,
-                                     const std::shared_ptr<IPageInstance> &instance)
+                                     std::shared_ptr<IPageInstance> instance)
 {
     if (!instance)
         return;
