@@ -49,7 +49,7 @@ private slots:
 
         QSignalSpy accepted(scanner.session(), &ScannerSession::scanAccepted);
 
-        const QString text = QStringLiteral("S001");
+        const QString text = QStringLiteral("S001"));
         for (const auto ch : text) {
             QKeyEvent event(QEvent::KeyPress, ch.unicode(), Qt::NoModifier, QString(ch));
             QVERIFY(scanner.handleKeyEvent(&event));
@@ -137,20 +137,33 @@ private slots:
         QCOMPARE(capabilities.qtVersion(), QString::fromLatin1(qVersion()));
 
         const QVariantMap values = capabilities.capabilities();
-        QVERIFY(values.contains(QStringLiteral("module.widgetBridge")));
-        QVERIFY(values.contains(QStringLiteral("module.charts")));
-        QVERIFY(values.contains(QStringLiteral("module.diagnostics")));
-        QVERIFY(values.contains(QStringLiteral("tooling.hotReload")));
-        QVERIFY(values.contains(QStringLiteral("tooling.screenshot")));
-        QVERIFY(values.contains(QStringLiteral("adapter.qtGraphs")));
-        QVERIFY(values.contains(QStringLiteral("adapter.rangeModel")));
-        QVERIFY(values.contains(QStringLiteral("adapter.canvasPainter")));
-        QVERIFY(values.contains(QStringLiteral("adapter.styleKit")));
-        QVERIFY(values.contains(QStringLiteral("qt.supportsSafeArea")));
-        QVERIFY(values.contains(QStringLiteral("qt.supportsRangeModel")));
-        QVERIFY(values.contains(QStringLiteral("qt.supportsCanvasPainter")));
-        QVERIFY(values.contains(QStringLiteral("qt.supportsCanvas2D")));
-        QVERIFY(values.contains(QStringLiteral("qt.supportsQmlPreview")));
+        const QStringList stableKeys{
+            QStringLiteral("module.platformQml"),
+            QStringLiteral("module.integration"),
+            QStringLiteral("module.widgetBridge"),
+            QStringLiteral("module.charts"),
+            QStringLiteral("module.diagnostics"),
+            QStringLiteral("adapter.qtGraphs"),
+            QStringLiteral("adapter.rangeModel"),
+            QStringLiteral("adapter.canvasPainter"),
+            QStringLiteral("adapter.safeArea"),
+            QStringLiteral("adapter.customQuickCharts"),
+            QStringLiteral("adapter.legacyQCustomPlot"),
+            QStringLiteral("adapter.styleKit"),
+            QStringLiteral("style.styleKit"),
+            QStringLiteral("style.fluent"),
+            QStringLiteral("style.brandTest"),
+            QStringLiteral("tooling.hotReload"),
+            QStringLiteral("tooling.screenshot"),
+            QStringLiteral("qt.supportsSafeArea"),
+            QStringLiteral("qt.supportsRangeModel"),
+            QStringLiteral("qt.supportsCanvasPainter"),
+            QStringLiteral("qt.supportsCanvas2D"),
+            QStringLiteral("qt.supportsQmlPreview"),
+            QStringLiteral("qt.supportsStyleKit")
+        };
+        for (const QString &key : stableKeys)
+            QVERIFY2(values.contains(key), qPrintable(QStringLiteral("Missing capability key: %1").arg(key)));
 
         QCOMPARE(capabilities.hasCapability(QStringLiteral("qt.supportsRangeModel")),
                  QT_VERSION >= QT_VERSION_CHECK(6, 10, 0));
