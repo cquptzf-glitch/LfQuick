@@ -36,8 +36,8 @@ Item {
         width: root.expanded ? Math.min(root.panelWidth, root.width - root.margin * 2) : root.compactWidth
         height: root.expanded ? Math.min(root.panelHeight, root.height - root.margin * 2) : 42
         radius: 8
-        color: "#e61c1c1f"
-        border.color: "#707078"
+        color: DiagnosticsTokens.panel
+        border.color: DiagnosticsTokens.panelBorder
         border.width: 1
         clip: true
 
@@ -50,7 +50,7 @@ Item {
             anchors.right: parent.right
             anchors.top: parent.top
             height: 42
-            color: "#2b2b30"
+            color: DiagnosticsTokens.header
 
             Text {
                 anchors.left: parent.left
@@ -59,7 +59,7 @@ Item {
                 text: root.diagnosticsModel
                     ? "Diagnostics · " + root.diagnosticsModel.count
                     : "Diagnostics"
-                color: "#f1f1f3"
+                color: DiagnosticsTokens.textStrong
                 font.bold: true
                 font.pixelSize: 14
             }
@@ -69,7 +69,7 @@ Item {
                 anchors.rightMargin: 12
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.expanded ? "−" : "+"
-                color: "#c7c7cc"
+                color: DiagnosticsTokens.textSecondary
                 font.pixelSize: 18
             }
 
@@ -97,7 +97,7 @@ Item {
                     ? "Events " + root.diagnosticsModel.count
                       + "   Dropped " + root.diagnosticsModel.droppedCount
                     : ""
-                color: "#aeb0b6"
+                color: DiagnosticsTokens.textMuted
                 font.pixelSize: 12
                 elide: Text.ElideRight
             }
@@ -111,12 +111,14 @@ Item {
                 width: 58
                 height: 26
                 radius: 5
-                color: clearMouse.containsMouse ? "#4b4b52" : "#36363c"
+                color: clearMouse.containsMouse
+                       ? DiagnosticsTokens.surfaceHover
+                       : DiagnosticsTokens.surfaceRaised
 
                 Text {
                     anchors.centerIn: parent
                     text: qsTr("Clear")
-                    color: "#e5e5e8"
+                    color: DiagnosticsTokens.textButton
                     font.pixelSize: 11
                 }
 
@@ -149,14 +151,14 @@ Item {
                         width: metricText.implicitWidth + 16
                         height: 24
                         radius: 4
-                        color: "#303037"
-                        border.color: "#44444c"
+                        color: DiagnosticsTokens.surface
+                        border.color: DiagnosticsTokens.surfaceBorder
 
                         Text {
                             id: metricText
                             anchors.centerIn: parent
                             text: modelData.key + ": " + modelData.value
-                            color: "#cfd0d4"
+                            color: DiagnosticsTokens.textSecondary
                             font.pixelSize: 10
                         }
                     }
@@ -170,7 +172,7 @@ Item {
                 anchors.top: metricsFlow.bottom
                 anchors.topMargin: 10
                 height: 1
-                color: "#3b3b42"
+                color: DiagnosticsTokens.divider
             }
 
             ListView {
@@ -204,7 +206,9 @@ Item {
                     width: ListView.view.width
                     height: 42
                     radius: 4
-                    color: index % 2 === 0 ? "#242429" : "#29292f"
+                    color: index % 2 === 0
+                           ? DiagnosticsTokens.rowEven
+                           : DiagnosticsTokens.rowOdd
 
                     Rectangle {
                         anchors.left: parent.left
@@ -213,10 +217,10 @@ Item {
                         width: 3
                         radius: 2
                         color: eventDelegate.severity === "error" || eventDelegate.severity === "critical"
-                            ? "#ef5350"
+                            ? DiagnosticsTokens.error
                             : eventDelegate.severity === "warning"
-                                ? "#ffb74d"
-                                : "#64b5f6"
+                                ? DiagnosticsTokens.warning
+                                : DiagnosticsTokens.info
                     }
 
                     Text {
@@ -225,7 +229,7 @@ Item {
                         anchors.top: parent.top
                         anchors.topMargin: 4
                         text: eventDelegate.timeText + "  [" + eventDelegate.category + "] " + eventDelegate.name
-                        color: "#e1e1e4"
+                        color: DiagnosticsTokens.textPrimary
                         font.pixelSize: 10
                         elide: Text.ElideRight
                         width: parent.width - 18
@@ -239,7 +243,7 @@ Item {
                         anchors.bottom: parent.bottom
                         anchors.bottomMargin: 4
                         text: eventDelegate.message.length > 0 ? eventDelegate.message : eventDelegate.severity
-                        color: "#9fa1a7"
+                        color: DiagnosticsTokens.textDim
                         font.pixelSize: 10
                         elide: Text.ElideRight
                     }
@@ -261,8 +265,8 @@ Item {
                         ? root.diagnosticsModel.lastExportError
                         : qsTr("Runtime dump is available through DiagnosticsModel.exportJson()")
                     color: root.diagnosticsModel && root.diagnosticsModel.lastExportError.length > 0
-                        ? "#ef9a9a"
-                        : "#777981"
+                        ? DiagnosticsTokens.errorText
+                        : DiagnosticsTokens.textFaint
                     font.pixelSize: 9
                     elide: Text.ElideRight
                     width: parent.width - 24
