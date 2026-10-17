@@ -79,7 +79,7 @@ private:
     QVariant keyFor(const QVariant &value) const;
     bool keysEqual(const QVariant &left, const QVariant &right) const;
     int findRecordByKey(const QList<Record> &records, const QVariant &key) const;
-    QObject *createInstance(const QVariant &modelData, QString *error);
+    QObject *createInstance(const QVariant &modelData, int modelIndex, QString *error);
     void reconnectModel();
     void disconnectModel();
     void destroyRecords(QList<Record> &records);
