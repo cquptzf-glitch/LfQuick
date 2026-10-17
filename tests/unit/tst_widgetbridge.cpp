@@ -1,6 +1,8 @@
 #include <LfQuick/Runtime/IPageInstance.h>
 #include <LfQuick/Runtime/IWindowInstance.h>
 #include <LfQuick/Runtime/PageDescriptor.h>
+#include <LfQuick/Runtime/WindowProviderRegistry.h>
+#include <LfQuick/Runtime/WindowRouter.h>
 #include <LfQuick/Ui/OverlayCoordinator.h>
 #include <LfQuick/WidgetBridge/WidgetFocusBridge.h>
 #include <LfQuick/WidgetBridge/WidgetOverlayBackend.h>
@@ -19,6 +21,8 @@
 #include <QStackedWidget>
 #include <QTest>
 #include <QWindow>
+
+#include <memory>
 
 using namespace LfQuick;
 
@@ -181,6 +185,43 @@ private slots:
 
         instance->close();
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    }
+
+    void externallyDestroyedWidgetCleansWindowRouterRecord()
+    {
+        WindowProviderRegistry providers;
+        auto provider = std::make_shared<WidgetWindowProvider>();
+        QWidget *created = nullptr;
+
+        QVERIFY(provider->registerFactory(
+            QStringLiteral("tool"),
+            [&](QWidget *, const QVariantMap &) -> QWidget * {
+                created = new QWidget(nullptr, Qt::Window);
+                return created;
+            }));
+        QVERIFY(providers.registerProvider(provider));
+
+        WindowRouter router(&providers);
+        WindowDescriptor descriptor;
+        descriptor.id = QStringLiteral("tool");
+        descriptor.provider = QStringLiteral("widget-window");
+        descriptor.source.insert(QStringLiteral("factory"), QStringLiteral("tool"));
+        descriptor.openPolicy = WindowOpenPolicy::MultipleInstances;
+        QVERIFY(router.registerWindow(descriptor));
+
+        QSignalSpy closed(&router, &WindowRouter::windowClosed);
+        const WindowResult opened = router.open({descriptor.id, {}, {}, {}, {}});
+        QVERIFY(opened.accepted);
+        QVERIFY(created);
+        QCOMPARE(router.count(), 1);
+        QVERIFY(router.find(opened.instanceId).has_value());
+
+        delete created;
+        created = nullptr;
+
+        QTRY_COMPARE(router.count(), 0);
+        QCOMPARE(closed.count(), 1);
+        QVERIFY(!router.find(opened.instanceId).has_value());
     }
 
     void widgetWindowProviderRejectsUnknownFactory()
