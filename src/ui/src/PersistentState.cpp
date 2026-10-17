@@ -1,6 +1,8 @@
 #include <LfQuick/Ui/PersistentState.h>
 
+#include <QList>
 #include <QMetaProperty>
+#include <QPointer>
 
 namespace LfQuick {
 
@@ -41,14 +43,24 @@ QVariantMap PersistentState::saveState() const
 
 int PersistentState::restoreState(const QVariantMap &state, bool wasReloaded)
 {
-    int restored = 0;
+    struct PendingWrite {
+        QMetaProperty property;
+        QVariant value;
+    };
+
+    // Resolve the property table before invoking any setter. A setter may emit
+    // application callbacks that synchronously destroy this object; after that
+    // point we may only inspect local/static data, never call metaObject() on
+    // the old instance again.
+    QList<PendingWrite> writes;
+    const QMetaObject *meta = metaObject();
     for (auto it = state.cbegin(); it != state.cend(); ++it) {
         const QByteArray name = it.key().toUtf8();
-        const int propertyIndex = metaObject()->indexOfProperty(name.constData());
+        const int propertyIndex = meta->indexOfProperty(name.constData());
         if (propertyIndex < 0)
             continue;
 
-        const QMetaProperty property = metaObject()->property(propertyIndex);
+        const QMetaProperty property = meta->property(propertyIndex);
         // Serialized snapshots may outlive a refactor. Only properties below
         // the PersistentState base boundary are eligible for restoration so a
         // malicious/stale map cannot mutate framework properties such as key.
@@ -56,11 +68,26 @@ int PersistentState::restoreState(const QVariantMap &state, bool wasReloaded)
             || !property.isWritable()) {
             continue;
         }
-        if (property.write(this, it.value()))
+        writes.push_back({property, it.value()});
+    }
+
+    QPointer<PersistentState> guard(this);
+    int restored = 0;
+    for (const PendingWrite &write : writes) {
+        if (!guard)
+            return restored;
+        if (write.property.write(guard.data(), write.value))
             ++restored;
     }
 
+    if (!guard)
+        return restored;
     emit loaded();
+
+    // loaded() is user-observable and may synchronously destroy the state
+    // container. Never emit a reload callback on a dead sender.
+    if (!guard)
+        return restored;
     if (wasReloaded)
         emit reloaded();
     return restored;
