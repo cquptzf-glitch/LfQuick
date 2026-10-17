@@ -63,6 +63,7 @@ public:
     void setEngine(QQmlEngine *engine);
 
     WindowRouter *router() const noexcept { return m_router.get(); }
+    QuickWindowProvider *quickProvider() const noexcept { return m_quickProvider.get(); }
     bool registerProvider(std::shared_ptr<IWindowProvider> provider);
     bool registerDescriptor(WindowDescriptor descriptor);
 
