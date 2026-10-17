@@ -1,5 +1,6 @@
 #pragma once
 
+#include <LfQuick/Runtime/IStatefulInstance.h>
 #include <LfQuick/Runtime/WindowDescriptor.h>
 
 #include <QVariantMap>
@@ -9,12 +10,12 @@
 
 namespace LfQuick {
 
-class LFQUICKRUNTIME_EXPORT IWindowInstance
+class LFQUICKRUNTIME_EXPORT IWindowInstance : public IStatefulInstance
 {
 public:
     using CloseRequestHandler = std::function<void()>;
 
-    virtual ~IWindowInstance() = default;
+    ~IWindowInstance() override = default;
 
     virtual WindowInstanceId instanceId() const = 0;
     virtual void activate() = 0;
@@ -54,12 +55,12 @@ public:
         return parameters.isEmpty();
     }
 
-    virtual bool restoreState(const QVariantMap &state)
+    bool restoreState(const QVariantMap &state) override
     {
         return state.isEmpty();
     }
 
-    virtual QVariantMap saveState() const { return {}; }
+    QVariantMap saveState() const override { return {}; }
     virtual void close() = 0;
 };
 
