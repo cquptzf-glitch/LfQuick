@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls as Controls
+import QtQml.Models
 
 Controls.Menu {
     id: root
@@ -27,17 +28,19 @@ Controls.Menu {
     }
 
     function popupAt(item, xPosition, yPosition) {
+        const px = xPosition === undefined ? 0 : xPosition
+        const py = yPosition === undefined ? 0 : yPosition
         if (item)
-            root.parent = item
-        root.x = xPosition === undefined ? 0 : xPosition
-        root.y = yPosition === undefined ? 0 : yPosition
-        root.open()
+            root.popup(item, px, py)
+        else
+            root.popup(px, py)
     }
 
-    Repeater {
+    Instantiator {
+        id: itemInstantiator
         model: root.model
 
-        Controls.MenuItem {
+        delegate: Controls.MenuItem {
             required property int index
             required property var modelData
 
@@ -47,6 +50,14 @@ Controls.Menu {
             checked: root.checkedFor(modelData)
 
             onTriggered: root.itemTriggered(index, modelData)
+        }
+
+        onObjectAdded: function(index, object) {
+            root.insertItem(index, object)
+        }
+
+        onObjectRemoved: function(index, object) {
+            root.removeItem(object)
         }
     }
 }
