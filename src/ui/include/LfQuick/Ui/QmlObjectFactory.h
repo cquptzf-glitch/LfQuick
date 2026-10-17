@@ -44,6 +44,7 @@ public:
     QString errorString() const { return m_errorString; }
 
     Q_INVOKABLE void cancel();
+    Q_INVOKABLE void forceCompletion();
     Q_INVOKABLE QObject *takeObject();
 
 signals:
@@ -64,6 +65,7 @@ private:
     void startIncubation();
     void onComponentStatusChanged();
     void onIncubatorStatusChanged();
+    void finishWithObject(QObject *object);
     void fail(const QString &message);
     void setStatus(Status status);
     void setErrorString(const QString &message);
