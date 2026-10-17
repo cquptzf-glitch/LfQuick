@@ -8,6 +8,8 @@
 namespace LfQuick {
 namespace {
 
+constexpr qint64 kReadChunkBytes = 64 * 1024;
+
 qsizetype trailingDelimiterPrefixLength(const QByteArray &buffer,
                                         const QByteArray &delimiter)
 {
@@ -374,9 +376,19 @@ void DataStream::readAvailable()
 {
     if (!m_device || !m_device->isReadable())
         return;
-    const QByteArray bytes = m_device->readAll();
-    if (!bytes.isEmpty())
+
+    // Keep transient allocations bounded as well as the parser's persistent
+    // buffer. A device may have accumulated a very large amount of readable
+    // data before one readyRead delivery; readAll() would duplicate that whole
+    // backlog before the parser had a chance to enforce its own limits.
+    while (m_device && m_device->isReadable()) {
+        const QByteArray bytes = m_device->read(kReadChunkBytes);
+        if (bytes.isEmpty())
+            break;
         feed(bytes);
+        if (bytes.size() < kReadChunkBytes && m_device->bytesAvailable() <= 0)
+            break;
+    }
 }
 
 void DataStream::disconnectDevice()
