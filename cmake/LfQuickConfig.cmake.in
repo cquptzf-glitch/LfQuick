@@ -9,4 +9,40 @@ set(LfQuick_VERSION "@PROJECT_VERSION@")
 set(LfQuick_QT_MIN_VERSION "@LFQUICK_QT_MIN_VERSION@")
 set(LfQuick_QT_COMPONENTS "@LFQUICK_PACKAGE_QT_COMPONENTS@")
 
+# CMake's check_required_components() expects <Package>_<Component>_FOUND
+# variables to be defined by the package config. Components in LfQuick map
+# one-to-one to exported LfQuick::<Component> targets; mark only targets that
+# were actually built and installed as available.
+set(_LfQuick_known_components
+    Core
+    Runtime
+    Platform
+    PlatformQml
+    Ui
+    Integration
+    DataView
+    WidgetBridge
+    Charts
+    Diagnostics
+    Tooling
+    StyleKit
+    SafeAreaAdapter
+    RangeModelAdapter
+    CanvasPainterAdapter
+    CustomQuickCharts
+    LegacyQCustomPlotAdapter
+    FluentStyle
+    BrandTestStyle
+)
+
+foreach(_LfQuick_component IN LISTS _LfQuick_known_components)
+    if(TARGET "LfQuick::${_LfQuick_component}")
+        set("LfQuick_${_LfQuick_component}_FOUND" TRUE)
+    else()
+        set("LfQuick_${_LfQuick_component}_FOUND" FALSE)
+    endif()
+endforeach()
+unset(_LfQuick_component)
+unset(_LfQuick_known_components)
+
 check_required_components(LfQuick)
