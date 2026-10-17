@@ -56,7 +56,7 @@ bool WindowRouter::unregisterWindow(QStringView windowId)
     const auto id = windowId.toString();
     if (findSingleInstance(id) || !instances(id).isEmpty())
         return false;
-    return m_descriptors.remove(id) > 0;
+    return m_descriptors.remove(id);
 }
 
 std::optional<WindowDescriptor> WindowRouter::descriptor(QStringView windowId) const
