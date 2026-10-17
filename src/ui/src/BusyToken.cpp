@@ -2,6 +2,8 @@
 
 #include <LfQuick/Ui/OverlayCoordinator.h>
 
+#include <utility>
+
 namespace LfQuick {
 
 BusyToken::BusyToken(QString id, OverlayCoordinator *coordinator, QObject *parent)
@@ -9,14 +11,14 @@ BusyToken::BusyToken(QString id, OverlayCoordinator *coordinator, QObject *paren
     , m_id(std::move(id))
     , m_coordinator(coordinator)
 {
-    if (!m_coordinator || m_id.isEmpty()) {
+    if (!m_coordinator || m_id.isEmpty() || !m_coordinator->hasBusyToken(m_id)) {
         m_active = false;
         return;
     }
 
-    m_busyEndedConnection = connect(m_coordinator, &OverlayCoordinator::busyEnded,
-                                    this, [this](const QString &token) {
-        if (token == m_id)
+    m_busyChangedConnection = connect(m_coordinator, &OverlayCoordinator::busyChanged,
+                                      this, [this] {
+        if (m_active && (!m_coordinator || !m_coordinator->hasBusyToken(m_id)))
             markInactive();
     });
     m_coordinatorDestroyedConnection = connect(m_coordinator, &QObject::destroyed,
@@ -51,9 +53,9 @@ void BusyToken::markInactive()
     if (!m_active)
         return;
     m_active = false;
-    QObject::disconnect(m_busyEndedConnection);
+    QObject::disconnect(m_busyChangedConnection);
     QObject::disconnect(m_coordinatorDestroyedConnection);
-    m_busyEndedConnection = {};
+    m_busyChangedConnection = {};
     m_coordinatorDestroyedConnection = {};
     emit activeChanged();
     emit released();
