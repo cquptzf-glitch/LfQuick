@@ -69,14 +69,20 @@ private slots:
         QVERIFY(values.contains(QStringLiteral("module.charts")));
         QVERIFY(values.contains(QStringLiteral("module.diagnostics")));
         QVERIFY(values.contains(QStringLiteral("tooling.hotReload")));
+        QVERIFY(values.contains(QStringLiteral("adapter.qtGraphs")));
+        QVERIFY(values.contains(QStringLiteral("adapter.rangeModel")));
+        QVERIFY(values.contains(QStringLiteral("adapter.canvasPainter")));
         QVERIFY(values.contains(QStringLiteral("adapter.styleKit")));
         QVERIFY(values.contains(QStringLiteral("qt.supportsSafeArea")));
         QVERIFY(values.contains(QStringLiteral("qt.supportsRangeModel")));
         QVERIFY(values.contains(QStringLiteral("qt.supportsCanvasPainter")));
+        QVERIFY(values.contains(QStringLiteral("qt.supportsCanvas2D")));
         QVERIFY(values.contains(QStringLiteral("qt.supportsQmlPreview")));
 
         QCOMPARE(capabilities.hasCapability(QStringLiteral("qt.supportsRangeModel")),
                  QT_VERSION >= QT_VERSION_CHECK(6, 10, 0));
+        QCOMPARE(capabilities.hasCapability(QStringLiteral("qt.supportsCanvas2D")),
+                 QT_VERSION >= QT_VERSION_CHECK(6, 12, 0));
         QVERIFY(!capabilities.hasCapability(QStringLiteral("missing.capability")));
     }
 
