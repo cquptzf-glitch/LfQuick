@@ -11,7 +11,7 @@ namespace LfQuick {
 class LFQUICKUI_EXPORT LifetimeLease : public QObject
 {
     Q_OBJECT
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(LfLifetimeLease)
     Q_PROPERTY(QObject* object READ object WRITE setObject NOTIFY objectChanged FINAL)
     Q_PROPERTY(bool held READ held WRITE setHeld NOTIFY heldChanged FINAL)
     Q_PROPERTY(bool retained READ retained NOTIFY retainedChanged FINAL)
