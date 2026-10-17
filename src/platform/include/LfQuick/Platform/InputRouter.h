@@ -75,9 +75,14 @@ private:
     void pruneTargets();
 
     QPointer<KeyboardWedgeScanner> m_scanner;
+    QMetaObject::Connection m_scannerDestroyedConnection;
+
     QPointer<QObject> m_target;
+    QMetaObject::Connection m_installTargetDestroyedConnection;
+
     QHash<IInputSource *, SourceConnections> m_sources;
     QList<QPointer<InputTarget>> m_targets;
+    QHash<InputTarget *, QMetaObject::Connection> m_targetDestroyedConnections;
 };
 
 } // namespace LfQuick
