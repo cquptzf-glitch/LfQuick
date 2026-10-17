@@ -51,6 +51,8 @@ qt_add_qml_module(LfQuickUi
         src/DpiHelper.cpp
         include/LfQuick/Ui/ValidationEvaluator.h
         src/ValidationEvaluator.cpp
+        include/LfQuick/Ui/LfValidationBinding.h
+        src/LfValidationBinding.cpp
         include/LfQuick/Ui/ValidationRuleTable.h
         src/ValidationRuleTable.cpp
         include/LfQuick/Ui/ValidationFormState.h
@@ -99,6 +101,7 @@ qt_add_qml_module(LfQuickUi
         qml/LfTooltip.qml
         qml/LfPopup.qml
         qml/LfMessageBox.qml
+        qml/LfHelpShortcut.qml
         qml/LfFocusGroup.qml
         qml/LfAppBar.qml
         qml/LfFramelessWindow.qml
@@ -145,6 +148,7 @@ target_sources(LfQuickUi PUBLIC
         include/LfQuick/Ui/HelpContextRegistry.h
         include/LfQuick/Ui/DpiHelper.h
         include/LfQuick/Ui/ValidationEvaluator.h
+        include/LfQuick/Ui/LfValidationBinding.h
         include/LfQuick/Ui/ValidationRuleTable.h
         include/LfQuick/Ui/ValidationFormState.h
         include/LfQuick/Ui/NavigationItemModel.h
