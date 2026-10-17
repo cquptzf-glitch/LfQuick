@@ -153,6 +153,8 @@ private slots:
 
         const QVariantMap values = capabilities.capabilities();
         const QStringList stableKeys{
+            QStringLiteral("module.io"),
+            QStringLiteral("module.models"),
             QStringLiteral("module.platformQml"),
             QStringLiteral("module.integration"),
             QStringLiteral("module.widgetBridge"),
@@ -180,6 +182,9 @@ private slots:
         for (const QString &key : stableKeys)
             QVERIFY2(values.contains(key), qPrintable(QStringLiteral("Missing capability key: %1").arg(key)));
 
+        // Platform's public FileWatcher compatibility API requires Io, so any
+        // successfully configured Platform build must report this as enabled.
+        QVERIFY(capabilities.hasCapability(QStringLiteral("module.io")));
         QCOMPARE(capabilities.hasCapability(QStringLiteral("qt.supportsRangeModel")),
                  QT_VERSION >= QT_VERSION_CHECK(6, 10, 0));
         QCOMPARE(capabilities.hasCapability(QStringLiteral("qt.supportsCanvas2D")),
