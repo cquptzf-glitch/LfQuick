@@ -8,6 +8,9 @@ set(LFQUICK_INSTALL_CMAKEDIR
 set(LFQUICK_INSTALL_QMLDIR
     "${CMAKE_INSTALL_LIBDIR}/qt/qml"
     CACHE STRING "Install root for LfQuick QML modules")
+set(LFQUICK_INSTALL_OBJECTDIR
+    "${CMAKE_INSTALL_LIBDIR}/lfquick/objects"
+    CACHE STRING "Install directory for generated static QML object targets")
 
 function(lfquick_effective_qt_min_version out_var)
     set(_version "${LFQUICK_QT_MIN_VERSION}")
@@ -23,6 +26,22 @@ function(lfquick_effective_qt_min_version out_var)
     endif()
 
     set(${out_var} "${_version}" PARENT_SCOPE)
+endfunction()
+
+# qt_add_qml_module() can create extra resource/plugin-init targets for static
+# backing libraries. Qt documents those OUTPUT_TARGETS as part of the installed
+# module's link requirements, so remember them on the public backing target and
+# export them together with the SDK.
+function(lfquick_register_qml_output_targets target)
+    if(NOT TARGET ${target})
+        message(FATAL_ERROR
+            "lfquick_register_qml_output_targets: unknown target '${target}'")
+    endif()
+
+    if(ARGN)
+        set_property(TARGET ${target}
+            PROPERTY LFQUICK_QML_OUTPUT_TARGETS "${ARGN}")
+    endif()
 endfunction()
 
 function(lfquick_install_target target export_name)
@@ -47,6 +66,7 @@ function(lfquick_install_target target export_name)
             RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
             LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
             ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            OBJECTS DESTINATION ${LFQUICK_INSTALL_OBJECTDIR}
             FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         )
     else()
@@ -55,6 +75,7 @@ function(lfquick_install_target target export_name)
             RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
             LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
             ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            OBJECTS DESTINATION ${LFQUICK_INSTALL_OBJECTDIR}
         )
     endif()
 
@@ -62,6 +83,7 @@ function(lfquick_install_target target export_name)
     get_target_property(_qml_output_dir ${target} QT_QML_MODULE_OUTPUT_DIRECTORY)
     get_target_property(_qml_typeinfo ${target} QT_QML_MODULE_TYPEINFO)
     get_target_property(_qml_plugin_target ${target} QT_QML_MODULE_PLUGIN_TARGET)
+    get_target_property(_qml_output_targets ${target} LFQUICK_QML_OUTPUT_TARGETS)
 
     set(_has_qml_module FALSE)
     if(_qml_uri AND NOT _qml_uri MATCHES "-NOTFOUND$")
@@ -70,20 +92,52 @@ function(lfquick_install_target target export_name)
         set(_qml_install_dir "${LFQUICK_INSTALL_QMLDIR}/${_qml_uri_path}")
     endif()
 
+    if(_qml_output_targets AND NOT _qml_output_targets MATCHES "-NOTFOUND$")
+        install(TARGETS ${_qml_output_targets}
+            EXPORT LfQuickTargets
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            OBJECTS DESTINATION ${LFQUICK_INSTALL_OBJECTDIR}
+        )
+    endif()
+
     if(_qml_plugin_target AND NOT _qml_plugin_target MATCHES "-NOTFOUND$"
        AND TARGET ${_qml_plugin_target})
         if(_has_qml_module)
-            install(TARGETS ${_qml_plugin_target}
-                RUNTIME DESTINATION "${_qml_install_dir}"
-                LIBRARY DESTINATION "${_qml_install_dir}"
-                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            )
+            if(BUILD_SHARED_LIBS)
+                install(TARGETS ${_qml_plugin_target}
+                    RUNTIME DESTINATION "${_qml_install_dir}"
+                    LIBRARY DESTINATION "${_qml_install_dir}"
+                    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                    OBJECTS DESTINATION ${LFQUICK_INSTALL_OBJECTDIR}
+                )
+            else()
+                install(TARGETS ${_qml_plugin_target}
+                    EXPORT LfQuickTargets
+                    RUNTIME DESTINATION "${_qml_install_dir}"
+                    LIBRARY DESTINATION "${_qml_install_dir}"
+                    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                    OBJECTS DESTINATION ${LFQUICK_INSTALL_OBJECTDIR}
+                )
+            endif()
         else()
-            install(TARGETS ${_qml_plugin_target}
-                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            )
+            if(BUILD_SHARED_LIBS)
+                install(TARGETS ${_qml_plugin_target}
+                    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+                    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                    OBJECTS DESTINATION ${LFQUICK_INSTALL_OBJECTDIR}
+                )
+            else()
+                install(TARGETS ${_qml_plugin_target}
+                    EXPORT LfQuickTargets
+                    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+                    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                    OBJECTS DESTINATION ${LFQUICK_INSTALL_OBJECTDIR}
+                )
+            endif()
         endif()
     endif()
 
