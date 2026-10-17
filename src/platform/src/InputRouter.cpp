@@ -13,6 +13,7 @@ InputRouter::InputRouter(QObject *parent)
 InputRouter::~InputRouter()
 {
     uninstall();
+    clearTargets();
     clearSources();
 }
 
@@ -26,12 +27,25 @@ void InputRouter::setScanner(KeyboardWedgeScanner *scanner)
     if (m_scanner == scanner)
         return;
 
-    if (m_scanner)
-        unregisterSource(m_scanner);
+    QObject::disconnect(m_scannerDestroyedConnection);
+    m_scannerDestroyedConnection = {};
+
+    if (m_scanner) {
+        auto *previous = m_scanner.data();
+        m_scanner = nullptr;
+        unregisterSource(previous);
+    }
 
     m_scanner = scanner;
-    if (m_scanner)
+    if (m_scanner) {
         registerSource(m_scanner);
+        m_scannerDestroyedConnection = connect(m_scanner, &QObject::destroyed,
+                                               this, [this] {
+            m_scanner = nullptr;
+            m_scannerDestroyedConnection = {};
+            emit scannerChanged();
+        });
+    }
     emit scannerChanged();
 }
 
@@ -64,10 +78,6 @@ bool InputRouter::registerSource(IInputSource *source)
         emit sourceRejected(source ? source->id() : QString{}, reason, metadata);
     });
     connections.destroyed = connect(source, &QObject::destroyed, this, [this, source] {
-        if (m_scanner == source) {
-            m_scanner = nullptr;
-            emit scannerChanged();
-        }
         if (m_sources.remove(source))
             emit sourcesChanged();
     });
@@ -79,22 +89,44 @@ bool InputRouter::registerSource(IInputSource *source)
 
 bool InputRouter::unregisterSource(IInputSource *source)
 {
-    auto it = m_sources.find(source);
-    if (it == m_sources.end())
+    if (!source)
         return false;
+
+    const bool wasScanner = m_scanner && m_scanner.data() == source;
+    if (wasScanner) {
+        QObject::disconnect(m_scannerDestroyedConnection);
+        m_scannerDestroyedConnection = {};
+        m_scanner = nullptr;
+    }
+
+    auto it = m_sources.find(source);
+    if (it == m_sources.end()) {
+        if (wasScanner)
+            emit scannerChanged();
+        return false;
+    }
 
     QObject::disconnect(it->received);
     QObject::disconnect(it->rejected);
     QObject::disconnect(it->destroyed);
     m_sources.erase(it);
     emit sourcesChanged();
+    if (wasScanner)
+        emit scannerChanged();
     return true;
 }
 
 void InputRouter::clearSources()
 {
-    if (m_sources.isEmpty())
+    if (m_sources.isEmpty()) {
+        if (m_scanner) {
+            QObject::disconnect(m_scannerDestroyedConnection);
+            m_scannerDestroyedConnection = {};
+            m_scanner = nullptr;
+            emit scannerChanged();
+        }
         return;
+    }
 
     const auto sources = m_sources.keys();
     for (IInputSource *source : sources)
@@ -129,10 +161,12 @@ bool InputRouter::registerTarget(QObject *targetObject)
     }
 
     m_targets.push_back(target);
-    connect(target, &QObject::destroyed, this, [this] {
+    auto connection = connect(target, &QObject::destroyed, this, [this, target] {
+        m_targetDestroyedConnections.remove(target);
         pruneTargets();
         emit targetsChanged();
     });
+    m_targetDestroyedConnections.insert(target, connection);
     emit targetsChanged();
     return true;
 }
@@ -153,6 +187,12 @@ bool InputRouter::unregisterTarget(QObject *targetObject)
         }
     }
 
+    auto connectionIt = m_targetDestroyedConnections.find(target);
+    if (connectionIt != m_targetDestroyedConnections.end()) {
+        QObject::disconnect(connectionIt.value());
+        m_targetDestroyedConnections.erase(connectionIt);
+    }
+
     if (removed)
         emit targetsChanged();
     return removed;
@@ -160,8 +200,12 @@ bool InputRouter::unregisterTarget(QObject *targetObject)
 
 void InputRouter::clearTargets()
 {
-    if (m_targets.isEmpty())
+    if (m_targets.isEmpty() && m_targetDestroyedConnections.isEmpty())
         return;
+
+    for (const auto &connection : m_targetDestroyedConnections)
+        QObject::disconnect(connection);
+    m_targetDestroyedConnections.clear();
     m_targets.clear();
     emit targetsChanged();
 }
@@ -177,12 +221,21 @@ bool InputRouter::installOn(QObject *target)
     uninstall();
     m_target = target;
     m_target->installEventFilter(this);
+    m_installTargetDestroyedConnection = connect(m_target, &QObject::destroyed,
+                                                 this, [this] {
+        m_target = nullptr;
+        m_installTargetDestroyedConnection = {};
+        emit installedChanged();
+    });
     emit installedChanged();
     return true;
 }
 
 void InputRouter::uninstall()
 {
+    QObject::disconnect(m_installTargetDestroyedConnection);
+    m_installTargetDestroyedConnection = {};
+
     if (m_target) {
         m_target->removeEventFilter(this);
         m_target.clear();
