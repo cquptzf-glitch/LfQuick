@@ -117,6 +117,20 @@ private slots:
         delete object;
     }
 
+    void factoryNotifiesWhenExplicitEngineIsDestroyed()
+    {
+        QmlObjectFactory factory;
+        auto *engine = new QQmlEngine;
+        factory.setEngine(engine);
+        QCOMPARE(factory.engine(), engine);
+
+        QSignalSpy changed(&factory, &QmlObjectFactory::engineChanged);
+        delete engine;
+
+        QCOMPARE(factory.engine(), nullptr);
+        QCOMPARE(changed.count(), 1);
+    }
+
     void asyncObjectFactoryCanBeForcedToCompletion()
     {
         QTemporaryDir temporary;
@@ -141,6 +155,32 @@ private slots:
         QVERIFY(object);
         QCOMPARE(object->property("answer").toInt(), 23);
         delete object;
+    }
+
+    void asyncObjectFactoryFinishesIfEngineDisappears()
+    {
+        QTemporaryDir temporary;
+        QVERIFY(temporary.isValid());
+        const QString path = temporary.filePath(QStringLiteral("EngineLifetimeObject.qml"));
+        QVERIFY(writeQml(path));
+
+        QmlObjectFactory factory;
+        auto *engine = new QQmlEngine;
+        factory.setEngine(engine);
+
+        QmlObjectLoadHandle *handle = factory.createAsync(
+            QUrl::fromLocalFile(path),
+            {{QStringLiteral("answer"), 29}});
+        QVERIFY(handle);
+        QCOMPARE(handle->status(), QmlObjectLoadHandle::Status::Loading);
+
+        QSignalSpy finished(handle, &QmlObjectLoadHandle::finished);
+        delete engine;
+
+        QCOMPARE(factory.engine(), nullptr);
+        QCOMPARE(handle->status(), QmlObjectLoadHandle::Status::Error);
+        QCOMPARE(finished.count(), 1);
+        QVERIFY(handle->errorString().contains(QStringLiteral("destroyed"), Qt::CaseInsensitive));
     }
 
     void asyncObjectFactoryHonorsRequiredInitialProperties()
