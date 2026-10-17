@@ -199,7 +199,7 @@ bool WidgetPageProvider::registerFactory(QString id, Factory factory)
 
 bool WidgetPageProvider::unregisterFactory(QStringView id)
 {
-    return m_factories.remove(id.toString()) > 0;
+    return m_factories.remove(id.toString());
 }
 
 bool WidgetPageProvider::hasFactory(QStringView id) const
