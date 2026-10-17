@@ -191,6 +191,18 @@ std::unique_ptr<IPageInstance> QuickPageProvider::create(const PageDescriptor &d
         return {};
     }
 
+    if (!m_host) {
+        const QString message = QStringLiteral("Quick page host is not configured");
+        setLastError(QStringLiteral("quick.host-missing"), message,
+                     {{QStringLiteral("route"), descriptor.route},
+                      {QStringLiteral("sourceUrl"), primarySource.toString()},
+                      {QStringLiteral("stage"), QStringLiteral("host")}});
+        if (m_errorCollector)
+            m_errorCollector->record(descriptor.route, primarySource, message,
+                                     QStringLiteral("host"));
+        return {};
+    }
+
     QString primaryError;
     QQuickItem *item = createItem(m_engine, primarySource, parameters, primaryError);
     if (!item) {
@@ -204,10 +216,8 @@ std::unique_ptr<IPageInstance> QuickPageProvider::create(const PageDescriptor &d
         return {};
     }
 
-    if (m_host) {
-        item->setParent(m_host);
-        item->setParentItem(m_host);
-    }
+    item->setParent(m_host);
+    item->setParentItem(m_host);
     item->setVisible(false);
 
     return std::make_unique<QuickPageInstance>(descriptor.route,
@@ -222,6 +232,18 @@ std::unique_ptr<IPageInstance> QuickPageProvider::createErrorFallback(
     const QString &primaryError)
 {
     const QUrl fallbackSource = fallbackUrl(descriptor);
+    if (!m_host) {
+        const QString message = QStringLiteral("Quick page host is not configured");
+        setLastError(QStringLiteral("quick.host-missing"), message,
+                     {{QStringLiteral("route"), descriptor.route},
+                      {QStringLiteral("sourceUrl"), fallbackSource.toString()},
+                      {QStringLiteral("stage"), QStringLiteral("fallback-host")}});
+        if (m_errorCollector)
+            m_errorCollector->record(descriptor.route, fallbackSource, message,
+                                     QStringLiteral("fallback-host"));
+        return {};
+    }
+
     if (!fallbackSource.isValid() || fallbackSource.isEmpty()) {
         QString message = primaryError;
         if (!message.isEmpty())
@@ -256,10 +278,8 @@ std::unique_ptr<IPageInstance> QuickPageProvider::createErrorFallback(
         return {};
     }
 
-    if (m_host) {
-        item->setParent(m_host);
-        item->setParentItem(m_host);
-    }
+    item->setParent(m_host);
+    item->setParentItem(m_host);
     item->setVisible(false);
 
     setLastError(QStringLiteral("quick.primary-failed-fallback-active"), primaryError,
