@@ -123,3 +123,11 @@ if(LFQUICK_BUILD_DIAGNOSTICS)
     target_link_libraries(tst_diagnostics PRIVATE LfQuick::Diagnostics Qt6::Test)
     lfquick_register_test(tst_diagnostics)
 endif()
+
+if(LFQUICK_ENABLE_HOT_RELOAD)
+    qt_add_executable(tst_tooling
+        unit/tst_tooling.cpp
+    )
+    target_link_libraries(tst_tooling PRIVATE LfQuick::Tooling Qt6::Test)
+    lfquick_register_test(tst_tooling)
+endif()
