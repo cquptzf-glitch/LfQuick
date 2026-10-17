@@ -101,6 +101,19 @@ void WidgetOverlayBackend::presentToast(const ToastRequest &request)
     m_toasts.insert(request.id, widget);
     m_toastOrder.append(request.id);
 
+    connect(frame, &QObject::destroyed, this, [this, id = request.id] {
+        auto it = m_toasts.find(id);
+        // A toast with the same id may already have been replaced while the
+        // previous frame was waiting for deferred deletion. Only reconcile
+        // the entry whose guarded frame was actually destroyed.
+        if (it == m_toasts.end() || !it->frame.isNull())
+            return;
+        m_toasts.erase(it);
+        m_toastOrder.removeAll(id);
+        emit toastDismissRequested(id);
+        layoutToasts();
+    });
+
     frame->adjustSize();
     frame->show();
     frame->raise();
@@ -176,6 +189,19 @@ void WidgetOverlayBackend::presentDialog(const DialogRequest &request)
             dialogIt->box->deleteLater();
         m_dialogs.erase(dialogIt);
         emit dialogResolved(requestId, buttonId);
+    });
+
+    connect(box, &QObject::destroyed, this, [this, requestId = request.id] {
+        auto dialogIt = m_dialogs.find(requestId);
+        // Normal resolve/dismiss erases the entry before deferred deletion.
+        // Reaching this branch means the native dialog disappeared externally,
+        // usually because its parent window was destroyed.
+        if (dialogIt == m_dialogs.end() || !dialogIt->box.isNull())
+            return;
+        const QString fallback = dialogIt->fallbackButton;
+        QObject::disconnect(dialogIt->finishedConnection);
+        m_dialogs.erase(dialogIt);
+        emit dialogResolved(requestId, fallback);
     });
 
     box->open();
