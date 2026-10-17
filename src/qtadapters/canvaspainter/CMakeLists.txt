@@ -7,6 +7,7 @@ qt_add_qml_module(LfQuickCanvasPainterAdapter
     RESOURCE_PREFIX /qt/qml
     QML_FILES
         qml/Canvas2DSurface.qml
+        qml/CanvasPainterBackend.qml
 )
 
 target_link_libraries(LfQuickCanvasPainterAdapter
