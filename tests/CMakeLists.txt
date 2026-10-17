@@ -77,6 +77,14 @@ qt_add_executable(tst_window_owner
 target_link_libraries(tst_window_owner PRIVATE LfQuick::Runtime Qt6::Test)
 lfquick_register_test(tst_window_owner)
 
+if(LFQUICK_BUILD_IO)
+    qt_add_executable(tst_io
+        unit/tst_io.cpp
+    )
+    target_link_libraries(tst_io PRIVATE LfQuick::Io Qt6::Test)
+    lfquick_register_test(tst_io)
+endif()
+
 if(LFQUICK_BUILD_DATAVIEW)
     qt_add_executable(tst_dataview
         unit/tst_dataview.cpp
