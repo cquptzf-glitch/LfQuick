@@ -28,14 +28,23 @@ bool HotkeyRouter::installOn(QObject *target)
     uninstall();
     m_target = target;
     m_target->installEventFilter(this);
+    m_targetDestroyedConnection = connect(m_target, &QObject::destroyed, this, [this] {
+        m_target.clear();
+        m_targetDestroyedConnection = {};
+        emit installedChanged();
+    });
     emit installedChanged();
     return true;
 }
 
 void HotkeyRouter::uninstall()
 {
+    QObject::disconnect(m_targetDestroyedConnection);
+    m_targetDestroyedConnection = {};
+
     if (!m_target)
         return;
+
     m_target->removeEventFilter(this);
     m_target.clear();
     emit installedChanged();
