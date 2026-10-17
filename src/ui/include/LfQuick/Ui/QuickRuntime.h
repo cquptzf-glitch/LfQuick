@@ -6,6 +6,7 @@
 
 #include <LfQuick/Runtime/PageDescriptor.h>
 
+#include <QMetaObject>
 #include <QObject>
 #include <QPointer>
 #include <QQuickItem>
@@ -115,6 +116,7 @@ private:
 
     QPointer<QQmlEngine> m_engine;
     QPointer<QQuickItem> m_host;
+    QMetaObject::Connection m_hostDestroyedConnection;
     std::unique_ptr<PageRegistry> m_pages;
     std::unique_ptr<PageProviderRegistry> m_providers;
     std::unique_ptr<QmlErrorCollector> m_errorCollector;
