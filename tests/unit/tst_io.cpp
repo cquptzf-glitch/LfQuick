@@ -229,6 +229,32 @@ QtObject {
         QCOMPARE(stream.bufferedBytes(), qint64(0));
     }
 
+    void delimitedParserRecoversAcrossSplitMultiByteDelimiter()
+    {
+        DataStream stream;
+        DelimitedStreamParser parser;
+        parser.setDelimiter(QByteArrayLiteral("\r\n"));
+        parser.setMaxBufferedBytes(8);
+        stream.setParser(&parser);
+
+        QSignalSpy reads(&parser, &DataStreamParser::read);
+        QSignalSpy overflow(&parser, &DelimitedStreamParser::bufferOverflow);
+
+        // The oversized record ends with the first byte of the delimiter. The
+        // parser must retain only that delimiter prefix rather than the record.
+        stream.feed(QByteArrayLiteral("0123456789\r"));
+        QCOMPARE(stream.bufferedBytes(), qint64(1));
+        QCOMPARE(reads.count(), 0);
+        QVERIFY(overflow.count() >= 1);
+
+        // The next chunk completes the split delimiter and immediately starts
+        // a valid record. Recovery must emit only the valid post-boundary row.
+        stream.feed(QByteArrayLiteral("\nok\r\n"));
+        QCOMPARE(stream.bufferedBytes(), qint64(0));
+        QCOMPARE(reads.count(), 1);
+        QCOMPARE(reads.at(0).at(0).toString(), QStringLiteral("ok"));
+    }
+
     void processFailedStartCompletesExactlyOnce()
     {
         QTemporaryDir temporary;
