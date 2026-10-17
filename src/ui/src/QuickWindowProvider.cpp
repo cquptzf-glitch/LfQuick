@@ -8,6 +8,7 @@
 
 #include <QCloseEvent>
 #include <QColor>
+#include <QList>
 #include <QMetaObject>
 #include <QPointer>
 #include <QQmlEngine>
@@ -307,6 +308,7 @@ public:
             return {};
 
         QQuickWindow *window = m_window.data();
+        detachContentHooks();
         detachWindowHooks();
         m_window = nullptr;
         return std::make_unique<QuickWindowBacking>(m_id, window, m_state);
@@ -362,6 +364,7 @@ public:
             // Native/custom close handlers may synchronously destroy the window
             // and its content hierarchy.
             m_content = nullptr;
+            m_contentConnections.clear();
         }
         m_closingFromRouter = false;
     }
@@ -389,6 +392,7 @@ private:
         m_destroyedConnection = connect(m_window, &QObject::destroyed, this, [this] {
             m_window = nullptr;
             m_content = nullptr;
+            m_contentConnections.clear();
             m_closingConnection = {};
             m_destroyedConnection = {};
             if (m_state)
@@ -406,6 +410,7 @@ private:
 
     void attachContent(QQuickItem *content)
     {
+        detachContentHooks();
         if (content)
             m_content = content;
         if (!m_content || !m_window)
@@ -420,16 +425,25 @@ private:
         m_content->setSize(QSizeF(m_window->size()));
         const QPointer<QQuickItem> guardedContent = m_content;
         const QPointer<QQuickWindow> guardedWindow = m_window;
-        connect(m_window, &QQuickWindow::widthChanged, m_content,
-                [guardedContent, guardedWindow] {
-            if (guardedContent && guardedWindow)
-                guardedContent->setWidth(guardedWindow->width());
-        });
-        connect(m_window, &QQuickWindow::heightChanged, m_content,
-                [guardedContent, guardedWindow] {
-            if (guardedContent && guardedWindow)
-                guardedContent->setHeight(guardedWindow->height());
-        });
+        m_contentConnections.push_back(connect(
+            m_window, &QQuickWindow::widthChanged, m_content,
+            [guardedContent, guardedWindow] {
+                if (guardedContent && guardedWindow)
+                    guardedContent->setWidth(guardedWindow->width());
+            }));
+        m_contentConnections.push_back(connect(
+            m_window, &QQuickWindow::heightChanged, m_content,
+            [guardedContent, guardedWindow] {
+                if (guardedContent && guardedWindow)
+                    guardedContent->setHeight(guardedWindow->height());
+            }));
+    }
+
+    void detachContentHooks()
+    {
+        for (const QMetaObject::Connection &connection : std::as_const(m_contentConnections))
+            QObject::disconnect(connection);
+        m_contentConnections.clear();
     }
 
     void detachWindowHooks()
@@ -442,6 +456,7 @@ private:
 
     void destroyContent()
     {
+        detachContentHooks();
         if (!m_content)
             return;
         QQuickItem *content = m_content.data();
@@ -459,6 +474,7 @@ private:
     CloseRequestHandler m_closeRequestHandler;
     QMetaObject::Connection m_closingConnection;
     QMetaObject::Connection m_destroyedConnection;
+    QList<QMetaObject::Connection> m_contentConnections;
     bool m_closingFromRouter = false;
 };
 
