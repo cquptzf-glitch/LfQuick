@@ -31,6 +31,9 @@ public:
     Q_INVOKABLE QString text(const QString &id) const;
     Q_INVOKABLE QString url(const QString &id) const;
     Q_INVOKABLE QStringList ids() const;
+    Q_INVOKABLE QString contextIdFor(QObject *target) const;
+    Q_INVOKABLE QVariantMap resolveFor(QObject *target) const;
+    Q_INVOKABLE bool requestHelpFor(QObject *target);
     Q_INVOKABLE void clear();
 
 signals:
