@@ -22,7 +22,13 @@ QVariantMap PersistentState::saveState() const
 {
     QVariantMap state;
     const QMetaObject *meta = metaObject();
-    for (int i = meta->propertyOffset(); i < meta->propertyCount(); ++i) {
+
+    // Persist every property introduced below PersistentState, not only the
+    // final metaobject layer. This keeps C++ intermediate state-container
+    // classes composable while excluding QObject/PersistentState framework
+    // properties such as objectName and key.
+    const int firstPersistentProperty = PersistentState::staticMetaObject.propertyCount();
+    for (int i = firstPersistentProperty; i < meta->propertyCount(); ++i) {
         const QMetaProperty property = meta->property(i);
         if (!property.isReadable())
             continue;
@@ -43,8 +49,13 @@ int PersistentState::restoreState(const QVariantMap &state, bool wasReloaded)
             continue;
 
         const QMetaProperty property = metaObject()->property(propertyIndex);
-        if (!property.isWritable())
+        // Serialized snapshots may outlive a refactor. Only properties below
+        // the PersistentState base boundary are eligible for restoration so a
+        // malicious/stale map cannot mutate framework properties such as key.
+        if (propertyIndex < PersistentState::staticMetaObject.propertyCount()
+            || !property.isWritable()) {
             continue;
+        }
         if (property.write(this, it.value()))
             ++restored;
     }
