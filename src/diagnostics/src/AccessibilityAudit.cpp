@@ -14,8 +14,28 @@ void AccessibilityAudit::setRoot(QQuickItem *root)
 {
     if (m_root == root)
         return;
+
+    QObject::disconnect(m_rootDestroyedConnection);
+    m_rootDestroyedConnection = {};
     m_root = root;
+
+    if (m_root) {
+        m_rootDestroyedConnection = connect(m_root, &QObject::destroyed, this, [this] {
+            m_root = nullptr;
+            m_rootDestroyedConnection = {};
+            const bool hadIssues = !m_issues.isEmpty();
+            m_issues.clear();
+            emit rootChanged();
+            if (hadIssues)
+                emit issuesChanged();
+        });
+    }
+
+    const bool hadIssues = !m_issues.isEmpty();
+    m_issues.clear();
     emit rootChanged();
+    if (hadIssues)
+        emit issuesChanged();
 }
 
 void AccessibilityAudit::setIncludeDisabled(bool value)
@@ -79,7 +99,7 @@ void AccessibilityAudit::scanItem(QQuickItem *item,
                                        QStringLiteral("Focusable item has no accessible name"),
                                        path, item));
             }
-            if (static_cast<int>(iface->role()) == 0) {
+            if (iface->role() == QAccessible::NoRole) {
                 issues.push_back(issue(QStringLiteral("missing-role"),
                                        QStringLiteral("Focusable item exposes no accessible role"),
                                        path, item));
@@ -108,14 +128,15 @@ QVariantMap AccessibilityAudit::issue(const QString &code,
                                       QQuickItem *item,
                                       const QString &severity)
 {
+    // Keep audit snapshots stable after the UI tree mutates. Raw QObject/QQuickItem
+    // pointers would become dangling if a control is destroyed before the next scan.
     return {
         {QStringLiteral("code"), code},
         {QStringLiteral("message"), message},
         {QStringLiteral("severity"), severity},
         {QStringLiteral("path"), path},
         {QStringLiteral("objectName"), item ? item->objectName() : QString{}},
-        {QStringLiteral("className"), item ? QString::fromLatin1(item->metaObject()->className()) : QString{}},
-        {QStringLiteral("item"), QVariant::fromValue(static_cast<QObject *>(item))}
+        {QStringLiteral("className"), item ? QString::fromLatin1(item->metaObject()->className()) : QString{}}
     };
 }
 
