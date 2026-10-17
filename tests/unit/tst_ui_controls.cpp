@@ -5,6 +5,7 @@
 #include <QQmlError>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QVariantMap>
 
 class UiControlsSmokeTest : public QObject
 {
@@ -28,8 +29,8 @@ Item {
         property int selectedIndex: 2
     }
 
-    LifetimeLease { object: parent }
-    QmlObjectFactory { }
+    LfLifetimeLease { object: parent }
+    LfObjectFactory { }
     LfLazyLoader { }
 
     LfButton { text: "Button" }
