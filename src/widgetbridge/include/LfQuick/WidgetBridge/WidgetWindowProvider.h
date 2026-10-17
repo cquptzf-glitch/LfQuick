@@ -28,6 +28,12 @@ public:
     bool canCreate(const WindowDescriptor &descriptor) const override;
     std::unique_ptr<IWindowInstance> create(const WindowDescriptor &descriptor,
                                              const WindowOpenRequest &request) override;
+    bool canAdoptBacking(const WindowDescriptor &descriptor,
+                         const IWindowBacking &backing) const override;
+    std::unique_ptr<IWindowInstance> createWithBacking(
+        const WindowDescriptor &descriptor,
+        const WindowOpenRequest &request,
+        std::unique_ptr<IWindowBacking> &backing) override;
     QString lastError() const override { return m_lastErrorInfo.message; }
     WindowProviderError lastErrorInfo() const override { return m_lastErrorInfo; }
 
