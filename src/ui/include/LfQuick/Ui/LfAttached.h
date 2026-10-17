@@ -66,14 +66,46 @@ class LFQUICKUI_EXPORT LfAttached : public QObject
     Q_OBJECT
     QML_ANONYMOUS
     Q_PROPERTY(PermissionBinding *permission READ permission CONSTANT FINAL)
+    Q_PROPERTY(QVariantMap validationRule READ validationRule WRITE setValidationRule NOTIFY validationRuleChanged FINAL)
+    Q_PROPERTY(int focusPolicy READ focusPolicy WRITE setFocusPolicy NOTIFY focusPolicyChanged FINAL)
+    Q_PROPERTY(int focusOrder READ focusOrder WRITE setFocusOrder NOTIFY focusOrderChanged FINAL)
+    Q_PROPERTY(bool acceptScanner READ acceptScanner WRITE setAcceptScanner NOTIFY acceptScannerChanged FINAL)
+    Q_PROPERTY(QString helpContext READ helpContext WRITE setHelpContext NOTIFY helpContextChanged FINAL)
 
 public:
     explicit LfAttached(QObject *target);
 
     PermissionBinding *permission() const noexcept { return m_permission; }
 
+    QVariantMap validationRule() const { return m_validationRule; }
+    void setValidationRule(const QVariantMap &rule);
+
+    int focusPolicy() const noexcept { return m_focusPolicy; }
+    void setFocusPolicy(int policy);
+
+    int focusOrder() const noexcept { return m_focusOrder; }
+    void setFocusOrder(int order);
+
+    bool acceptScanner() const noexcept { return m_acceptScanner; }
+    void setAcceptScanner(bool value);
+
+    QString helpContext() const { return m_helpContext; }
+    void setHelpContext(const QString &context);
+
+signals:
+    void validationRuleChanged();
+    void focusPolicyChanged();
+    void focusOrderChanged();
+    void acceptScannerChanged();
+    void helpContextChanged();
+
 private:
     PermissionBinding *m_permission = nullptr;
+    QVariantMap m_validationRule;
+    int m_focusPolicy = 0;
+    int m_focusOrder = 0;
+    bool m_acceptScanner = false;
+    QString m_helpContext;
 };
 
 class LFQUICKUI_EXPORT Lf : public QObject
@@ -84,6 +116,15 @@ class LFQUICKUI_EXPORT Lf : public QObject
     QML_ATTACHED(LfAttached)
 
 public:
+    enum FocusPolicy {
+        Auto = 0,
+        Native = 1,
+        Explicit = 2,
+        Geometric = 3,
+        Grid = 4
+    };
+    Q_ENUM(FocusPolicy)
+
     static LfAttached *qmlAttachedProperties(QObject *object);
 };
 
