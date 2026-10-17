@@ -81,7 +81,6 @@ bool LocalIpcClient::connectToServer(const QString &serverName)
     if (m_socket->state() != QLocalSocket::UnconnectedState)
         m_socket->abort();
     m_socket->connectToServer(m_serverName);
-    setState(State::Connecting);
     return true;
 }
 
