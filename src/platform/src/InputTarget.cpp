@@ -20,7 +20,19 @@ void InputTarget::setTarget(QObject *target)
 {
     if (m_target == target)
         return;
+
+    QObject::disconnect(m_targetDestroyedConnection);
+    m_targetDestroyedConnection = {};
     m_target = target;
+
+    if (m_target) {
+        m_targetDestroyedConnection = connect(m_target, &QObject::destroyed, this, [this] {
+            m_target = nullptr;
+            m_targetDestroyedConnection = {};
+            emit targetChanged();
+        });
+    }
+
     emit targetChanged();
 }
 
