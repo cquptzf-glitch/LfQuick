@@ -13,12 +13,15 @@ qt_add_qml_module(LfQuickTooling
     URI LfQuick.Tooling
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
+    OUTPUT_TARGETS _lfquick_tooling_qml_output_targets
     SOURCES
         include/LfQuick/Tooling/QmlHotReloadController.h
         include/LfQuick/Tooling/QmlHotReloadHost.h
         src/QmlHotReloadController.cpp
         src/QmlHotReloadHost.cpp
 )
+lfquick_register_qml_output_targets(
+    LfQuickTooling ${_lfquick_tooling_qml_output_targets})
 
 target_sources(LfQuickTooling PUBLIC
     FILE_SET HEADERS
