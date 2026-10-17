@@ -101,6 +101,7 @@ qt_add_qml_module(LfQuickUi
         qml/LfAspectBox.qml
         qml/LfClipBox.qml
         qml/LfSizeProxy.qml
+        qml/LfWindowDefinition.qml
         qml/LfButton.qml
         qml/LfTextField.qml
         qml/LfCheckBox.qml
