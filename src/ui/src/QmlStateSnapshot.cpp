@@ -2,6 +2,7 @@
 
 #include <LfQuick/Ui/LfAttached.h>
 #include <LfQuick/Ui/PersistentState.h>
+#include <LfQuick/Ui/PostReloadHook.h>
 
 #include <QHash>
 #include <QList>
@@ -23,6 +24,7 @@ struct TreeIndex
     QHash<QString, QPointer<QObject>> objects;
     QSet<QString> ambiguous;
     QList<QPointer<PersistentState>> persistentStates;
+    QList<QPointer<PostReloadHook>> postReloadHooks;
 };
 
 LfAttached *attachedState(QObject *object)
@@ -59,6 +61,8 @@ void indexTree(QObject *object, const QString &scope, TreeIndex &index)
 
     if (auto *persistent = qobject_cast<PersistentState *>(object))
         index.persistentStates.push_back(persistent);
+    if (auto *hook = qobject_cast<PostReloadHook *>(object))
+        index.postReloadHooks.push_back(hook);
 
     QString childScope = scope;
     const QString key = stateKey(object);
@@ -167,6 +171,11 @@ QmlStateRestoreStats QmlStateSnapshot::restore(QObject *root,
     TreeIndex index;
     indexTree(root, {}, index);
 
+    // capture() always emits an explicit version marker. An empty QVariantMap
+    // is reserved for initial creation with no previous serialized tree.
+    const bool restoringPreviousTree =
+        snapshot.contains(QString::fromLatin1(kVersionKey));
+
     QSet<QString> ambiguous = index.ambiguous;
     const QStringList serializedAmbiguous =
         snapshot.value(QString::fromLatin1(kAmbiguousKeysKey)).toStringList();
@@ -223,13 +232,27 @@ QmlStateRestoreStats QmlStateSnapshot::restore(QObject *root,
             persistent->markLoaded();
     }
 
+    // PostReloadHook intentionally runs last. Its callback can safely inspect
+    // any other restored object without depending on traversal/property order.
+    // QPointer makes the iteration robust when an earlier hook tears down part
+    // of the just-restored object tree.
+    const auto hooks = index.postReloadHooks;
+    for (const QPointer<PostReloadHook> &hook : hooks) {
+        if (hook)
+            hook->completeRestore(restoringPreviousTree);
+    }
+
     return stats;
 }
 
 QmlStateRestoreStats QmlStateSnapshot::transfer(QObject *newRoot,
                                                  QObject *oldRoot)
 {
-    return restore(newRoot, capture(oldRoot));
+    // No old root means normal initial creation, not a reload. Avoid producing
+    // a versioned empty snapshot here because lifecycle hooks use the version
+    // marker to distinguish first load from recreation/hot reload.
+    return oldRoot ? restore(newRoot, capture(oldRoot))
+                   : restore(newRoot, {});
 }
 
 } // namespace LfQuick
