@@ -6,9 +6,24 @@
 namespace LfQuick {
 
 KeyboardWedgeScanner::KeyboardWedgeScanner(QObject *parent)
-    : QObject(parent)
+    : IInputSource(parent)
     , m_session(new ScannerSession(this))
 {
+    connect(m_session, &ScannerSession::scanAccepted, this, [this](const QString &value) {
+        emit inputReceived(value, {
+            {QStringLiteral("kind"), QStringLiteral("scanner")},
+            {QStringLiteral("sourceId"), id()}
+        });
+    });
+
+    connect(m_session, &ScannerSession::scanRejected, this,
+            [this](const QString &rawValue, const QString &reason) {
+        emit inputRejected(reason, {
+            {QStringLiteral("kind"), QStringLiteral("scanner")},
+            {QStringLiteral("sourceId"), id()},
+            {QStringLiteral("rawLength"), rawValue.size()}
+        });
+    });
 }
 
 bool KeyboardWedgeScanner::isEnabled() const
