@@ -3,6 +3,7 @@
 #include <LfQuick/Ui/LfQuickUiGlobal.h>
 #include <LfQuick/Ui/NavigationItemModel.h>
 
+#include <QMetaObject>
 #include <QObject>
 #include <QPointer>
 #include <QString>
@@ -48,6 +49,7 @@ signals:
 
 private:
     QPointer<NavigationItemModel> m_model;
+    QMetaObject::Connection m_modelDestroyedConnection;
     QString m_currentRoute;
     bool m_canGoBack = false;
     bool m_canGoForward = false;
