@@ -180,7 +180,8 @@ private slots:
     void attachedReloadMetadataNormalizesValues()
     {
         QObject target;
-        auto *attached = qmlAttachedPropertiesObject<Lf>(&target, true);
+        auto *attached = qobject_cast<LfAttached *>(
+            qmlAttachedPropertiesObject<Lf>(&target, true));
         QVERIFY(attached);
 
         attached->setReloadKey(QStringLiteral("  sample-panel  "));
@@ -217,7 +218,6 @@ private slots:
         QVERIFY(!lease.retained());
         QCOMPARE(lease.object(), nullptr);
     }
-
     void lifetimeLeaseCanBeAcquiredWhenDropIsRequested()
     {
         auto *target = new QObject;
@@ -240,7 +240,8 @@ private slots:
     void attachedValidationBindingTracksRuleAndTargetLifetime()
     {
         auto *target = new QObject;
-        auto *attached = qmlAttachedPropertiesObject<Lf>(target, true);
+        auto *attached = qobject_cast<LfAttached *>(
+            qmlAttachedPropertiesObject<Lf>(target, true));
         QVERIFY(attached);
         attached->setValidationRule({
             {QStringLiteral("id"), QStringLiteral("sample.code")},
@@ -278,7 +279,8 @@ private slots:
     void helpRegistryResolvesAttachedContext()
     {
         QObject target;
-        auto *attached = qmlAttachedPropertiesObject<Lf>(&target, true);
+        auto *attached = qobject_cast<LfAttached *>(
+            qmlAttachedPropertiesObject<Lf>(&target, true));
         QVERIFY(attached);
         attached->setHelpContext(QStringLiteral("sample.register"));
 
