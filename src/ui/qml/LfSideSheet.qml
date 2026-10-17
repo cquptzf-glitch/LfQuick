@@ -10,7 +10,7 @@ Controls.Popup {
     property int preferredWidth: Theme.density === Theme.Touch ? 380 : 340
     property bool showCloseButton: true
 
-    default property alias contentData: body.data
+    default property alias bodyData: body.data
 
     modal: true
     focus: true
