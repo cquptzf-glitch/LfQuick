@@ -1,5 +1,7 @@
 #include <LfQuick/Ui/QmlObjectFactory.h>
 
+#include <LfQuick/Ui/QmlIncubationScheduler.h>
+
 #include <QQmlComponent>
 #include <QQmlContext>
 #include <QQmlIncubator>
@@ -71,10 +73,6 @@ void QmlObjectLoadHandle::startIncubation()
         return;
 
     m_incubator = std::make_unique<FactoryIncubator>(this);
-    // Use QQmlIncubator's dedicated initial-property path instead of applying
-    // properties manually from setInitialState(). This keeps asynchronous
-    // creation aligned with QQmlComponent::createWithInitialProperties(),
-    // including required-property validation and pre-completion semantics.
     m_incubator->setInitialProperties(m_initialProperties);
     m_component->create(*m_incubator, m_engine->rootContext());
     onIncubatorStatusChanged();
@@ -162,10 +160,6 @@ void QmlObjectLoadHandle::forceCompletion()
         return;
     }
 
-    // A component may still be compiling asynchronously. Foreground access is
-    // explicitly allowed to block, so abandon that compilation and recreate it
-    // synchronously. This mirrors LazyLoader's "item access forces completion"
-    // behavior while keeping the common background path asynchronous.
     if (m_component)
         disconnect(m_component.get(), nullptr, this, nullptr);
     m_component.reset();
@@ -254,8 +248,12 @@ QmlObjectLoadHandle *QmlObjectFactory::createAsync(
     const QVariantMap &initialProperties)
 {
     setLastError({});
+    QQmlEngine *engine = effectiveEngine();
+    if (engine)
+        QmlIncubationScheduler::ensureForEngine(engine);
+
     auto *handle = new QmlObjectLoadHandle(source, initialProperties, this);
-    handle->begin(effectiveEngine());
+    handle->begin(engine);
     if (handle->status() == QmlObjectLoadHandle::Status::Error)
         setLastError(handle->errorString());
     else {
