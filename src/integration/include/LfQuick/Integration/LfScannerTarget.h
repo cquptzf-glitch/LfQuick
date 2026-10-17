@@ -80,6 +80,7 @@ private:
     bool m_manualActive = false;
     int m_priority = 0;
 
+    QMetaObject::Connection m_routerDestroyedConnection;
     QMetaObject::Connection m_acceptScannerConnection;
     QMetaObject::Connection m_focusConnection;
     QMetaObject::Connection m_targetDestroyedConnection;
