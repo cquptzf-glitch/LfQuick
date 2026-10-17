@@ -44,6 +44,13 @@ public:
     WindowResult open(const WindowOpenRequest &request);
     WindowResult activate(QStringView instanceId);
     WindowResult reparent(QStringView instanceId, QStringView ownerInstanceId = {});
+
+    // Recreates only the logical provider instance while preserving the native
+    // backing window, instance id, owner graph and saved state. Providers that
+    // do not support backing transfer return a structured failure without
+    // changing the current instance.
+    WindowResult reloadInstance(QStringView instanceId);
+
     WindowResult close(QStringView instanceId);
     WindowResult closeAll();
 
@@ -61,6 +68,10 @@ signals:
     void windowOwnerChanged(const QString &windowId,
                             const QString &instanceId,
                             const QString &ownerInstanceId);
+    void windowReloaded(const QString &windowId, const QString &instanceId);
+    void windowReloadFailed(const QString &windowId,
+                            const QString &instanceId,
+                            const QString &message);
     void windowClosed(const QString &windowId, const QString &instanceId);
     void windowOpenFailed(const QString &windowId, const QString &message);
     void windowCloseBlocked(const QString &windowId,
