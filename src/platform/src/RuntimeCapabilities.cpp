@@ -62,6 +62,18 @@ QVariantMap RuntimeCapabilities::capabilities() const
     result.insert(QStringLiteral("adapter.qtGraphs"), false);
 #endif
 
+#ifdef LFQUICK_CAP_QRANGE_MODEL
+    result.insert(QStringLiteral("adapter.rangeModel"), true);
+#else
+    result.insert(QStringLiteral("adapter.rangeModel"), false);
+#endif
+
+#ifdef LFQUICK_CAP_CANVAS_PAINTER
+    result.insert(QStringLiteral("adapter.canvasPainter"), true);
+#else
+    result.insert(QStringLiteral("adapter.canvasPainter"), false);
+#endif
+
 #ifdef LFQUICK_CAP_DIAGNOSTICS
     result.insert(QStringLiteral("module.diagnostics"), true);
 #else
@@ -83,6 +95,7 @@ QVariantMap RuntimeCapabilities::capabilities() const
     result.insert(QStringLiteral("qt.supportsSafeArea"), compiledWithVersion(6, 9));
     result.insert(QStringLiteral("qt.supportsRangeModel"), compiledWithVersion(6, 10));
     result.insert(QStringLiteral("qt.supportsCanvasPainter"), compiledWithVersion(6, 11));
+    result.insert(QStringLiteral("qt.supportsCanvas2D"), compiledWithVersion(6, 12));
     result.insert(QStringLiteral("qt.supportsQmlPreview"), compiledWithVersion(6, 12));
     result.insert(QStringLiteral("qt.supportsStyleKit"), compiledWithVersion(6, 12));
     return result;
