@@ -19,6 +19,7 @@ QmlLazyLoader::~QmlLazyLoader()
 {
     cancelHandle();
     QObject::disconnect(m_componentDestroyedConnection);
+    QObject::disconnect(m_itemDestroyedConnection);
 
     if (m_item) {
         QPointer<QObject> item = m_item;
@@ -152,8 +153,22 @@ void QmlLazyLoader::setInitialProperties(const QVariantMap &properties)
 {
     if (m_initialProperties == properties)
         return;
+
+    const bool restartActive = m_targetActive || isActive();
+    const bool restartLoading = !restartActive && (m_targetLoading || isLoading());
+
     m_initialProperties = properties;
     emit initialPropertiesChanged();
+
+    // Initial properties are part of object construction (including required
+    // QML properties). If they change while a load is active/in flight, the
+    // existing object/handle represents stale input and must be recreated.
+    if (!m_complete || (!restartActive && !restartLoading))
+        return;
+
+    cancelHandle();
+    unloadItem();
+    restartForInputChange(restartActive, restartLoading);
 }
 
 void QmlLazyLoader::classBegin()
@@ -354,10 +369,20 @@ void QmlLazyLoader::adoptItem(QObject *item)
     if (m_item && m_item != item)
         unloadItem();
 
+    QObject::disconnect(m_itemDestroyedConnection);
+    m_itemDestroyedConnection = {};
     m_item = item;
     item->setParent(this);
     m_targetLoading = false;
     m_targetActive = true;
+    m_itemDestroyedConnection = connect(item, &QObject::destroyed, this, [this] {
+        m_item = nullptr;
+        m_itemDestroyedConnection = {};
+        m_targetActive = false;
+        m_targetLoading = false;
+        emit itemChanged();
+        emit activeChanged();
+    });
     emit itemChanged();
     emit activeChanged();
 }
@@ -368,6 +393,8 @@ void QmlLazyLoader::unloadItem()
         return;
 
     QPointer<QObject> oldItem = m_item;
+    QObject::disconnect(m_itemDestroyedConnection);
+    m_itemDestroyedConnection = {};
     m_item = nullptr;
     emit itemChanged();
     emit activeChanged();
