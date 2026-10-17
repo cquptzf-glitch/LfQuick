@@ -1,5 +1,6 @@
 #include <LfQuick/Ui/QmlIncubationScheduler.h>
 
+#include <QString>
 #include <QTimerEvent>
 
 #include <algorithm>
@@ -32,18 +33,27 @@ void QmlIncubationScheduler::setEngine(QQmlEngine *engine)
 
     if (m_engine) {
         m_engineDestroyedConnection = connect(m_engine, &QObject::destroyed, this, [this] {
+            const bool hadController = m_timerId != 0 || pendingCount() > 0;
             cancelSchedule();
             m_engine = nullptr;
             m_engineDestroyedConnection = {};
             emit engineChanged();
+            // The engine can only destroy an engine-owned scheduler after the
+            // controller relationship ceased to be observable. Notify QML so
+            // cached `installed` bindings are invalidated either way.
+            Q_UNUSED(hadController);
             emit installedChanged();
         });
-        install();
+
+        if (!m_engine->incubationController())
+            m_engine->setIncubationController(this);
     }
 
     emit engineChanged();
     if (wasInstalled != isInstalled())
         emit installedChanged();
+    if (m_enabled && isInstalled() && pendingCount() > 0)
+        schedule();
 }
 
 void QmlIncubationScheduler::setEnabled(bool enabled)
@@ -167,7 +177,7 @@ void QmlIncubationScheduler::incubatingObjectCountChanged(int)
 
 void QmlIncubationScheduler::schedule()
 {
-    if (!m_enabled || m_timerId != 0 || pendingCount() <= 0)
+    if (!m_enabled || !isInstalled() || m_timerId != 0 || pendingCount() <= 0)
         return;
     m_timerId = startTimer(m_intervalMs, Qt::PreciseTimer);
 }
