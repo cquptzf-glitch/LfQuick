@@ -49,7 +49,7 @@ Controls.Control {
                 readonly property bool current: index === root.currentIndex
 
                 width: column.width
-                implicitHeight: Math.max(markerColumn.implicitHeight, textColumn.implicitHeight) + Units.md
+                implicitHeight: Math.max(Units.indicatorSize, textColumn.implicitHeight) + Units.md
                 height: implicitHeight
 
                 RowLayout {
@@ -59,6 +59,7 @@ Controls.Control {
                     Item {
                         id: markerColumn
                         Layout.preferredWidth: Units.controlHeight
+                        Layout.minimumHeight: Units.indicatorSize
                         Layout.fillHeight: true
 
                         Rectangle {
