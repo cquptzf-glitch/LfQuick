@@ -44,11 +44,27 @@ function(lfquick_register_qml_output_targets target)
     endif()
 endfunction()
 
+function(lfquick_assert_library_linkage target)
+    get_target_property(_type ${target} TYPE)
+    if(BUILD_SHARED_LIBS)
+        set(_expected_type SHARED_LIBRARY)
+    else()
+        set(_expected_type STATIC_LIBRARY)
+    endif()
+
+    if(NOT _type STREQUAL _expected_type)
+        message(FATAL_ERROR
+            "${target} has type '${_type}', but BUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} "
+            "requires '${_expected_type}'. Check Qt policy QTP0003 and target creation.")
+    endif()
+endfunction()
+
 function(lfquick_install_target target export_name)
     if(NOT TARGET ${target})
         return()
     endif()
 
+    lfquick_assert_library_linkage(${target})
     set_target_properties(${target} PROPERTIES EXPORT_NAME ${export_name})
 
     # Directory-level LFQUICK_STATIC is sufficient while building LfQuick,
@@ -92,7 +108,15 @@ function(lfquick_install_target target export_name)
         set(_qml_install_dir "${LFQUICK_INSTALL_QMLDIR}/${_qml_uri_path}")
     endif()
 
+    # Be defensive if a future Qt version starts returning the generated plugin
+    # through OUTPUT_TARGETS as well. It is installed separately below because
+    # its runtime destination differs for shared QML modules.
+    if(_qml_plugin_target AND NOT _qml_plugin_target MATCHES "-NOTFOUND$")
+        list(REMOVE_ITEM _qml_output_targets "${_qml_plugin_target}")
+    endif()
+
     if(_qml_output_targets AND NOT _qml_output_targets MATCHES "-NOTFOUND$")
+        list(REMOVE_DUPLICATES _qml_output_targets)
         install(TARGETS ${_qml_output_targets}
             EXPORT LfQuickTargets
             RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
