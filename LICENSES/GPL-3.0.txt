@@ -15,8 +15,9 @@ to take away your freedom to share and change the works.  By contrast,
 the GNU General Public License is intended to guarantee your freedom to
 share and change all versions of a program--to make sure it remains free
 software for all its users.  We, the Free Software Foundation, use the
-GNU GPL for most of our software; it applies also to any other work
-released this way by its authors.  You can apply it to your programs, too.
+GNU General Public License for most of our software; it applies also to
+any other work released this way by its authors.  You can apply it to
+your programs, too.
 
   When we speak of free software, we are referring to freedom, not
 price.  Our General Public Licenses are designed to make sure that you
@@ -262,7 +263,7 @@ in one of these ways:
     product that is covered by this License, on a durable physical
     medium customarily used for software interchange, for a price no
     more than your reasonable cost of physically performing this
-    conveying, or (2) access to copy the
+    conveying of source, or (2) access to copy the
     Corresponding Source from a network server at no charge.
 
     c) Convey individual copies of the object code with a copy of the
@@ -285,13 +286,13 @@ in one of these ways:
     available for as long as needed to satisfy these requirements.
 
     e) Convey the object code using peer-to-peer transmission, provided
-you inform other peers where the object code and Corresponding Source
-of the work are being offered to the general public at no charge under
-subsection 6d.
+    you inform other peers where the object code and Corresponding
+    Source of the work are being offered to the general public at no
+    charge under subsection 6d.
 
   A separable portion of the object code, whose source code is excluded
-from the Corresponding Source as a System Library, need not be included
-in conveying the object code work.
+from the Corresponding Source as a System Library, need not be
+included in conveying the object code work.
 
   A "User Product" is either (1) a "consumer product", which means any
 tangible personal property which is normally used for personal, family,
@@ -304,7 +305,7 @@ of the particular user or of the way in which the particular user
 actually uses, or expects or is expected to use, the product.  A product
 is a consumer product regardless of whether the product has substantial
 commercial, industrial or non-consumer uses, unless such uses represent
-the only significant mode of use of that class of product.
+the only significant mode of use of the product.
 
   "Installation Information" for a User Product means any methods,
 procedures, authorization keys, or other information required to install
@@ -365,24 +366,24 @@ that material) supplement the terms of this License with terms:
     terms of sections 15 and 16 of this License; or
 
     b) Requiring preservation of specified reasonable legal notices or
-author attributions in that material or in the Appropriate Legal
-Notices displayed by works containing it; or
+    author attributions in that material or in the Appropriate Legal
+    Notices displayed by works containing it; or
 
     c) Prohibiting misrepresentation of the origin of that material, or
-requiring that modified versions of such material be marked in
-reasonable ways as different from the original version; or
+    requiring that modified versions of such material be marked in
+    reasonable ways as different from the original version; or
 
     d) Limiting the use for publicity purposes of names of licensors or
-authors of the material; or
+    authors of the material; or
 
     e) Declining to grant rights under trademark law for use of some
-trade names, trademarks, or service marks; or
+    trade names, trademarks, or service marks; or
 
     f) Requiring indemnification of licensors and authors of that
-material by anyone who conveys the material (or modified versions of
-it) with contractual assumptions of liability to the recipient, for
-any liability that these contractual assumptions directly impose on
-those licensors and authors.
+    material by anyone who conveys the material (or modified versions of
+    it) with contractual assumptions of liability to the recipient, for
+    any liability that these contractual assumptions directly impose on
+    those licensors and authors.
 
   All other non-permissive additional terms are considered "further
 restrictions" within the meaning of section 10.  If the Program as you
@@ -395,9 +396,9 @@ of that license document, provided that the further restriction does
 not survive such relicensing or conveying.
 
   If you add terms to a covered work in accord with this section, you
-must place, in the relevant source files, a statement of the additional
-terms that apply to those files, or a notice indicating where to find
-the applicable terms.
+must place, in the relevant source files, a statement of the
+additional terms that apply to those files, or a notice indicating
+where to find the applicable terms.
 
   Additional terms, permissive or non-permissive, may be stated in the
 form of a separately written license, or stated as exceptions;
@@ -577,8 +578,8 @@ by the Free Software Foundation.
 
   If the Program specifies that a proxy can decide which future
 versions of the GNU General Public License can be used, that proxy's
-public statement of acceptance of a version permanently authorizes
-you to choose that version for the Program.
+public statement of acceptance of a version permanently authorizes you
+to choose that version for the Program.
 
   Later license versions may give you additional or different
 permissions.  However, no additional obligations are imposed on any
