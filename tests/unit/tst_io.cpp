@@ -117,6 +117,62 @@ QtObject {
         QVERIFY(!document.externalConflict());
     }
 
+    void dataStreamTracksParserDestructionAndClearsPartialBuffer()
+    {
+        DataStream stream;
+        auto *parser = new DelimitedStreamParser;
+        stream.setParser(parser);
+        stream.feed(QByteArrayLiteral("partial"));
+        QCOMPARE(stream.bufferedBytes(), qint64(7));
+
+        QSignalSpy parserChanged(&stream, &DataStream::parserChanged);
+        QSignalSpy bufferedChanged(&stream, &DataStream::bufferedBytesChanged);
+        delete parser;
+
+        QCOMPARE(stream.parser(), nullptr);
+        QCOMPARE(stream.bufferedBytes(), qint64(0));
+        QCOMPARE(parserChanged.count(), 1);
+        QCOMPARE(bufferedChanged.count(), 1);
+    }
+
+    void delimitedParserDropsOversizedRecordAndRecovers()
+    {
+        DataStream stream;
+        DelimitedStreamParser parser;
+        parser.setMaxBufferedBytes(8);
+        stream.setParser(&parser);
+
+        QSignalSpy overflow(&parser, &DelimitedStreamParser::bufferOverflow);
+        QSignalSpy reads(&parser, &DataStreamParser::read);
+
+        // No delimiter: once the record exceeds the configured limit, the
+        // partial record is discarded rather than retained without bound.
+        stream.feed(QByteArrayLiteral("0123456789"));
+        QCOMPARE(stream.bufferedBytes(), qint64(0));
+        QCOMPARE(reads.count(), 0);
+        QVERIFY(overflow.count() >= 1);
+
+        // While discarding an oversized record, further chunks remain bounded
+        // and are ignored until the next delimiter establishes a clean record
+        // boundary.
+        stream.feed(QByteArrayLiteral("abcdef"));
+        QCOMPARE(stream.bufferedBytes(), qint64(0));
+        QCOMPARE(reads.count(), 0);
+
+        stream.feed(QByteArrayLiteral("\nok\n"));
+        QCOMPARE(stream.bufferedBytes(), qint64(0));
+        QCOMPARE(reads.count(), 1);
+        QCOMPARE(reads.at(0).at(0).toString(), QStringLiteral("ok"));
+
+        // Ending during discard mode must not emit an oversized partial suffix
+        // as if it were a valid record.
+        stream.feed(QByteArrayLiteral("123456789"));
+        const int readsBeforeEnd = reads.count();
+        stream.end();
+        QCOMPARE(reads.count(), readsBeforeEnd);
+        QCOMPARE(stream.bufferedBytes(), qint64(0));
+    }
+
     void processFailedStartCompletesExactlyOnce()
     {
         QTemporaryDir temporary;
