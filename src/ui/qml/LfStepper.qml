@@ -12,14 +12,22 @@ Controls.Control {
 
     readonly property int stepCount: repeater.count
 
-    function activate(index) {
+    function valueAt(index) {
+        if (!model)
+            return undefined
+        if (typeof model.get === "function")
+            return model.get(index)
+        return model[index]
+    }
+
+    function activate(index, value) {
         if (!interactive || stepCount <= 0)
             return
         const target = Math.max(0, Math.min(stepCount - 1, index))
         if (target === currentIndex)
             return
         currentIndex = target
-        stepActivated(target, root.model[target])
+        stepActivated(target, value === undefined ? valueAt(target) : value)
     }
 
     leftPadding: 0
@@ -98,7 +106,7 @@ Controls.Control {
 
                 TapHandler {
                     enabled: root.interactive
-                    onTapped: root.activate(step.index)
+                    onTapped: root.activate(step.index, step.modelData)
                 }
             }
         }
