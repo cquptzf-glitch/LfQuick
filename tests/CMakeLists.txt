@@ -140,3 +140,11 @@ if(LFQUICK_ENABLE_HOT_RELOAD)
     target_link_libraries(tst_tooling PRIVATE LfQuick::Tooling Qt6::Test)
     lfquick_register_test(tst_tooling)
 endif()
+
+if(LFQUICK_BUILD_QRANGE_MODEL_ADAPTER)
+    qt_add_executable(tst_range_model_adapter
+        unit/tst_range_model_adapter.cpp
+    )
+    target_link_libraries(tst_range_model_adapter PRIVATE LfQuick::RangeModelAdapter Qt6::Test)
+    lfquick_register_test(tst_range_model_adapter)
+endif()
