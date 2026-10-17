@@ -163,6 +163,9 @@ public:
         destroyContent();
         if (window && m_state && m_state->windows.value(m_id) == window)
             m_state->windows.remove(m_id);
+        m_window = nullptr;
+        if (window)
+            window->deleteLater();
     }
 
     WindowInstanceId instanceId() const override { return m_id; }
@@ -476,7 +479,7 @@ QString QuickWindowProvider::id() const
 
 bool QuickWindowProvider::canCreate(const WindowDescriptor &descriptor) const
 {
-    const QUrl url = sourceUrl(descriptor);
+    const QUrl url = resolvedSource(descriptor);
     return m_engine
         && descriptor.provider == id()
         && url.isValid()
@@ -488,7 +491,7 @@ std::unique_ptr<IWindowInstance> QuickWindowProvider::create(
     const WindowOpenRequest &request)
 {
     clearLastError();
-    const QUrl url = sourceUrl(descriptor);
+    const QUrl url = resolvedSource(descriptor);
     if (!canCreate(descriptor)) {
         setLastError(QStringLiteral("quick-window.invalid-descriptor"),
                      QStringLiteral("Invalid Quick window descriptor or QQmlEngine"),
@@ -578,7 +581,7 @@ std::unique_ptr<IWindowInstance> QuickWindowProvider::createWithBacking(
         return {};
     }
 
-    const QUrl url = sourceUrl(descriptor);
+    const QUrl url = resolvedSource(descriptor);
     QString error;
     QQuickItem *content = createContent(m_engine, url, request.parameters, error);
     if (!content) {
@@ -611,6 +614,21 @@ std::unique_ptr<IWindowInstance> QuickWindowProvider::createWithBacking(
 void QuickWindowProvider::setErrorCollector(QmlErrorCollector *collector)
 {
     m_errorCollector = collector;
+}
+
+void QuickWindowProvider::setSourceResolver(SourceResolver resolver)
+{
+    m_sourceResolver = std::move(resolver);
+}
+
+QUrl QuickWindowProvider::resolvedSource(const WindowDescriptor &descriptor) const
+{
+    const QUrl logical = sourceUrl(descriptor);
+    if (!m_sourceResolver || logical.isEmpty())
+        return logical;
+
+    const QUrl resolved = m_sourceResolver(logical);
+    return resolved.isValid() && !resolved.isEmpty() ? resolved : logical;
 }
 
 void QuickWindowProvider::clearLastError()
