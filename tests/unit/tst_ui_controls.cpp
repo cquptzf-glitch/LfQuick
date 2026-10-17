@@ -1,3 +1,4 @@
+#include <QDebug>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQmlError>
